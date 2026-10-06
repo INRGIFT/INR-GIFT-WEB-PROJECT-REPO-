@@ -1,0 +1,80 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { StatusBadge, STATUS_LABEL } from '@/components/ui/data-status';
+import { Badge, EmptyState, PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
+import { GlossaryList } from '@/features/site/glossary';
+import { cn, dateShort } from '@/lib/format';
+import { assetHref, marketHref } from '@/lib/routes';
+import type { CalendarEvent, DataStatus } from '@/lib/types';
+import { GLOSSARY, LEARN } from '@/services/content';
+import * as md from '@/services/market-data';
+
+const TITLES: Record<string, [string, string]> = {
+  news: ['Market news', 'Headlines linked to the assets and markets they concern.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
+  calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
+};
+type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string }> };
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind } = await params; const t = TITLES[kind]; return t ? { title: t[0], description: t[1], alternates: { canonical: `/resources/${kind}` } } : { title: 'Not found' }; }
+
+const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
+const cell = 'num whitespace-nowrap border-b border-line px-4 py-2 text-right';
+const who = (e: CalendarEvent) => <td className="border-b border-line px-4 py-2">{e.assetSlug && e.assetCls ? <Link className="link font-semibold" href={assetHref({ cls: e.assetCls, slug: e.assetSlug })}>{e.title.replace(/ quarterly results| ex-dividend/, '')}</Link> : <span className="font-semibold">{e.title}</span>}</td>;
+function group(events: CalendarEvent[]) { const today = new Date().toISOString().slice(0, 10); const add = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10); return ([['Today', (d: string) => d === today], ['Tomorrow', (d: string) => d === add(1)], ['This week', (d: string) => d > add(1) && d <= add(7)], ['Next week', (d: string) => d > add(7) && d <= add(14)], ['Later', (d: string) => d > add(14)]] as const).map(([label, test]) => [label, events.filter((e) => test(e.date))] as const).filter(([, l]) => l.length); }
+const STATUS_HELP: [DataStatus, string, string][] = [['LIVE', 'Streaming or polled within seconds of the exchange.', 'Updated hh:mm IST'], ['DELAYED', 'Exchange-mandated delay, usually 15 minutes.', 'As of hh:mm IST'], ['END_OF_DAY', 'The session has ended; values are the official close.', 'Close, date and time in IST'], ['CLOSED', 'No session today, for example a market holiday.', 'Date of the last close'], ['UNAVAILABLE', 'The source has no value. The last available figure is shown, clearly labelled.', 'Last available timestamp'], ['STALE', 'A newer value is overdue, or the value came from the last-known-good cache after a provider failure.', 'Last updated timestamp'], ['ERROR', 'The request failed. Other modules on the page are unaffected.', 'A message and a retry']];
+
+export default async function ResourcePage({ params, searchParams }: Props) {
+  const { kind } = await params;
+  if (!TITLES[kind]) notFound();
+  const [title, lead] = TITLES[kind];
+  let body: ReactNode;
+  if (kind === 'news') {
+    const { category } = await searchParams;
+    const all = await md.getNews();
+    const cats = [...new Set(all.map((n) => n.category))];
+    const news = category ? all.filter((n) => n.category === category) : all;
+    body = (<>
+      <nav aria-label="Category" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-hover p-[3px]">{[['All', '/resources/news', !category] as const, ...cats.map((c) => [c, `/resources/news?category=${encodeURIComponent(c)}`, c === category] as const)].map(([l, h, on]) => <Link key={l} href={h} className={cn('rounded-lg px-2.5 py-1 text-[13px] font-medium', on ? 'bg-white shadow-card' : 'text-slate2 hover:text-navy')}>{l}</Link>)}</nav>
+      <Panel title={`${news.length} headlines`} flush>{news.length ? news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-3 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span><span className="mt-1 flex flex-wrap gap-1.5 text-xs text-faint">{n.assetSymbol && <Badge tone="brand">{n.assetSymbol}</Badge>}<Badge>{n.category}</Badge>{n.publisher} · {dateShort(n.publishedAt)}</span></Link>) : <EmptyState title="No headlines in this category" />}</Panel>
+    </>);
+  } else if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
+    const events = await md.getCalendar(kind === 'earnings' ? 'earnings' : kind === 'dividends' ? 'dividend' : 'ipo');
+    const markets = new Map((await md.getMarkets()).map((m) => [m.id, m]));
+    const mk = (e: CalendarEvent) => { const m = e.marketId ? markets.get(e.marketId) : null; return <td className={cell}>{m ? <Link className="link" href={marketHref(m.slug)}>{m.name}</Link> : '—'}</td>; };
+    body = kind === 'ipo' ? (['Upcoming', 'Priced', 'Listed'].map((stage) => { const l = events.filter((e) => e.extra?.stage === stage); return <Panel key={stage} title={stage} sub="Demo listings" flush>{l.length ? <Table head={['Company', 'Date', 'Market', 'Exchange', 'Sector']}>{l.map((e) => <tr key={e.id}>{who(e)}<td className={cell}>{dateShort(e.date)}</td>{mk(e)}<td className={cell}>{e.extra?.exchange}</td><td className={cell}>{e.extra?.sector}</td></tr>)}</Table> : <EmptyState title={`Nothing ${stage.toLowerCase()} right now`} />}</Panel>; }))
+      : group(events).map(([label, l]) => <Panel key={label} title={label} sub={`${l.length} ${kind === 'earnings' ? 'reports' : 'ex-dates'}`} flush>{kind === 'earnings'
+        ? <Table head={['Company', 'Date', 'Time', 'Market', 'EPS estimate', 'Previous EPS', 'Revenue estimate']}>{l.map((e) => <tr key={e.id}>{who(e)}<td className={cell}>{dateShort(e.date)}</td><td className={cell}>{e.detail}</td>{mk(e)}<td className={cell}>{e.extra?.epsEstimate} {e.extra?.currency}</td><td className={cell}>{e.extra?.previousEps}</td><td className={cell}>{e.extra?.revenueEstimate}</td></tr>)}</Table>
+        : <Table head={['Company', 'Ex-date', 'Record date', 'Pay date', 'Amount', 'Yield', 'Frequency']}>{l.map((e) => <tr key={e.id}>{who(e)}<td className={cell}>{dateShort(e.date)}</td><td className={cell}>{dateShort(e.extra!.recordDate)}</td><td className={cell}>{dateShort(e.extra!.payDate)}</td><td className={cell}>{e.extra?.amount} {e.extra?.currency}</td><td className={cell}>{e.extra?.yield}</td><td className={cell}>{e.extra?.frequency}</td></tr>)}</Table>}</Panel>);
+  } else if (kind === 'calendar') {
+    const events = await md.getCalendar();
+    const tone = { earnings: 'brand', dividend: 'up', ipo: 'warn', holiday: 'neutral', macro: 'down' } as const;
+    body = group(events.filter((e) => e.date >= new Date().toISOString().slice(0, 10))).map(([label, l]) => <Panel key={label} title={label} sub={`${l.length} events`} flush>{l.map((e) => <div key={e.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0"><span className="num w-[86px] shrink-0 text-xs font-semibold text-slate2">{dateShort(e.date)}</span><Badge tone={tone[e.kind]} className="w-[68px] justify-center">{e.kind}</Badge><span className="min-w-0 flex-1">{e.assetSlug && e.assetCls ? <Link className="font-medium hover:text-brand-ink" href={assetHref({ cls: e.assetCls, slug: e.assetSlug })}>{e.title}</Link> : <span className="font-medium">{e.title}</span>}<span className="block truncate text-xs text-faint">{e.detail}</span></span></div>)}</Panel>);
+  } else if (kind === 'learn') {
+    const sections = [...new Set(LEARN.map((l) => l.section))];
+    body = sections.map((s) => <section key={s}><h2 className="mb-3 text-lg font-bold">{s}</h2><div className="grid gap-3 lg:grid-cols-2">{LEARN.filter((l) => l.section === s).map((l) => <article key={l.slug} id={l.slug} className="prose-doc rounded-card border border-line bg-white p-5"><h3 className="text-base font-bold">{l.title}</h3><p className="!mb-2 !text-sm font-medium !text-navy">{l.summary}</p>{l.body.map((p, i) => <p key={i} className="!text-sm">{p}</p>)}</article>)}</div></section>);
+  } else if (kind === 'glossary') {
+    body = <GlossaryList terms={GLOSSARY} />;
+  } else {
+    const markets = await md.getMarkets();
+    body = (<>
+      <Panel title="Data status" flush footer="Every market-data module carries one of these, with an exact timestamp. Hover or focus a status to see its source."><Table head={['Status', 'Meaning', 'What you see']}>{STATUS_HELP.map(([s, m, w]) => <tr key={s}><td className="border-b border-line px-4 py-2.5"><StatusBadge status={s} /><span className="sr-only">{STATUS_LABEL[s]}</span></td><td className="border-b border-line px-4 py-2.5 text-right text-slate2 sm:text-left">{m}</td><td className="border-b border-line px-4 py-2.5 text-right text-slate2">{w}</td></tr>)}</Table></Panel>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <article className="prose-doc rounded-card border border-line bg-white px-5 py-4">
+          <h2 className="!mt-0">Current data source</h2><p>This environment runs on <b>{markets[0].meta.source}</b>. Demo values are realistic in shape and scale and do not reflect current market prices. A “Demo data” label appears in the header while the demo provider is active.</p>
+          <h2>Architecture</h2><p>The interface reads normalized assets and markets from the INRGIFT API. Behind the API, a data service calls a provider through one interface, with a fallback chain of primary, secondary and last-known-good. No screen depends on a vendor’s field names.</p>
+          <h2>Identity</h2><p>Every instrument has an immutable internal identifier. Tickers belong to listings, so a company listed on two exchanges, or as a depositary receipt, is linked through one issuer.</p>
+          <h2>Quality checks</h2><p>Price series are checked for consistent open, high, low and close values, non-negative volume, valid and ordered timestamps, duplicates and unadjusted jumps. Rows that fail are quarantined and never shown.</p>
+        </article>
+        <article className="prose-doc rounded-card border border-line bg-white px-5 py-4">
+          <h2 className="!mt-0">Unavailable and not applicable</h2><p>A dash means the source has no value for a metric. “n/a” means the metric does not apply to that asset class. INRGIFT does not substitute zeros.</p>
+          <h2>Market hours</h2><p>Session status comes from each exchange’s own calendar: time zone, regular hours, breaks, holidays and early closes. Hours are converted to IST for display.</p>
+          <h2>India context</h2><p>INR values use a reference rate per currency and are approximate. Market cap can be shown in lakh crore.</p>
+          <h2>Research</h2><p>Research notes describe data. They contain no buy or sell ratings and no price targets, and are not investment advice.</p>
+        </article>
+      </div>
+      <Panel title="Coverage" sub={`${markets.length} markets`} flush><Table head={['Market', 'Exchanges (MIC)', 'Time zone', 'Entitlement', 'Status now']}>{markets.map((m) => <tr key={m.id}><td className="border-b border-line px-4 py-2"><Link className="link font-semibold" href={marketHref(m.slug)}>{m.name}</Link></td><td className={cell}>{m.exchanges.map((e) => e.mic).join(' · ')}</td><td className={cell}>{m.exchanges[0].timezone}</td><td className={cell}>{m.feed === 'LIVE' ? 'Real time' : '15 min delayed'}</td><td className={cell}><StatusBadge status={m.dataStatus} /></td></tr>)}</Table></Panel>
+    </>);
+  }
+  return (<PageContainer><PageHeader crumbs={[['Resources', '/resources/news'], [title]]} title={title} lead={lead} />{body}</PageContainer>);
+}

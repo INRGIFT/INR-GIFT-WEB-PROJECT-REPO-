@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>INRGIFT — Global market intelligence from India (prototype)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
+<style>
+:root{
+  --blue:#245BFE;--blue-ink:#1B46C9;--blue-soft:#EAF0FF;--navy:#071A33;--bg:#F7F9FC;--surface:#FFFFFF;--s2:#EEF2F7;
+  --line:#E5EAF1;--line2:#D7DEE8;--text:#071A33;--muted:#4A5770;--faint:#6F7C93;--up:#0B7F56;--down:#C2352B;--warn:#9A6408;
+  --saffron:#E8862A;--r:12px;--r-sm:8px;--side:248px;--side-c:64px;--hdr:64px;--ctl:36px;
+  --fh:"Manrope","Inter",system-ui,sans-serif;--fb:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sh:0 1px 2px rgba(7,26,51,.05);
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --blue:#6A90FF;--blue-ink:#8FAcFF;--blue-soft:#14284D;--bg:#07111F;--surface:#0C1A2D;--s2:#12233A;--line:#1B2E48;--line2:#2A4163;
+  --text:#EAF0FA;--muted:#A9B6CB;--faint:#8492AA;--up:#3CCB93;--down:#F27F74;--warn:#E0B050;--sh:none}}
+:root[data-theme="dark"]{
+  --blue:#6A90FF;--blue-ink:#8FACFF;--blue-soft:#14284D;--bg:#07111F;--surface:#0C1A2D;--s2:#12233A;--line:#1B2E48;--line2:#2A4163;
+  --text:#EAF0FA;--muted:#A9B6CB;--faint:#8492AA;--up:#3CCB93;--down:#F27F74;--warn:#E0B050;--sh:none}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(var(--hdr) + 40px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--fb);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--fh);margin:0;letter-spacing:-.01em;line-height:1.2}
+h1{font-size:32px;font-weight:800}h2{font-size:18px;font-weight:700}h3{font-size:15px;font-weight:700}
+p{margin:0}a{color:var(--blue-ink);text-decoration:none}a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)}.down{color:var(--down)}.mut{color:var(--muted)}.faint{color:var(--faint)}.sm{font-size:12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+svg.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* demo strip */
+.demo{background:var(--navy);color:#C9D5EA;font-size:12px;display:flex;gap:12px;align-items:center;padding:6px 20px;flex-wrap:wrap}
+.demo b{color:#fff;font-weight:600}.demo select{background:#0F2747;color:#fff;border:1px solid #284063;border-radius:6px;padding:2px 6px;font-size:12px}
+.demo .sp{flex:1}
+
+/* header */
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 20px}
+.logo{display:flex;align-items:center;gap:9px;font:800 18px var(--fh);color:var(--text);letter-spacing:.01em;margin-right:14px}
+.logo:hover{text-decoration:none}
+.logo i{width:26px;height:26px;border-radius:7px;background:var(--blue);position:relative;display:block}
+.logo i::before{content:"";position:absolute;inset:6px;border:2px solid #fff;border-radius:50%}
+.logo i::after{content:"";position:absolute;left:12px;top:4px;bottom:4px;width:2px;background:#fff}
+.nav{display:flex;gap:2px}
+.nav>a,.nav summary{padding:8px 11px;border-radius:8px;color:var(--muted);font-weight:500;cursor:pointer;list-style:none;display:block}
+.nav summary::-webkit-details-marker{display:none}
+.nav>a:hover,.nav summary:hover{background:var(--s2);color:var(--text);text-decoration:none}
+.nav .on{color:var(--blue-ink);background:var(--blue-soft)}
+details.dd{position:relative}
+.menu{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);box-shadow:0 12px 32px rgba(7,26,51,.14);padding:6px;z-index:40}
+.menu.rt{left:auto;right:0}
+.menu a,.menu button{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;color:var(--text);background:none;border:0;cursor:pointer}
+.menu a:hover,.menu button:hover{background:var(--s2);text-decoration:none}.menu small{display:block;color:var(--faint)}
+.srch{flex:1;max-width:440px;margin:0 auto;height:var(--ctl);display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);color:var(--faint);cursor:pointer;min-width:0}
+.srch span{flex:1;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.srch:hover{border-color:var(--blue)}
+kbd{font:500 11px var(--fb);border:1px solid var(--line2);border-radius:5px;padding:1px 5px;background:var(--surface);color:var(--muted)}
+.hr{display:flex;align-items:center;gap:6px}
+.ib{height:var(--ctl);min-width:var(--ctl);display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:9px;background:none;cursor:pointer;color:var(--muted);padding:0 8px;position:relative;list-style:none}
+.ib::-webkit-details-marker{display:none}.ib:hover{background:var(--s2);color:var(--text);text-decoration:none}
+.dot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--blue);border:2px solid var(--surface)}
+.av{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font:700 12px var(--fh);display:grid;place-items:center}
+select.sel,input.inp,textarea.inp{height:var(--ctl);border:1px solid var(--line2);border-radius:9px;background:var(--surface);padding:0 10px;max-width:100%}
+textarea.inp{height:auto;padding:8px 10px;width:100%}input.inp:focus,select.sel:focus{border-color:var(--blue)}
+
+/* shell */
+.shell{display:flex;min-height:calc(100vh - var(--hdr))}
+.side{width:var(--side);flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:calc(var(--hdr) + env(safe-area-inset-top,0px));height:calc(100vh - var(--hdr));display:flex;flex-direction:column;padding:12px 10px;overflow:auto;transition:width .18s ease}
+.side.c{width:var(--side-c)}
+.side h4{font:600 11px var(--fb);color:var(--faint);margin:14px 10px 6px;letter-spacing:.02em}
+.side.c h4{visibility:hidden;height:1px;margin:8px 0}
+.side a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;color:var(--muted);font-weight:500;white-space:nowrap}
+.side a:hover{background:var(--s2);color:var(--text);text-decoration:none}
+.side a.on{background:var(--blue-soft);color:var(--blue-ink)}
+.side a em{margin-left:auto;font-style:normal;font-size:11px;background:var(--s2);border-radius:20px;padding:1px 7px;color:var(--muted)}
+.side a.on em{background:var(--surface)}.side a em.unread{background:var(--blue);color:#fff}
+.side.c a span,.side.c a em,.side.c .who div{display:none}.side.c a{justify-content:center}
+.side .bot{margin-top:auto;border-top:1px solid var(--line);padding-top:8px}
+.who{display:flex;gap:10px;align-items:center;padding:8px 10px}
+.main{flex:1;min-width:0;padding:22px 24px 80px}
+.wrap{max-width:1320px;margin:0 auto}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.ph p{color:var(--muted);margin-top:4px;max-width:70ch}
+.crumbs{font-size:12px;color:var(--faint);margin-bottom:8px}.crumbs a{color:var(--muted)}
+
+/* primitives */
+.grid{display:grid;gap:16px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g21{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}.g13{grid-template-columns:300px minmax(0,1fr)}
+.stack>*+*{margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);min-width:0}
+.mh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mh h2{font-size:15px}.mh .sp{flex:1}.mb{padding:14px 16px}.mb.flush{padding:0}
+.mf{padding:8px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--faint);display:flex;gap:12px;flex-wrap:wrap}
+.btn{height:var(--ctl);display:inline-flex;align-items:center;gap:7px;padding:0 13px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue);text-decoration:none}.btn.p{background:var(--blue);border-color:var(--blue);color:#fff}
+:root .btn.p{color:#fff}.btn.p:hover{filter:brightness(1.07)}
+.btn.s{height:28px;padding:0 9px;font-size:12px;border-radius:7px}.btn.on{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-ink)}
+.btn.g{border-color:transparent;background:none;color:var(--muted)}.btn.g:hover{background:var(--s2)}
+.seg{display:inline-flex;background:var(--s2);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:4px 10px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:500;font-size:13px}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:var(--sh);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:8px;padding:5px 10px;background:var(--surface);cursor:pointer;font-weight:500}
+.chip:hover{border-color:var(--blue);text-decoration:none}.chip.on{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;background:var(--s2);color:var(--muted);white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.st-LIVE{color:var(--up);background:color-mix(in srgb,var(--up) 12%,transparent)}
+.st-DELAYED{color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,transparent)}.st-DELAYED::before{border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.st-EOD{color:var(--blue-ink);background:var(--blue-soft)}.st-EOD::before{border-radius:1px}
+.st-CLOSED::before{background:none;border:1.5px solid currentColor}
+.st-UNAVAILABLE::before{background:none;border:1.5px dashed currentColor}
+.st-ERROR{color:var(--down);background:color-mix(in srgb,var(--down) 12%,transparent)}.st-ERROR::before{border-radius:0;transform:rotate(45deg)}
+.st-LOADING::before{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.sk{background:linear-gradient(90deg,var(--s2),var(--line),var(--s2));background-size:200% 100%;animation:sh 1.2s linear infinite;border-radius:6px;height:14px;margin:10px 0}
+@keyframes sh{to{background-position:-200% 0}}
+.state{padding:28px 16px;text-align:center;color:var(--muted)}.state b{display:block;color:var(--text);font:700 15px var(--fh);margin-bottom:4px}.state .btn{margin-top:12px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1px;background:var(--line);border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line)}
+.kv div{background:var(--surface);padding:10px 12px}.kv dt,.kv small{display:block;font-size:12px;color:var(--faint)}.kv b{font-size:15px;font-variant-numeric:tabular-nums}
+
+/* tables */
+.tw{overflow-x:auto;max-width:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{position:sticky;top:0;background:var(--surface);text-align:right;font-weight:600;color:var(--faint);font-size:12px;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.t th button{all:unset;cursor:pointer;color:inherit}.t th button:hover{color:var(--text)}.t th button:focus-visible{outline:2px solid var(--blue)}
+.t td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t th:first-child,.t td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1}
+.t tbody tr:hover td{background:var(--bg)}.t tr:last-child td{border-bottom:0}
+.t td.l,.t th.l{text-align:left}
+.as{display:flex;align-items:center;gap:10px;color:var(--text);min-width:150px}.as:hover{text-decoration:none}.as:hover b{color:var(--blue-ink)}
+.as .tk{width:34px;height:34px;border-radius:8px;background:var(--s2);display:grid;place-items:center;font:700 10px var(--fh);color:var(--muted);flex:none;overflow:hidden}
+.as b{display:block;font-weight:600;max-width:190px;overflow:hidden;text-overflow:ellipsis}.as small{color:var(--faint);font-size:11px}
+.ra{display:inline-flex;gap:2px}.ra button,.ra a{width:28px;height:28px;border:0;background:none;border-radius:7px;cursor:pointer;color:var(--faint);display:grid;place-items:center}
+.ra button:hover,.ra a:hover{background:var(--s2);color:var(--blue-ink)}.ra .on{color:var(--blue)}.ra .on svg{fill:currentColor}
+.best{background:var(--blue-soft)!important;font-weight:600}
+
+/* home */
+.hero{padding:26px 0 18px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:end}
+.hero h1{font-size:40px;line-height:1.1}.hero p{color:var(--muted);font-size:16px;margin-top:8px}
+.bigs{margin-top:16px;height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;border:1.5px solid var(--line2);border-radius:12px;background:var(--surface);color:var(--faint);cursor:pointer;width:100%;font-size:15px;text-align:left}
+.bigs:hover{border-color:var(--blue)}.bigs span{flex:1}
+.regions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.regions a{background:var(--surface);padding:10px 14px;color:var(--text)}.regions a:hover{background:var(--bg);text-decoration:none}
+.regions b{display:block;font-weight:600}
+.strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.ix{flex:0 0 190px;scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;color:var(--text);display:block}
+.ix:hover{border-color:var(--blue);text-decoration:none}.ix .v{font:700 17px var(--fh);font-variant-numeric:tabular-nums}
+.ix .row{display:flex;justify-content:space-between;align-items:center;gap:6px}.ix svg{width:100%;height:30px;margin:4px 0}
+/* session rail */
+.rail{display:grid;grid-template-columns:150px 1fr 96px;gap:4px 12px;align-items:center;font-size:12px}
+.rail .tr{position:relative;height:14px;background:var(--s2);border-radius:4px}
+.rail .tr i{position:absolute;top:0;bottom:0;background:var(--line2);border-radius:4px}.rail .tr i.o{background:var(--blue)}
+.rail .tr u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--saffron)}
+.rail .ax{position:relative;height:16px;color:var(--faint);font-size:11px}.rail .ax span{position:absolute;transform:translateX(-50%)}
+/* heatmap */
+.hm{position:relative;width:100%;aspect-ratio:2/1;background:var(--s2);border-radius:var(--r-sm);overflow:hidden}
+.hm.cmp{aspect-ratio:2.6/1}
+.hg{position:absolute;border:2px solid var(--surface);overflow:hidden}
+.hg>button{position:absolute;top:0;left:0;right:0;height:20px;border:0;background:var(--navy);color:#fff;font:600 11px var(--fb);text-align:left;padding:0 6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hg>button:hover{background:var(--blue)}.hg>div{position:absolute;top:20px;left:0;right:0;bottom:0}
+.ht{position:absolute;border:1px solid var(--surface);color:#fff;padding:3px 5px;font-size:11px;line-height:1.25;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit}
+.ht:hover,.ht.sel{outline:2px solid var(--text);outline-offset:-2px;z-index:2}.ht b{display:block;font:700 12px var(--fh)}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--faint)}.legend i{width:26px;height:10px;display:block;border-radius:2px}
+/* bars */
+.br{display:grid;grid-template-columns:150px 1fr 64px;gap:10px;align-items:center;padding:5px 0;font-size:13px}
+.br .b{height:10px;background:var(--s2);border-radius:3px;position:relative}.br .b i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--blue)}
+.br .b.dv::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line2)}
+.tile{display:block;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;color:var(--text)}
+.tile:hover{border-color:var(--blue);text-decoration:none}.tile small{color:var(--faint);display:block;margin-top:2px}
+.rc{display:block;padding:12px 16px;border-bottom:1px solid var(--line);color:var(--text)}.rc:last-child{border-bottom:0}.rc:hover{background:var(--bg);text-decoration:none}
+.rc b{display:block;font-weight:600}.rc small{color:var(--faint)}
+.tag{display:inline-block;font-size:11px;background:var(--s2);color:var(--muted);border-radius:5px;padding:1px 6px;margin-right:4px}
+/* chart */
+.cbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
+.cro{font-size:12px;color:var(--muted);padding:8px 16px 0;min-height:26px;font-variant-numeric:tabular-nums}
+.chart svg{display:block;width:100%;height:auto;cursor:crosshair}.chart text{font:11px var(--fb);fill:var(--faint)}
+.fs{position:fixed;inset:0;z-index:60;border-radius:0;overflow:auto}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;padding:0 8px}
+.tabs button{border:0;background:none;padding:11px 12px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--blue-ink);border-color:var(--blue);font-weight:600}
+.px{font:800 34px var(--fh);font-variant-numeric:tabular-nums;line-height:1}
+.prose p{max-width:72ch;color:var(--muted);margin-bottom:10px}.prose h3{margin:14px 0 4px}
+.india{border-left:3px solid var(--saffron);background:var(--surface);border-radius:0 var(--r) var(--r) 0;padding:12px 16px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+/* screener */
+.grp{border:1px solid var(--line2);border-radius:10px;padding:10px;background:var(--bg)}.grp .grp{background:var(--surface);margin-top:8px}
+.grph{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.rule{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.rule select,.rule input{height:32px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);padding:0 8px}.rule input{width:90px}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(7,26,51,.45);z-index:80;display:flex;justify-content:center;align-items:flex-start;padding:9vh 16px 16px}
+.pal{width:min(640px,100%);background:var(--surface);border-radius:14px;border:1px solid var(--line2);box-shadow:0 24px 64px rgba(7,26,51,.3);overflow:hidden;max-height:78vh;display:flex;flex-direction:column}
+.pal input{width:100%;border:0;border-bottom:1px solid var(--line);height:54px;padding:0 18px;font-size:16px;background:none;outline:none}
+.pal .res{overflow:auto;padding:6px}.pal h5{margin:8px 10px 4px;font:600 11px var(--fb);color:var(--faint)}
+.pal a{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;color:var(--text)}.pal a.act,.pal a:hover{background:var(--blue-soft);text-decoration:none}
+.pal a small{color:var(--faint);margin-left:auto;white-space:nowrap}
+.modal{width:min(440px,100%);background:var(--surface);border-radius:14px;border:1px solid var(--line2);padding:20px;margin-top:6vh}
+.modal label,.form label{display:block;font-weight:600;font-size:13px;margin:12px 0 5px}.modal .inp,.modal .sel,.form .inp,.form .sel{width:100%}
+.err{color:var(--down);font-size:12px;margin-top:4px}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#fff;padding:9px 16px;border-radius:10px;z-index:90;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+#toast.s{opacity:1}
+/* auth */
+.auth{min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.auth .l{background:var(--navy);color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:space-between}
+.auth .l h1{font-size:38px;color:#fff;max-width:14ch}.auth .l p{color:#B8C6DD;margin-top:10px;font-size:16px}
+.auth .l .logo{color:#fff}.auth .l .rail{color:#B8C6DD}.auth .l .rail .tr{background:#0F2747}.auth .l .rail .tr i{background:#284063}.auth .l .rail .tr i.o{background:#6A90FF}
+.auth .r{display:grid;place-items:center;padding:32px 20px}.auth .form{width:min(400px,100%)}
+.steps{display:flex;gap:6px;margin:14px 0 6px;padding:0;list-style:none;font-size:12px;color:var(--faint)}
+.steps li{flex:1;border-top:3px solid var(--line2);padding-top:6px}.steps li.on{border-color:var(--blue);color:var(--text);font-weight:600}.steps li.dn{border-color:var(--up)}
+footer.ft{margin-top:40px;border-top:1px solid var(--line);padding-top:20px;display:grid;grid-template-columns:2fr repeat(3,1fr);gap:20px;font-size:13px;color:var(--muted)}
+footer.ft a{display:block;color:var(--muted);padding:2px 0}footer.ft b{color:var(--text);display:block;margin-bottom:4px}
+.bnav{display:none}
+@media (max-width:1180px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.g13{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.nav{display:none}.side:not(.open){width:var(--side-c)}.side:not(.open) h4{visibility:hidden;height:1px;margin:8px 0}.side:not(.open) a span,.side:not(.open) a em,.side:not(.open) .who div{display:none}.side:not(.open) a{justify-content:center}}
+@media (max-width:760px){
+  h1{font-size:24px}.hero h1{font-size:28px}.main{padding:14px 12px 96px}.hdr{padding:0 12px}.logo span,.hide-m{display:none}
+  .g2,.g3,.g21{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.regions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .side,.side:not(.open){display:none}.side.open{display:flex;position:fixed;top:0;left:0;bottom:0;height:auto;width:var(--side);z-index:70;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .bnav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .bnav a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;font-size:11px;color:var(--muted)}.bnav a.on{color:var(--blue-ink)}
+  .hm,.hm.cmp{aspect-ratio:1/1.1}.rail{grid-template-columns:92px 1fr}.rail>.st{display:none}.br{grid-template-columns:110px 1fr 58px}
+  .auth{grid-template-columns:1fr}.auth .l{padding:24px}.auth .l .rail{display:none}.auth .l h1{font-size:26px}footer.ft{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="ov"></div><div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* ============ INRGIFT 2.0 prototype — demo/static data, shaped like the normalized API ============ */
+const NOW={ist:'19:42',date:'06 Oct 2026',h:19.7,utcMin:14*60+12};
+const FX={USD:88.4,EUR:103.9,GBP:118.7,JPY:.592,HKD:11.35,TWD:2.86,KRW:.064,SGD:68.5,AUD:58.2,BRL:16.3,SAR:23.57,AED:24.07,CAD:64.1,ZAR:5.02,CHF:110.4,CNY:12.4,INR:1};
+const SYM={USD:'$',EUR:'€',GBP:'£',JPY:'¥',INR:'₹'};
+// Normalized Market: [marketId,name,region,exchanges,currency,utcOffset,openIST,closeIST,sessionStatus,dataStatus]
+const MK=[
+['us','United States','Americas','NYSE · NASDAQ · NYSE Arca','USD',-4,19,1.5,'Open','LIVE'],
+['ca','Canada','Americas','TSX','CAD',-4,19,1.5,'Open','DELAYED'],
+['br','Brazil','Americas','B3','BRL',-3,18.5,1.5,'Open','DELAYED'],
+['uk','United Kingdom','Europe','LSE','GBP',1,12.5,21,'Open','DELAYED'],
+['de','Germany','Europe','Xetra · Frankfurt','EUR',2,12.5,21,'Open','LIVE'],
+['fr','France','Europe','Euronext Paris','EUR',2,12.5,21,'Open','DELAYED'],
+['ch','Switzerland','Europe','SIX Swiss Exchange','CHF',2,12.5,21,'Open','DELAYED'],
+['nl','Netherlands','Europe','Euronext Amsterdam','EUR',2,12.5,21,'Open','DELAYED'],
+['jp','Japan','Asia-Pacific','Tokyo Stock Exchange','JPY',9,5.5,12,'Closed','EOD'],
+['hk','Hong Kong','Asia-Pacific','HKEX','HKD',8,7,13.5,'Closed','EOD'],
+['cn','China','Asia-Pacific','SSE · SZSE','CNY',8,7,12.5,'Holiday','CLOSED'],
+['tw','Taiwan','Asia-Pacific','TWSE','TWD',8,6.5,11,'Closed','EOD'],
+['kr','South Korea','Asia-Pacific','KRX','KRW',9,5.5,12,'Closed','EOD'],
+['sg','Singapore','Asia-Pacific','SGX','SGD',8,6.5,14.5,'Closed','EOD'],
+['au','Australia','Asia-Pacific','ASX','AUD',11,4.5,10.5,'Closed','EOD'],
+['in','India','India','NSE · BSE · NSE IX (GIFT City)','INR',5.5,9.25,15.5,'Closed','EOD'],
+['ae','United Arab Emirates','Middle East & Africa','DFM · ADX','AED',4,11.5,16.5,'Closed','EOD'],
+['sa','Saudi Arabia','Middle East & Africa','Tadawul','SAR',3,12.5,17.5,'Closed','UNAVAILABLE'],
+['za','South Africa','Middle East & Africa','JSE','ZAR',2,12.5,20.5,'Open','DELAYED']
+].map(m=>({id:m[0],name:m[1],region:m[2],ex:m[3],ccy:m[4],off:m[5],o:m[6],c:m[7],ses:m[8],ds:m[9]}));
+const M=Object.fromEntries(MK.map(m=>[m.id,m]));
+const REGIONS=['Americas','Europe','Asia-Pacific','Middle East & Africa','India'];
+const IDX=[['S&P 500','us',6712.4,.42],['NASDAQ Composite','us',22480.6,.71],['Dow Jones','us',46210.3,.12],['S&P/TSX','ca',29840.2,-.18],['Bovespa','br',143220,.56],['FTSE 100','uk',9412.8,-.24],['DAX','de',24105.5,.33],['CAC 40','fr',7988.1,-.41],['SMI','ch',12340.7,.08],['AEX','nl',948.3,.62],['Nikkei 225','jp',45620.9,1.12],['Hang Seng','hk',26480.4,-.86],['SSE Composite','cn',3862.5,0],['TAIEX','tw',26210.7,.94],['KOSPI','kr',3498.2,.48],['Straits Times','sg',4388.6,.15],['S&P/ASX 200','au',8902.4,-.32],['NIFTY 50','in',25184.6,.28],['SENSEX','in',82210.4,.31],['DFM General','ae',5924.1,.44],['TASI','sa',11482.3,-.2],['JSE Top 40','za',98740.5,.67]].map(i=>({name:i[0],mk:i[1],v:i[2],d1:i[3]}));
+const ST=[
+['NVDA','NVIDIA','us','Technology','Semiconductors',182.4,4450,48.2,33.1,62,78,.03,1.72],
+['AAPL','Apple','us','Technology','Consumer Electronics',254.1,3780,33.4,30.2,6,55,.42,1.18],
+['MSFT','Microsoft','us','Technology','Software',512.75,3810,36.1,31.4,15,29,.68,.94],
+['AMZN','Amazon','us','Consumer Discretionary','Internet Retail',228.6,2430,34.8,28.9,11,14,0,1.24],
+['GOOGL','Alphabet','us','Communication Services','Internet Services',246.3,2980,25.6,22.7,13,31,.34,1.05],
+['META','Meta Platforms','us','Communication Services','Internet Services',715.2,1800,26.9,24.1,19,33,.29,1.22],
+['JPM','JPMorgan Chase','us','Financials','Banks',308.4,850,15.2,14.6,5,16,1.9,1.08],
+['XOM','Exxon Mobil','us','Energy','Integrated Oil & Gas',113.8,490,15.8,14.1,-3,11,3.5,.62],
+['LLY','Eli Lilly','us','Healthcare','Pharmaceuticals',742.5,705,41,29.5,38,36,.8,.48],
+['TSLA','Tesla','us','Consumer Discretionary','Automobiles',428.9,1380,210,140,2,8,0,2.05],
+['SHOP','Shopify','ca','Technology','Software',212.4,198,88,70,27,12,0,1.9],
+['PETR4','Petrobras','br','Energy','Integrated Oil & Gas',31.85,78,5.1,4.8,-4,15,11.2,.9],
+['AZN','AstraZeneca','uk','Healthcare','Pharmaceuticals',112.4,232,29,18.5,12,13,2.1,.42],
+['SHEL','Shell','uk','Energy','Integrated Oil & Gas',27.15,215,11.2,9.8,-6,10,3.9,.7],
+['HSBA','HSBC Holdings','uk','Financials','Banks',10.42,250,9.6,9.1,3,13,5.1,.85],
+['SAP','SAP','de','Technology','Software',232.5,312,44,34,9,17,1,.98],
+['SIE','Siemens','de','Industrials','Conglomerates',238.9,205,22,19,5,13,2.2,1.1],
+['MC','LVMH','fr','Consumer Discretionary','Luxury Goods',548.2,318,23,21,-2,15,2.4,1.15],
+['NESN','Nestlé','ch','Consumer Staples','Packaged Foods',78.3,232,18,17,1,14,3.9,.45],
+['ASML','ASML Holding','nl','Technology','Semiconductor Equipment',842,372,36,29,16,44,.8,1.3],
+['7203','Toyota Motor','jp','Consumer Discretionary','Automobiles',2915,298,9.4,9.9,4,9,3.1,.8],
+['6758','Sony Group','jp','Technology','Consumer Electronics',4210,172,21,19,3,11,.5,1],
+['0700','Tencent Holdings','hk','Communication Services','Internet Services',648,760,24,20,12,19,.7,.95],
+['2330','TSMC','tw','Technology','Semiconductors',1385,1180,27,22,34,32,1.4,1.2],
+['005930','Samsung Electronics','kr','Technology','Semiconductors',89400,415,17,12,14,9,1.6,1.1],
+['D05','DBS Group','sg','Financials','Banks',52.6,115,12.9,12.6,4,17,4.6,.8],
+['BHP','BHP Group','au','Materials','Mining',41.9,140,13,12.5,-2,20,4.4,.9],
+['RELIANCE','Reliance Industries','in','Energy','Conglomerates',1418,217,24,21,8,9,.4,1.05],
+['TCS','Tata Consultancy Services','in','Technology','IT Services',3015,123,22,20.5,5,52,2,.7],
+['HDFCBANK','HDFC Bank','in','Financials','Banks',978,170,20.4,17.9,9,15,1.1,.9],
+['INFY','Infosys','in','Technology','IT Services',1492,70,22.6,21,5,31,2.9,.75],
+['EMAAR','Emaar Properties','ae','Real Estate','Developers',13.9,33,8.7,8.1,22,16,7.2,.9],
+['2222','Saudi Aramco','sa','Energy','Integrated Oil & Gas',24.6,1590,16,15,-5,20,5.4,.4],
+['NPN','Naspers','za','Communication Services','Internet Services',6120,60,14,12,10,8,.3,1.2]];
+const ETF=[
+['SPY','SPDR S&P 500 ETF Trust','Broad market','S&P 500',672.4,690,.0945,1.1,503,'State Street',{NVDA:8.1,MSFT:6.9,AAPL:6.6,AMZN:4,META:3.1,GOOGL:2.6,TSLA:2.2,JPM:1.5,LLY:1.2,XOM:.9}],
+['VOO','Vanguard S&P 500 ETF','Broad market','S&P 500',618.1,780,.03,1.15,505,'Vanguard',{NVDA:8.1,MSFT:6.9,AAPL:6.6,AMZN:4,META:3.1,GOOGL:2.6,TSLA:2.2,JPM:1.5,LLY:1.2,XOM:.9}],
+['QQQ','Invesco QQQ Trust','Large-cap growth','NASDAQ-100',604.3,385,.2,.5,101,'Invesco',{NVDA:10,MSFT:8.6,AAPL:8.1,AMZN:5.6,META:3.9,GOOGL:3.2,TSLA:3.1}],
+['GLD','SPDR Gold Shares','Commodity','LBMA Gold Price PM',362.8,128,.4,0,1,'State Street',{}],
+['VWO','Vanguard FTSE Emerging Markets ETF','Emerging markets','FTSE Emerging Markets All Cap',54.6,102,.07,2.6,5900,'Vanguard',{'2330':10.2,'0700':4.6,RELIANCE:1.4,HDFCBANK:1.3,INFY:.8,NPN:.5}],
+['SCHD','Schwab US Dividend Equity ETF','Dividend','Dow Jones US Dividend 100',27.4,72,.06,3.7,103,'Charles Schwab',{XOM:4.1}],
+['SOXX','iShares Semiconductor ETF','Thematic','NYSE Semiconductor',298.5,16,.34,.6,30,'BlackRock',{NVDA:9.2,'2330':4.3,ASML:4}],
+['INDA','iShares MSCI India ETF','International','MSCI India',53.2,9.4,.62,.7,160,'BlackRock',{HDFCBANK:8.1,RELIANCE:6.4,INFY:4,TCS:2.6}]];
+const hash=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0};
+const rng=seed=>{let a=hash(seed);return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}};
+function enrich(a){const r=rng(a.t),s=(lo,hi)=>+(lo+(hi-lo)*r()).toFixed(2);const k=a.beta||1;
+  Object.assign(a,{d1:s(-2.6,2.9)*Math.min(k,1.6),w1:s(-5,6),m1:s(-9,11),m3:s(-12,18),m6:s(-15,28),ytd:s(-18,42),y1:s(-22,58),y3:s(-10,140),y5:s(5,260),volat:+(12+k*14+r()*8).toFixed(1),rsi:Math.round(28+r()*48),turn:.002+r()*.006,pb:s(1.2,14),ev:s(6,32),dd:-s(8,38)});
+  a.d1=+a.d1.toFixed(2);const m=M[a.mk];a.ccy=m.ccy;a.region=m.region;a.country=m.name;a.vol=a.mcap*a.turn*1e9/(a.price*FX[a.ccy]/FX.USD);if(m.ses==='Holiday')a.d1=0;return a}
+const A=[...ST.map(s=>enrich({t:s[0],name:s[1],type:'stock',mk:s[2],sector:s[3],industry:s[4],price:s[5],mcap:s[6],pe:s[7],fpe:s[8],revG:s[9],roic:s[10],dy:s[11],beta:s[12]})),
+  ...ETF.map(e=>enrich({t:e[0],name:e[1],type:'etf',mk:'us',sector:'ETFs',industry:e[2],strategy:e[2],bench:e[3],price:e[4],mcap:e[5],er:e[6],dy:e[7],nh:e[8],issuer:e[9],hold:e[10],beta:e[0]==='GLD'?.2:e[0]==='SOXX'?1.5:1}))];
+const AS=Object.fromEntries(A.map(a=>[a.t,a]));
+const COLL=[{id:'ai-semis',name:'AI & Semiconductors',d:'Chip designers, foundries, equipment makers and the ETF that tracks them',f:a=>['NVDA','2330','ASML','005930','SOXX'].includes(a.t)},{id:'mega-caps',name:'Mega Caps',d:'Companies above $1 trillion in market value',f:a=>a.type==='stock'&&a.mcap>=1000},{id:'global-banks',name:'Global Banks',d:'Large lenders across four regions',f:a=>a.industry==='Banks'},{id:'dividend-leaders',name:'Dividend Leaders',d:'Trailing yield of 3.5% or higher',f:a=>a.dy>=3.5},{id:'india',name:'India',d:'NSE-listed leaders and India-focused ETFs',f:a=>a.mk==='in'||a.t==='INDA'},{id:'global-etfs',name:'Global ETFs',d:'Broad, thematic, commodity and international funds',f:a=>a.type==='etf'}];
+const RES=['NVDA','2330','RELIANCE','ASML','7203','SPY','HDFCBANK','QQQ'].map((t,i)=>({t,title:AS[t].type==='etf'?`${t}: an 8-step review of cost, liquidity and holdings`:`${AS[t].name}: what changed, and what to monitor next`,topic:AS[t].type==='etf'?'ETF review':AS[t].sector,ts:`0${6-(i>>1)} Oct 2026`}));
+const NEWS=[['NVDA','Technology','Data-centre revenue mix in focus ahead of results'],['2330','Technology','Monthly revenue update: what the trend says about chip demand'],['RELIANCE','India','Energy and retail segments: the numbers to watch this quarter'],['7203','Asia','Yen moves and automaker margins: a currency-adjusted view'],['HSBA','Financials','Rate expectations and bank net interest margins across regions'],['XOM','Energy','Crude range holds: implications for integrated oil cash flows']].map((n,i)=>({t:n[0],cat:n[1],head:n[2],ts:`${19-i*2}:${10+i*7} IST`}));
+
+/* ============ state ============ */
+const S={signedIn:true,ccy:'LOCAL',collapsed:false,drawer:false,ds:'AUTO',watch:new Set(['NVDA','2330','RELIANCE','ASML','SPY','7203']),
+  alerts:[{t:'NVDA',type:'Price above',v:'200',status:'Active',created:'02 Oct 2026',last:'Not yet triggered'},{t:'RELIANCE',type:'52-week high',v:'',status:'Active',created:'28 Sep 2026',last:'Not yet triggered'},{t:'SPY',type:'Daily move beyond',v:'2%',status:'Triggered',created:'14 Sep 2026',last:'01 Oct 2026, 20:14 IST'}],
+  screens:[],comparisons:[],saved:[],notes:[{title:'Semis: foundry vs equipment',body:'Compare capex cycles before earnings. Check ASML order book commentary against TSMC guidance.',t:'ASML',ts:'04 Oct 2026'}],recent:['NVDA','SPY','2330'],
+  compare:['NVDA','2330','ASML'],cmpR:'1Y',hm:{group:'region',size:'mcap',metric:'d1',uni:'all',path:[],sel:null},
+  scr:{uni:'all',tree:{op:'AND',rules:[{f:'mcap',o:'>=',v:100},{op:'OR',rules:[{f:'revG',o:'>=',v:10},{f:'dy',o:'>=',v:3}]}]},cols:['price','d1','y1','mcap','pe','revG','roic','dy'],name:''},
+  sort:{k:'mcap',d:-1},chart:{range:'1Y',type:'area',sma:false,ema:false,bb:false,rsi:false,vol:true,fs:false},tab:'overview',mkf:{region:'All'},modal:null,su:{step:1,name:'',email:'',country:'India',mk:new Set(['in','us']),as:new Set(['Stocks','ETFs']),th:new Set(),ccy:'INR'},err:{},notif:2};
+
+/* ============ helpers ============ */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(n,d=2)=>n==null||isNaN(n)?'—':n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(v,d=2)=>v==null?'<span class="faint">—</span>':`<span class="num ${v>0?'up':v<0?'down':'mut'}">${v>0?'▲ +':v<0?'▼ −':''}${fmt(Math.abs(v),d)}%</span>`;
+const dp=a=>a.price>=1000?(a.price>=10000?0:1):2;
+const price=(a,forceLocal)=>S.ccy==='INR'&&!forceLocal&&a.ccy!=='INR'?'₹'+fmt(a.price*FX[a.ccy],a.price*FX[a.ccy]>1000?0:2):(SYM[a.ccy]||a.ccy+' ')+fmt(a.price,dp(a));
+const inr=a=>'₹'+fmt(a.price*FX[a.ccy],a.price*FX[a.ccy]>1000?0:2);
+const cap=v=>S.ccy==='INR'?'₹'+fmt(v*FX.USD/1000,v>500?0:1)+'L Cr':v>=1000?'$'+fmt(v/1000,2)+'T':'$'+fmt(v,v<20?1:0)+'B';
+const big=v=>v>=1e9?fmt(v/1e9,1)+'B':v>=1e6?fmt(v/1e6,1)+'M':fmt(v/1e3,0)+'K';
+const hhmm=h=>{h=(h+24)%24;const m=Math.round((h%1)*60);return String(Math.floor(h)).padStart(2,'0')+':'+String(m).padStart(2,'0')};
+const local=m=>hhmm((NOW.utcMin/60+m.off));
+const href=a=>(a.type==='etf'?'#/etfs/':'#/stocks/')+a.t;
+const ICN={home:'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',bell:'M6 16v-5a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0',filter:'M3 5h18l-7 8v6l-4-2v-4z',cols:'M4 4h6v16H4zM14 4h6v16h-6z',grid:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',doc:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',note:'M4 4h16v12l-4 4H4zM16 20v-4h4',clock:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',history:'M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 8v4l3 2',gear:'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01',search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5',menu:'M4 7h16M4 12h16M4 17h16',globe:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',chart:'M4 19V5M4 19h16M7 15l4-4 3 3 5-6',user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',compass:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15 9l-2 4-4 2 2-4z',x:'M6 6l12 12M18 6L6 18',side:'M4 4h16v16H4zM9 4v16',full:'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',plus:'M12 5v14M5 12h14'};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICN[n]}"/></svg>`;
+const DSL={LIVE:'Live',DELAYED:'Delayed · 15 min',EOD:'End of day',CLOSED:'Closed',UNAVAILABLE:'Unavailable',ERROR:'Error',LOADING:'Loading'};
+const dsOf=mk=>S.ds!=='AUTO'?S.ds:(mk?M[mk].ds:'DELAYED');
+const badge=ds=>`<span class="badge st-${ds}">${DSL[ds]}</span>`;
+const stamp=mk=>{const ds=dsOf(mk),m=mk&&M[mk];return ds==='LIVE'?`Updated ${NOW.ist} IST`:ds==='DELAYED'?'As of 19:27 IST':ds==='EOD'?`Close, ${NOW.date}${m?', '+hhmm(m.c)+' IST':''}`:ds==='CLOSED'?'Last close, 30 Sep 2026':ds==='UNAVAILABLE'?'Last available: 05 Oct 2026, 17:30 IST':ds==='ERROR'?'Request failed at '+NOW.ist+' IST':'Requested '+NOW.ist+' IST'};
+/* module wrapper: every data module renders its own status, timestamp and failure states */
+function mod(title,body,o={}){const ds=dsOf(o.mk);let b=body;
+  if(ds==='LOADING')b=`<div class="mb" aria-busy="true"><span class="sr">Loading ${title}</span>${'<div class="sk"></div>'.repeat(o.rows||4)}<div class="sk" style="width:60%"></div></div>`;
+  else if(ds==='ERROR')b=`<div class="state"><b>${title} could not load</b>The data service did not respond. Other modules on this page are unaffected.<br><button class="btn" data-a="retry">Retry</button></div>`;
+  else if(ds==='UNAVAILABLE'&&S.ds!=='AUTO')b=`<div class="state"><b>Data unavailable from current source</b>${stamp(o.mk)}<br><a class="btn" href="#/data">See data coverage</a></div>`;
+  return `<section class="card" aria-label="${title}"><div class="mh"><h2>${title}</h2>${o.sub?`<span class="sm faint">${o.sub}</span>`:''}<span class="sp"></span>${o.tools||''}${badge(ds)}</div>${b}<div class="mf"><span>${stamp(o.mk)}</span><span>Demo data</span><a href="#/data">Methodology</a>${o.more?`<a href="${o.more[1]}" style="margin-left:auto">${o.more[0]}</a>`:''}</div></section>`}
+function walk(seed,n,chg,sd){const r=rng(seed);const w=[0];for(let i=1;i<n;i++)w.push(w[i-1]+(r()+r()+r()-1.5)*sd);const s=-Math.log(1+chg/100);return w.map((x,i)=>Math.exp(x-w[n-1]*i/(n-1)+s*(1-i/(n-1))))}
+const RG={'1D':[78,'d1'],'5D':[60,'w1'],'1M':[22,'m1'],'3M':[66,'m3'],'6M':[126,'m6'],YTD:[192,'ytd'],'1Y':[252,'y1'],'3Y':[156,'y3'],'5Y':[260,'y5'],MAX:[300,'y5']};
+function series(a,range){const [n,k]=RG[range];const chg=range==='MAX'?a.y5*1.6:a[k];const sd=Math.abs(chg)/100/Math.sqrt(n)*1.2+.004;const c=walk(a.t+range,n,chg,sd).map(x=>x*a.price);const r=rng(a.t+range+'o');
+  return c.map((x,i)=>{const o=i?c[i-1]:x*(1+(r()-.5)*sd);const hi=Math.max(o,x)*(1+r()*sd*.7),lo=Math.min(o,x)*(1-r()*sd*.7);return{o,h:hi,l:lo,c:x,v:a.vol/(range==='1D'?78:1)*(.5+r())}})}
+function dlabel(range,i,n){if(range==='1D'){const m=570+i*5;return hhmm(m/60)}const step={'5D':1/12,'1M':1.45,'3M':1.45,'6M':1.45,YTD:1.45,'1Y':1.45,'3Y':7,'5Y':7,MAX:12}[range];const d=new Date(2026,9,6);d.setDate(d.getDate()-Math.round((n-1-i)*step));return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:step>=1.45&&n>60?'2-digit':undefined})}
+const spark=(seed,chg,w=160,h=30)=>{const p=walk(seed,24,chg||.01,.006),mn=Math.min(...p),mx=Math.max(...p);return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="${chg>=0?'var(--up)':'var(--down)'}" stroke-width="1.6" vector-effect="non-scaling-stroke" points="${p.map((v,i)=>`${(i/23*w).toFixed(1)},${(h-2-(v-mn)/(mx-mn||1)*(h-4)).toFixed(1)}`).join(' ')}"/></svg>`};
+const sma=(c,n)=>c.map((_,i)=>i<n-1?null:c.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n);
+const ema=(c,n)=>{const k=2/(n+1);let e=c[0];return c.map(x=>e=x*k+e*(1-k))};
+function rsiS(c,n=14){const out=[];let g=0,l=0;for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];const up=Math.max(d,0),dn=Math.max(-d,0);if(i<=n){g+=up/n;l+=dn/n}else{g=(g*(n-1)+up)/n;l=(l*(n-1)+dn)/n}out.push(i<n?null:100-100/(1+g/(l||1e-9)))}return[null,...out]}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('s');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('s'),2400)}
+
+/* ============ shared components ============ */
+const assetCell=a=>`<a class="as" href="${href(a)}"><span class="tk">${a.t.slice(0,5)}</span><span><b>${a.name}</b><small>${a.t} · ${M[a.mk].ex.split(' · ')[0]} · ${a.type==='etf'?'ETF':a.sector}</small></span></a>`;
+const COLS={price:['Price',a=>price(a),a=>a.price*FX[a.ccy]],d1:['1D',a=>pct(a.d1),a=>a.d1],w1:['1W',a=>pct(a.w1),a=>a.w1],m1:['1M',a=>pct(a.m1),a=>a.m1],y1:['1Y',a=>pct(a.y1),a=>a.y1],mcap:['Mkt cap / AUM',a=>cap(a.mcap),a=>a.mcap],pe:['P/E',a=>fmt(a.pe,1),a=>a.pe],fpe:['Fwd P/E',a=>fmt(a.fpe,1),a=>a.fpe],revG:['Rev growth',a=>a.revG==null?'—':pct(a.revG,0),a=>a.revG],roic:['ROIC',a=>a.roic==null?'—':fmt(a.roic,0)+'%',a=>a.roic],dy:['Div yield',a=>fmt(a.dy,2)+'%',a=>a.dy],beta:['Beta',a=>fmt(a.beta,2),a=>a.beta],volat:['Volatility',a=>fmt(a.volat,1)+'%',a=>a.volat],rsi:['RSI',a=>a.rsi,a=>a.rsi],vol:['Volume',a=>big(a.vol),a=>a.vol],status:['Data',a=>badge(dsOf(a.mk)),a=>0]};
+function rowActs(a){const w=S.watch.has(a.t);return `<span class="ra"><a href="${href(a)}" title="Open chart and research" aria-label="Open chart and research for ${a.name}">${ic('chart')}</a><button data-a="addCmp" data-v="${a.t}" title="Add to compare" aria-label="Add ${a.name} to compare">${ic('cols')}</button><button data-a="watch" data-v="${a.t}" class="${w?'on':''}" aria-pressed="${w}" title="${w?'Remove from':'Add to'} watchlist" aria-label="${w?'Remove':'Add'} ${a.name} ${w?'from':'to'} watchlist">${ic('star')}</button><button data-a="alertM" data-v="${a.t}" title="Create alert" aria-label="Create alert for ${a.name}">${ic('bell')}</button></span>`}
+function atable(list,cols=['price','d1','w1','y1','mcap','pe','dy','status'],o={}){if(!list.length)return `<div class="state"><b>${o.empty||'No assets match'}</b>${o.emptySub||'Loosen a filter or change the universe.'}</div>`;
+  if(!o.nosort){const f=(COLS[S.sort.k]||COLS.mcap)[2];list=[...list].sort((x,y)=>((f(x)??-1e18)-(f(y)??-1e18))*S.sort.d)}
+  return `<div class="tw"><table class="t"><thead><tr><th scope="col">Asset</th>${cols.map(c=>`<th scope="col" aria-sort="${S.sort.k===c&&!o.nosort?(S.sort.d>0?'ascending':'descending'):'none'}">${o.nosort?COLS[c][0]:`<button data-a="sort" data-v="${c}">${COLS[c][0]}${S.sort.k===c?(S.sort.d>0?' ↑':' ↓'):''}</button>`}</th>`).join('')}<th scope="col"><span class="sr">Actions</span></th></tr></thead><tbody>${list.map(a=>`<tr><td>${assetCell(a)}</td>${cols.map(c=>`<td>${COLS[c][1](a)}</td>`).join('')}<td>${rowActs(a)}</td></tr>`).join('')}</tbody></table></div>`}
+function squarify(items,x,y,w,h){const tot=items.reduce((s,i)=>s+i.v,0)||1;let rest=items.map(i=>({...i,A_:i.v/tot*w*h}));const out=[];
+  while(rest.length){const sh=Math.min(w,h)||1e-6;const worst=r=>{const s=r.reduce((a,b)=>a+b.A_,0),mx=Math.max(...r.map(b=>b.A_)),mn=Math.min(...r.map(b=>b.A_));return Math.max(sh*sh*mx/(s*s),s*s/(sh*sh*mn))};
+    let row=[rest[0]],i=1;while(i<rest.length&&worst([...row,rest[i]])<=worst(row))row.push(rest[i++]);const s=row.reduce((a,b)=>a+b.A_,0);
+    if(w>=h){const cw=s/h;let cy=y;row.forEach(r=>{out.push({...r,x,y:cy,w:cw,h:r.A_/cw});cy+=r.A_/cw});x+=cw;w-=cw}else{const rh=s/w;let cx=x;row.forEach(r=>{out.push({...r,x:cx,y,w:r.A_/rh,h:rh});cx+=r.A_/rh});y+=rh;h-=rh}
+    rest=rest.slice(i)}return out}
+const DIMS={region:['region','country','sector'],country:['country','sector'],sector:['sector','industry'],type:['type','sector']};
+const DIML={region:'Region',country:'Market',sector:'Sector',industry:'Industry',type:'Asset type'};
+const HMR={d1:3,w1:6,m1:12,ytd:40,y1:50,volat:45};
+function hmCol(v,metric){const mix=(a,b,t)=>a.map((x,i)=>Math.round(x+(b[i]-x)*t));const n=[92,104,124];if(metric==='volat'){const t=Math.min(1,Math.max(0,(v-12)/33));return `rgb(${mix([120,134,160],[23,62,190],t)})`}
+  if(!v)return `rgb(${n})`;const t=Math.min(1,Math.abs(v)/HMR[metric]);return `rgb(${mix(n,v>=0?[11,122,82]:[190,50,42],.25+t*.75)})`}
+const hmUni=cfg=>A.filter(a=>cfg.uni==='all'||a.type===cfg.uni);
+function heatmap(cfg,o={}){const dims=DIMS[cfg.group];let L=o.list||hmUni(cfg);cfg.path.forEach((v,i)=>L=L.filter(a=>String(a[dims[i]])===v));const dim=dims[cfg.path.length];
+  const sz=a=>cfg.size==='eq'?1:cfg.size==='vol'?a.mcap*a.turn:a.mcap;const G={};L.forEach(a=>{const k=dim?a[dim]:'All';(G[k]=G[k]||[]).push(a)});
+  if(!L.length)return `<div class="state"><b>No assets at this level</b>Step back up the breadcrumb or change the universe.</div>`;
+  const W=100,H=o.compact?38:50;const groups=squarify(Object.entries(G).map(([k,v])=>({k,list:v,v:v.reduce((s,a)=>s+sz(a),0)})).sort((a,b)=>b.v-a.v),0,0,W,H);
+  const lab=v=>cfg.metric==='volat'?fmt(v,1)+'%':(v>0?'+':v<0?'−':'')+fmt(Math.abs(v),HMR[cfg.metric]>10?1:2)+'%';
+  return `<div class="hm ${o.compact?'cmp':''}" role="group" aria-label="Heatmap grouped by ${DIML[dim]||'asset'}">${groups.map(g=>{const tiles=squarify(g.list.map(a=>({a,v:sz(a)})).sort((x,y)=>y.v-x.v),0,0,g.w,g.h);const one=!dim;
+    return `<div class="hg" style="left:${g.x}%;top:${g.y/H*100}%;width:${g.w}%;height:${g.h/H*100}%">${one?'':`<button data-a="hmDrill" data-v="${esc(g.k)}" ${o.compact?`data-go="${esc(JSON.stringify({g:(o.go||{}).g||cfg.group,p:[...((o.go||{}).pre||[]),g.k]}))}"`:''} title="Drill into ${esc(g.k)}">${g.k==='etf'?'ETFs':g.k==='stock'?'Stocks':g.k}</button>`}<div ${one?'style="top:0"':''}>${tiles.map(t=>{const a=t.a,v=a[cfg.metric];const bigT=t.w>5&&t.h>(o.compact?4:5);
+      return `<button class="ht ${cfg.sel===a.t&&!o.compact?'sel':''}" data-a="${o.compact?'go':'hmSel'}" data-v="${o.compact?href(a):a.t}" style="left:${t.x/g.w*100}%;top:${t.y/g.h*100}%;width:${t.w/g.w*100}%;height:${t.h/g.h*100}%;background:${hmCol(v,cfg.metric)}" title="${a.name} (${a.t}) ${lab(v)}" aria-label="${a.name}, ${lab(v)}">${bigT?`<b>${a.t}</b>${lab(v)}`:t.w>2.6&&t.h>2.6?`<b style="font-size:10px">${a.t}</b>`:''}</button>`}).join('')}</div></div>`}).join('')}</div>
+  <div class="legend" style="margin-top:8px">${cfg.metric==='volat'?`Lower volatility<i style="background:${hmCol(12,'volat')}"></i><i style="background:${hmCol(28,'volat')}"></i><i style="background:${hmCol(45,'volat')}"></i>Higher`:`−${HMR[cfg.metric]}%<i style="background:${hmCol(-HMR[cfg.metric],cfg.metric)}"></i><i style="background:${hmCol(-HMR[cfg.metric]/3,cfg.metric)}"></i><i style="background:${hmCol(0,cfg.metric)}"></i><i style="background:${hmCol(HMR[cfg.metric]/3,cfg.metric)}"></i><i style="background:${hmCol(HMR[cfg.metric],cfg.metric)}"></i>+${HMR[cfg.metric]}%`}<span style="margin-left:auto">Each tile shows its signed value, so colour is never the only cue.</span></div>`}
+function rail(list){const seg=m=>m.c<m.o?[[m.o,24],[0,m.c]]:[[m.o,m.c]];
+  return `<div class="rail"><span></span><div class="ax">${[0,6,12,18,24].map(h=>`<span style="left:${h/24*100}%">${String(h%24).padStart(2,'0')}:00</span>`).join('')}</div><span class="st faint sm">IST</span>${list.map(m=>`<a href="#/markets/${m.id}" style="color:var(--text)">${m.name}</a><div class="tr" title="${m.name}: ${hhmm(m.o)}–${hhmm(m.c)} IST">${seg(m).map(s=>`<i class="${m.ses==='Open'?'o':''}" style="left:${s[0]/24*100}%;width:${(s[1]-s[0])/24*100}%"></i>`).join('')}<u style="left:${NOW.h/24*100}%"></u></div><span class="st sm ${m.ses==='Open'?'':'faint'}">${m.ses}${m.ses==='Open'?' · '+local(m):''}</span>`).join('')}</div><p class="sm faint" style="margin-top:8px">Bars show regular trading hours converted to India Standard Time. The saffron line marks now, ${NOW.ist} IST.</p>`}
+const secPerf=list=>{const G={};list.filter(a=>a.type==='stock').forEach(a=>{(G[a.sector]=G[a.sector]||[]).push(a)});return Object.entries(G).map(([k,v])=>[k,v.reduce((s,a)=>s+a.d1*a.mcap,0)/v.reduce((s,a)=>s+a.mcap,0)]).sort((a,b)=>b[1]-a[1])};
+const secBars=list=>`<div class="mb">${secPerf(list).map(([k,v])=>`<a class="br" href="#/heatmap" data-a="hmPreset" data-v="sector|${k}" style="color:var(--text)"><span>${k}</span><span class="b dv"><i style="${v>=0?`left:50%;width:${Math.min(50,v/3*50)}%;background:var(--up)`:`right:50%;width:${Math.min(50,-v/3*50)}%;background:var(--down)`}"></i></span><span style="text-align:right">${pct(v)}</span></a>`).join('')}</div>`;
+const mini=(list,col)=>`<div class="tw"><table class="t"><tbody>${list.map(a=>`<tr><td>${assetCell(a)}</td><td>${price(a)}</td><td>${COLS[col][1](a)}</td></tr>`).join('')}</tbody></table></div>`;
+const movers=(list,mk)=>{const st=list.filter(a=>M[a.mk].ses!=='Holiday'),by=(k,d)=>[...st].sort((a,b)=>(b[k]-a[k])*d).slice(0,5);return `<div class="grid g3">${mod('Top gainers',mini(by('d1',1),'d1'),{mk,rows:5})}${mod('Top losers',mini(by('d1',-1),'d1'),{mk,rows:5})}${mod('Most active',mini(by('vol',1),'vol'),{mk,rows:5,sub:'by volume'})}</div>`};
+const idxTile=i=>`<a class="ix" href="#/markets/${i.mk}"><div class="row"><b>${i.name}</b></div><div class="row"><span class="v">${fmt(i.v,i.v>20000?0:1)}</span>${pct(i.d1)}</div>${spark(i.name,i.d1||.01)}<div class="row">${badge(dsOf(i.mk))}<span class="sm faint">${M[i.mk].ses}</span></div><div class="sm faint" style="margin-top:4px">${stamp(i.mk)}</div></a>`;
+const footer=()=>`<footer class="ft"><div><b>INRGIFT</b>Global markets, understood from India.<p class="sm" style="margin-top:8px;max-width:52ch">INRGIFT is a research platform, not a broker or investment adviser. Nothing here is a recommendation. This prototype uses demo data that does not reflect current market prices.</p></div><div><b>Explore</b><a href="#/markets">Markets</a><a href="#/assets">Assets</a><a href="#/research">Research</a><a href="#/screener">Screener</a></div><div><b>Trust</b><a href="#/data">Data and methodology</a><a href="#/next">What comes next</a></div><div><b>Account</b><a href="#/login">Sign in</a><a href="#/signup">Create account</a></div></footer>`;
+
+/* ============ chart ============ */
+function chart(a,cs){const d=series(a,cs.range),c=d.map(x=>x.c),n=d.length,W=1000,PR=62,H=320,VH=cs.vol?56:0,RH=cs.rsi?84:0,TH=H+VH+RH+22;
+  const bb=cs.bb?sma(c,20).map((m,i)=>{if(m==null)return null;const sl=c.slice(i-19,i+1),sd=Math.sqrt(sl.reduce((s,x)=>s+(x-m)**2,0)/20);return[m-2*sd,m+2*sd]}):null;
+  let mn=Math.min(...d.map(x=>x.l)),mx=Math.max(...d.map(x=>x.h));if(bb)bb.forEach(b=>{if(b){mn=Math.min(mn,b[0]);mx=Math.max(mx,b[1])}});const pad=(mx-mn)*.06;mn-=pad;mx+=pad;
+  const X=i=>i/(n-1)*(W-PR),Y=v=>8+(1-(v-mn)/(mx-mn))*(H-16),up=c[n-1]>=c[0],col=up?'var(--up)':'var(--down)';
+  const path=(arr,f=Y)=>{let s='',pen=false;arr.forEach((v,i)=>{if(v==null){pen=false;return}s+=(pen?'L':'M')+X(i).toFixed(1)+' '+f(v).toFixed(1);pen=true});return s};
+  let g='';for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4;g+=`<line x1="0" x2="${W-PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${W-PR+8}" y="${Y(v)+4}">${fmt(v,dp(a))}</text>`}
+  for(let k=0;k<5;k++){const i=Math.round(k*(n-1)/4);g+=`<text x="${X(i)}" y="${TH-6}" text-anchor="${k==0?'start':k==4?'end':'middle'}">${dlabel(cs.range,i,n)}</text>`}
+  let body='';if(cs.type==='candle'){const bw=Math.max(1.2,(W-PR)/n*.62);body=d.map((x,i)=>{const u=x.c>=x.o,cl=u?'var(--up)':'var(--down)';return `<line x1="${X(i)}" x2="${X(i)}" y1="${Y(x.h)}" y2="${Y(x.l)}" stroke="${cl}"/><rect x="${X(i)-bw/2}" y="${Y(Math.max(x.o,x.c))}" width="${bw}" height="${Math.max(1,Math.abs(Y(x.o)-Y(x.c)))}" fill="${u?'var(--surface)':cl}" stroke="${cl}"/>`}).join('')}
+  else body=(cs.type==='area'?`<path d="${path(c)}L${W-PR} ${H}L0 ${H}Z" fill="${col}" opacity=".09"/>`:'')+`<path d="${path(c)}" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+  if(bb)body+=`<path d="${path(bb.map(b=>b&&b[0]))}" fill="none" stroke="var(--faint)" stroke-dasharray="3 3"/><path d="${path(bb.map(b=>b&&b[1]))}" fill="none" stroke="var(--faint)" stroke-dasharray="3 3"/>`;
+  if(cs.sma)body+=`<path d="${path(sma(c,20))}" fill="none" stroke="var(--blue)" stroke-width="1.4"/>`;if(cs.ema)body+=`<path d="${path(ema(c,50))}" fill="none" stroke="var(--saffron)" stroke-width="1.4" stroke-dasharray="6 3"/>`;
+  if(cs.vol){const vm=Math.max(...d.map(x=>x.v)),bw=Math.max(1,(W-PR)/n*.6);body+=d.map((x,i)=>`<rect x="${X(i)-bw/2}" y="${H+VH-x.v/vm*(VH-8)}" width="${bw}" height="${x.v/vm*(VH-8)}" fill="var(--line2)"/>`).join('')+`<text x="${W-PR+8}" y="${H+14}">Volume</text>`}
+  if(cs.rsi){const y0=H+VH+6,RY=v=>y0+(1-v/100)*(RH-12);body+=`<line x1="0" x2="${W-PR}" y1="${RY(70)}" y2="${RY(70)}" stroke="var(--line2)" stroke-dasharray="2 3"/><line x1="0" x2="${W-PR}" y1="${RY(30)}" y2="${RY(30)}" stroke="var(--line2)" stroke-dasharray="2 3"/><path d="${path(rsiS(c),RY)}" fill="none" stroke="var(--blue)" stroke-width="1.3"/><text x="${W-PR+8}" y="${RY(70)+4}">RSI 70</text><text x="${W-PR+8}" y="${RY(30)+4}">30</text>`}
+  chart.cur={d,n,W,PR,a,range:cs.range,Y};const chg=(c[n-1]/c[0]-1)*100;
+  return `<div class="cro" id="cro">${cs.range} change ${pct(chg)} · range ${fmt(Math.min(...d.map(x=>x.l)),dp(a))} to ${fmt(Math.max(...d.map(x=>x.h)),dp(a))} ${a.ccy} · move the pointer over the chart for values</div><div class="chart"><svg id="csvg" viewBox="0 0 ${W} ${TH}" role="img" aria-label="${a.name} ${cs.range} price chart. Change ${fmt(chg)} percent, from ${fmt(c[0],dp(a))} to ${fmt(c[n-1],dp(a))} ${a.ccy}.">${g}${body}<line id="cx" y1="0" y2="${TH-22}" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/><circle id="cd" r="4" fill="var(--surface)" stroke="var(--text)" stroke-width="2" visibility="hidden"/></svg></div>`}
+function chartCard(a){const cs=S.chart,tg=(k,l)=>`<button class="btn s ${cs[k]?'on':''}" data-a="cind" data-v="${k}" aria-pressed="${!!cs[k]}">${l}</button>`;
+  return `<section class="card ${cs.fs?'fs':''}" aria-label="Price chart"><div class="cbar"><div class="seg" role="group" aria-label="Time range">${Object.keys(RG).map(r=>`<button class="${cs.range===r?'on':''}" data-a="crange" data-v="${r}">${r}</button>`).join('')}</div><span style="flex:1"></span><div class="seg" role="group" aria-label="Chart type">${['area','line','candle'].map(t=>`<button class="${cs.type===t?'on':''}" data-a="ctype" data-v="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></div>
+  <div class="cbar" style="border-bottom:0;padding-bottom:0"><span class="sm faint">Indicators</span>${tg('sma','SMA 20')}${tg('ema','EMA 50')}${tg('bb','Bollinger')}${tg('rsi','RSI 14')}${tg('vol','Volume')}<span style="flex:1"></span><button class="btn s" data-a="addCmp" data-v="${a.t}" data-go="1">${ic('cols')}Compare</button><button class="btn s" data-a="cind" data-v="fs">${ic('full')}${cs.fs?'Exit full screen':'Full screen'}</button></div>
+  ${dsOf(a.mk)==='LOADING'?'<div class="mb"><div class="sk" style="height:300px"></div></div>':dsOf(a.mk)==='ERROR'?'<div class="state"><b>Chart could not load</b>The price history request failed.<br><button class="btn" data-a="retry">Retry</button></div>':chart(a,cs)}
+  <div class="mf">${badge(dsOf(a.mk))}<span>${stamp(a.mk)}</span><span>Demo series in ${a.ccy}</span><a href="#/data">Methodology</a></div></section>`}
+
+/* ============ pages ============ */
+const P={};
+P.home=()=>{const reg=REGIONS.map(r=>{const ms=MK.filter(m=>m.region===r),o=ms.filter(m=>m.ses==='Open').length;return `<a href="#/markets" data-a="mkf" data-v="${r}"><b>${r}</b><span class="sm ${o?'up':'mut'}">${o===ms.length?'● Open':o?`◐ ${o} of ${ms.length} open`:'○ Closed'}</span></a>`}).join('');
+  return `<div class="wrap stack"><div class="regions" aria-label="Global market status">${reg}</div>
+  <div class="hero"><div><h1>Invest globally. Understand everything.</h1><p>Every market. Every asset. One research view.</p><button class="bigs" data-a="search">${ic('search')}<span>Search stocks, ETFs, indices, currencies, commodities…</span><kbd>Ctrl K</kbd></button>
+  <div class="chips" style="margin-top:12px">${['NVDA','SPY','7203','RELIANCE','GLD'].map(t=>`<a class="chip" href="${href(AS[t])}">${AS[t].name.split(' ').slice(0,2).join(' ')}</a>`).join('')}<a class="btn p" href="#/markets">Explore global markets</a><a class="btn" href="#/assets">Explore assets</a></div></div>
+  <div class="card mb"><h3 style="margin-bottom:10px">Trading sessions on India time</h3>${rail(['us','uk','de','jp','hk','in'].map(k=>M[k]))}</div></div>
+  <div class="strip" aria-label="Global indices">${['S&P 500','NASDAQ Composite','Dow Jones','FTSE 100','DAX','Nikkei 225','Hang Seng','NIFTY 50','TAIEX','Bovespa'].map(n=>idxTile(IDX.find(i=>i.name===n))).join('')}</div>
+  ${mod('Global heatmap',`<div class="mb">${heatmap({group:'region',size:'mcap',metric:'d1',uni:'stock',path:[]},{compact:true})}</div>`,{sub:'Stocks by region, sized by market cap, coloured by 1D change',more:['Open full heatmap','#/heatmap']})}
+  ${movers(A)}
+  <div class="grid g21">${mod('Sector performance',secBars(A),{sub:'Cap-weighted 1D change'})}${mod('Themes and collections',`<div class="mb flush">${COLL.slice(0,5).map(c=>{const l=A.filter(c.f),v=l.reduce((s,a)=>s+a.m1,0)/l.length;return `<a class="rc" href="#/collection/${c.id}"><span style="float:right">${pct(v)} <small>1M</small></span><b>${c.name}</b><small>${l.length} assets</small></a>`}).join('')}</div>`)}</div>
+  <section><div class="ph" style="margin:8px 0 12px"><h2>Asset classes</h2><a href="#/assets">All assets</a></div><div class="grid g4">${[['Stocks',A.filter(a=>a.type==='stock').length+' companies across '+MK.length+' markets','#/screener','stock'],['ETFs',ETF.length+' funds, each with an 8-step review','#/screener','etf'],['Indices',IDX.length+' headline benchmarks','#/markets',''],['Currencies','INR pairs and majors','#/next','']].map(x=>`<a class="tile" href="${x[2]}" ${x[3]?`data-a="uni" data-v="${x[3]}"`:''}><h3>${x[0]}</h3><small>${x[1]}</small></a>`).join('')}</div></section>
+  <div class="grid g2">${mod('Research',`<div class="mb flush">${RES.slice(0,4).map(resCard).join('')}</div>`,{more:['All research','#/research']})}${mod('Market news',`<div class="mb flush">${NEWS.slice(0,4).map(newsCard).join('')}</div>`,{more:['All news','#/research']})}</div>
+  <div class="india"><h3>The view from India</h3><p class="mut" style="margin-top:4px;max-width:80ch">Every price can be shown in rupees, every session in IST, and every return adjusted for USD/INR. Switch the display currency in the header to see it applied across tables. Demo reference rate: USD/INR ${fmt(FX.USD)}.</p></div>${footer()}</div>`};
+const resCard=r=>`<a class="rc" href="${href(AS[r.t])}" data-a="tab" data-v="research"><b>${r.title}</b><small><span class="tag">${r.t}</span><span class="tag">${M[AS[r.t].mk].name}</span><span class="tag">${r.topic}</span>${r.ts} · Demo content</small></a>`;
+const newsCard=n=>`<a class="rc" href="${href(AS[n.t])}" data-a="tab" data-v="news"><b>${AS[n.t].name}: ${n.head}</b><small><span class="tag">${n.t}</span><span class="tag">${n.cat}</span>INRGIFT demo wire · ${n.ts}</small></a>`;
+
+P.markets=()=>{const f=S.mkf.region,ms=MK.filter(m=>f==='All'||m.region===f),al=A.filter(a=>ms.some(m=>m.id===a.mk)),open=MK.filter(m=>m.ses==='Open').length;
+  return `<div class="wrap stack"><div class="ph"><div><h1>Global markets</h1><p>${open} of ${MK.length} markets are open at ${NOW.ist} IST. Pick a market for its indices, sectors and movers.</p></div><div class="seg" role="group" aria-label="Region">${['All',...REGIONS].map(r=>`<button class="${f===r?'on':''}" data-a="mkf" data-v="${r}">${r}</button>`).join('')}</div></div>
+  ${mod('Market sessions',`<div class="mb">${rail(ms)}</div>`,{sub:'Regular hours in IST'})}
+  ${mod('Global indices',`<div class="tw"><table class="t"><thead><tr><th scope="col">Index</th><th scope="col" class="l">Market</th><th scope="col">Level</th><th scope="col">1D</th><th scope="col">Trend</th><th scope="col">Session</th><th scope="col">Data</th></tr></thead><tbody>${IDX.filter(i=>ms.some(m=>m.id===i.mk)).map(i=>`<tr><td><a href="#/markets/${i.mk}" style="color:var(--text);font-weight:600">${i.name}</a></td><td class="l"><a href="#/markets/${i.mk}">${M[i.mk].name}</a></td><td>${fmt(i.v,1)}</td><td>${pct(i.d1)}</td><td style="width:120px">${spark(i.name,i.d1||.01,110,22)}</td><td>${M[i.mk].ses}</td><td>${badge(dsOf(i.mk))}</td></tr>`).join('')}</tbody></table></div>`,{rows:8})}
+  <div class="grid g21">${mod('Heatmap',`<div class="mb">${heatmap({group:'country',size:'mcap',metric:'d1',uni:'stock',path:[]},{compact:true,list:al.filter(a=>a.type==='stock')})}</div>`,{sub:'By market',more:['Open full heatmap','#/heatmap']})}${mod('Sector performance',secBars(al))}</div>
+  ${movers(al)}
+  ${mod('Markets directory',`<div class="tw"><table class="t"><thead><tr><th scope="col">Market</th><th scope="col" class="l">Exchanges</th><th scope="col">Currency</th><th scope="col">Local time</th><th scope="col">Hours (IST)</th><th scope="col">Session</th><th scope="col">Data</th></tr></thead><tbody>${ms.map(m=>`<tr><td><a href="#/markets/${m.id}" style="font-weight:600">${m.name}</a></td><td class="l">${m.ex}</td><td>${m.ccy}</td><td>${local(m)}</td><td>${hhmm(m.o)}–${hhmm(m.c)}</td><td>${m.ses}</td><td>${badge(dsOf(m.id))}</td></tr>`).join('')}</tbody></table></div>`,{sub:ms.length+' markets'})}${footer()}</div>`};
+P.market=id=>{const m=M[id];if(!m)return P.nf();const al=A.filter(a=>a.mk===id),st=al.filter(a=>a.type==='stock'),ix=IDX.filter(i=>i.mk===id),rel=MK.filter(x=>x.region===m.region&&x.id!==id).slice(0,4);
+  return `<div class="wrap stack"><div class="crumbs"><a href="#/markets">Markets</a> / ${m.region} / ${m.name}</div><div class="ph"><div><h1>${m.name}</h1><p>${m.ex} · ${m.ccy} · Session ${m.ses.toLowerCase()} · ${local(m)} local, ${NOW.ist} IST</p></div><div class="chips">${badge(dsOf(id))}<a class="btn" href="#/heatmap" data-a="hmPreset" data-v="country|${m.name}">${ic('grid')}Heatmap</a><a class="btn" href="#/screener" data-a="scrMarket" data-v="${m.name}">${ic('filter')}Screen this market</a></div></div>
+  ${m.ds==='UNAVAILABLE'&&S.ds==='AUTO'?`<div class="india" style="border-left-color:var(--warn)"><b>Data unavailable from current source.</b> <span class="mut">${stamp(id)}. Values below are the last available figures.</span></div>`:''}
+  ${m.ses==='Holiday'?`<div class="india"><b>Market holiday.</b> <span class="mut">Exchanges are closed for National Day week. ${stamp(id)}.</span></div>`:''}
+  <div class="strip">${ix.map(idxTile).join('')}</div>
+  ${mod('Trading hours',`<div class="mb">${rail([m,...(id==='in'?[]:[M.in])])}${m.ccy!=='INR'?`<p class="mut" style="margin-top:10px">Reference rate: 1 ${m.ccy} ≈ ₹${fmt(FX[m.ccy],FX[m.ccy]<1?3:2)} (demo).</p>`:''}</div>`,{mk:id,rows:2})}
+  ${st.length>1?`<div class="grid g21">${mod('Market heatmap',`<div class="mb">${heatmap({group:'sector',size:'mcap',metric:'d1',uni:'all',path:[]},{compact:true,list:al,go:{g:'country',pre:[m.name]}})}</div>`,{mk:id})}${mod('Sectors',secBars(al),{mk:id})}</div>`:''}
+  ${mod('Stocks and ETFs',atable(al,undefined,{empty:'No instruments covered yet',emptySub:'Coverage for this market is being added. See data coverage for status.'}),{mk:id,sub:al.length+' covered in this prototype',rows:6})}
+  <section><h2 style="margin-bottom:12px">Related markets</h2><div class="grid g4">${rel.map(x=>`<a class="tile" href="#/markets/${x.id}"><h3>${x.name}</h3><small>${x.ex}</small><div style="margin-top:8px">${badge(dsOf(x.id))}</div></a>`).join('')}</div></section>${footer()}</div>`};
+
+P.heatmap=()=>{const h=S.hm,dims=DIMS[h.group],sel=h.sel&&AS[h.sel],seg=(k,opts)=>`<div class="seg" role="group">${opts.map(o=>`<button class="${h[k]===o[0]?'on':''}" data-a="hmSet" data-v="${k}|${o[0]}">${o[1]}</button>`).join('')}</div>`;
+  return `<div class="wrap stack"><div class="ph"><div><h1>Global heatmap</h1><p>Drill from region to market to sector to company. Select a tile for a quick view, or double-click to open it.</p></div></div>
+  <div class="card mb"><div class="chips" style="align-items:center;gap:14px"><label class="sm faint">Universe ${seg('uni',[['all','All'],['stock','Stocks'],['etf','ETFs']])}</label><label class="sm faint">Group by ${seg('group',[['region','Region'],['country','Market'],['sector','Sector'],['type','Asset type']])}</label><label class="sm faint">Tile size ${seg('size',[['mcap','Market cap'],['vol','Volume'],['eq','Equal']])}</label><label class="sm faint">Colour ${seg('metric',[['d1','1D'],['w1','1W'],['m1','1M'],['ytd','YTD'],['y1','1Y'],['volat','Volatility']])}</label></div></div>
+  <div class="grid g21" style="align-items:start">${mod('Map',`<div class="mb"><nav class="crumbs" aria-label="Drill-down" style="font-size:13px"><a href="#/heatmap" data-a="hmUp" data-v="0">Global</a>${h.path.map((p,i)=>` → <a href="#/heatmap" data-a="hmUp" data-v="${i+1}">${p==='etf'?'ETFs':p==='stock'?'Stocks':p}</a>`).join('')}${dims[h.path.length]?` <span class="faint">→ grouped by ${DIML[dims[h.path.length]].toLowerCase()}</span>`:''}</nav>${heatmap(h)}</div>`,{rows:9})}
+  <aside class="card" id="hmq" aria-live="polite">${hmQuick(sel)}</aside></div>${footer()}</div>`};
+const hmQuick=a=>a?`<div class="mh"><h2>${a.name}</h2><span class="sp"></span>${badge(dsOf(a.mk))}</div><div class="mb"><p class="sm faint">${a.t} · ${M[a.mk].ex.split(' · ')[0]} · ${a.country} · ${a.type==='etf'?a.strategy+' ETF':a.industry}</p><div class="px" style="font-size:26px;margin:10px 0 4px">${price(a)}</div>${pct(a.d1)} <span class="sm faint">today · ${stamp(a.mk)}</span><div style="margin:10px 0">${spark(a.t+'1M',a.m1,280,50)}</div><div class="kv"><div><small>1W</small>${pct(a.w1)}</div><div><small>1M</small>${pct(a.m1)}</div><div><small>YTD</small>${pct(a.ytd)}</div><div><small>1Y</small>${pct(a.y1)}</div><div><small>${a.type==='etf'?'AUM':'Market cap'}</small><b>${cap(a.mcap)}</b></div><div><small>${a.type==='etf'?'Expense ratio':'P/E'}</small><b>${a.type==='etf'?fmt(a.er,2)+'%':fmt(a.pe,1)}</b></div></div><div class="chips" style="margin-top:12px"><a class="btn p" href="${href(a)}">Open chart and research</a>${rowActs(a)}</div></div>`:`<div class="state"><b>Select a tile</b>A quick view with price, returns and actions appears here. Group headers drill one level down.</div>`;
+
+P.assets=()=>{const cls=[['Stocks',A.filter(a=>a.type==='stock').length+' in prototype','#/screener','stock','Fundamentals, valuation, charts and research for listed companies'],['ETFs',ETF.length+' in prototype','#/screener','etf','Cost, holdings, allocation and an 8-step review'],['Indices',IDX.length+' benchmarks','#/markets','','Headline levels and sessions for every covered market'],['Currencies','Next phase','#/next','','INR pairs and majors with India context'],['Commodities','Next phase','#/next','','Gold, crude, copper and the equities they move'],['Bonds','Next phase','#/next','','Yields, duration and credit quality'],['REITs','Next phase','#/next','','Yield, FFO, occupancy and property mix'],['Funds and ADR/GDR','Next phase','#/next','','Where the data layer supports them']];
+  const beh=[['Top gainers','d1',-1],['Top losers','d1',1],['Most active','vol',-1],['Strongest 1Y','y1',-1],['High dividend','dy',-1],['High growth','revG',-1],['High volatility','volat',-1]];
+  return `<div class="wrap stack"><div class="ph"><div><h1>Explore global assets</h1><p>Every market. Every asset class. One research layer.</p></div><button class="btn" data-a="search">${ic('search')}Search assets</button></div>
+  <div class="grid g4">${cls.map(c=>`<a class="tile" href="${c[2]}" ${c[3]?`data-a="uni" data-v="${c[3]}"`:''}><h3>${c[0]}</h3><small>${c[4]}</small><div style="margin-top:10px"><span class="tag">${c[1]}</span></div></a>`).join('')}</div>
+  <div class="grid g3" style="align-items:start">
+  <section class="card"><div class="mh"><h2>Browse by market</h2></div><div class="mb flush" style="max-height:420px;overflow:auto">${MK.map(m=>`<a class="rc" href="#/markets/${m.id}"><span style="float:right">${badge(dsOf(m.id))}</span><b>${m.name}</b><small>${A.filter(a=>a.mk===m.id).length} assets · ${m.ccy} · ${m.region}</small></a>`).join('')}</div></section>
+  <section class="card"><div class="mh"><h2>Browse by sector</h2></div><div class="mb flush">${secPerf(A).map(([k,v])=>`<a class="rc" href="#/screener" data-a="scrSector" data-v="${k}"><span style="float:right">${pct(v)}</span><b>${k}</b><small>${A.filter(a=>a.sector===k).length} companies</small></a>`).join('')}</div></section>
+  <div class="stack"><section class="card"><div class="mh"><h2>Browse by theme</h2></div><div class="mb flush">${COLL.map(c=>`<a class="rc" href="#/collection/${c.id}"><b>${c.name}</b><small>${c.d}</small></a>`).join('')}</div></section>
+  <section class="card"><div class="mh"><h2>Browse by behaviour</h2></div><div class="mb chips">${beh.map(b=>`<a class="chip" href="#/screener" data-a="scrSort" data-v="${b[1]}|${b[2]}">${b[0]}</a>`).join('')}</div></section></div></div>
+  ${mod('Largest by market value',atable([...A].sort((a,b)=>b.mcap-a.mcap).slice(0,10),undefined,{nosort:true}),{rows:8,more:['Open in screener','#/screener']})}${footer()}</div>`};
+
+function assetHead(a){const w=S.watch.has(a.t),m=M[a.mk],ds=dsOf(a.mk),abs=a.price*a.d1/100;
+  return `<div class="crumbs"><a href="#/assets">Assets</a> / <a href="#/markets/${a.mk}">${m.name}</a> / ${a.type==='etf'?'ETFs':a.sector} / ${a.t}</div>
+  <div class="ph" style="align-items:flex-start"><div><div style="display:flex;gap:12px;align-items:center"><span class="as"><span class="tk" style="width:44px;height:44px;font-size:11px">${a.t.slice(0,5)}</span></span><div><h1 style="font-size:26px">${a.name}</h1><p style="margin:0">${a.t} · ${m.ex.split(' · ')[0]} · <a href="#/markets/${a.mk}">${m.name}</a> · ${a.ccy} · ${a.type==='etf'?a.strategy+' ETF':a.industry}</p></div></div>
+  ${ds==='LOADING'?'<div class="sk" style="width:260px;height:40px;margin-top:16px"></div>':ds==='ERROR'?`<p class="err" style="margin-top:14px">Price could not load. <button class="btn s" data-a="retry">Retry</button></p>`:`<div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-top:16px"><span class="px">${price(a,true)}</span><span style="font-size:16px">${pct(a.d1)}</span><span class="num ${a.d1>=0?'up':'down'}">${a.d1>=0?'+':'−'}${fmt(Math.abs(abs),dp(a))} ${a.ccy}</span>${badge(ds)}</div><p class="sm" style="margin-top:6px">${stamp(a.mk)} · Session ${m.ses.toLowerCase()}${a.ccy!=='INR'?` · Approx INR value ${inr(a)}`:''} · Demo data, not a current market price</p>`}</div>
+  <div class="chips"><button class="btn ${w?'on':''}" data-a="watch" data-v="${a.t}" aria-pressed="${w}">${ic('star')}${w?'Watching':'Watch'}</button><button class="btn" data-a="addCmp" data-v="${a.t}" data-go="1">${ic('cols')}Compare</button><button class="btn p" data-a="alertM" data-v="${a.t}">${ic('bell')}Create alert</button></div></div>`}
+const kv=rows=>`<div class="kv">${rows.map(r=>`<div><small>${r[0]}</small><b>${r[1]}</b></div>`).join('')}</div>`;
+const indiaCtx=a=>{const m=M[a.mk];return `<div class="india"><h3>For Indian investors</h3><p class="mut" style="margin-top:4px;max-width:80ch">${a.ccy==='INR'?`Priced in rupees on ${m.ex.split(' · ')[0]}. Regular session ${hhmm(m.o)} to ${hhmm(m.c)} IST.`:`Priced in ${a.ccy}. One ${a.ccy} is about ₹${fmt(FX[a.ccy],FX[a.ccy]<1?3:2)} (demo reference rate), so a rupee-based return also depends on how ${a.ccy}/INR moves. ${m.name} trades ${hhmm(m.o)} to ${hhmm(m.c)} IST.`}</p></div>`};
+const notesFor=a=>{const ns=S.notes.filter(n=>n.t===a.t);return `<section class="card"><div class="mh"><h2>Your notes on ${a.t}</h2><span class="sp"></span><button class="btn s" data-a="noteM" data-v="${a.t}">${ic('plus')}Add note</button></div>${ns.length?`<div class="mb flush">${ns.map(n=>`<div class="rc"><b>${esc(n.title)}</b><span class="mut">${esc(n.body)}</span><br><small>${n.ts}</small></div>`).join('')}</div>`:`<div class="state">Notes you link to ${a.name} appear here and in your workspace.</div>`}</section>`};
+const med=k=>{const v=A.filter(a=>a[k]!=null&&a.type==='stock').map(a=>a[k]).sort((x,y)=>x-y);return v[v.length>>1]};
+P.stock=t=>{const a=AS[t];if(!a||a.type!=='stock')return P.nf();const r=rng(a.t+'f'),peers=A.filter(x=>x.type==='stock'&&x.sector===a.sector&&x.t!==t),tab=S.tab;
+  const rev0=a.mcap/(2+r()*6),mg=8+r()*26,yrs=[2022,2023,2024,2025,2026].map((y,i)=>{const rv=rev0/Math.pow(1+a.revG/100*(.6+r()*.5),4-i);return{y,rv,ni:rv*(mg+(i-4)*r()*1.5)/100}}),mxr=Math.max(...yrs.map(y=>y.rv));
+  const d52=series(a,'1Y'),hi=Math.max(...d52.map(x=>x.h)),lo=Math.min(...d52.map(x=>x.l));
+  const T={overview:()=>`${kv([['Market cap',cap(a.mcap)],['P/E (trailing)',fmt(a.pe,1)],['Forward P/E',fmt(a.fpe,1)],['Revenue growth',fmt(a.revG,0)+'%'],['ROIC',fmt(a.roic,0)+'%'],['Dividend yield',fmt(a.dy,2)+'%'],['Beta',fmt(a.beta,2)],['Volume',big(a.vol)],['52-week high',fmt(hi,dp(a))],['52-week low',fmt(lo,dp(a))],['1Y return',pct(a.y1)],['5Y return',pct(a.y5)]])}<div class="prose" style="margin-top:14px"><p>${a.name} is a ${a.industry.toLowerCase()} company in the ${a.sector.toLowerCase()} sector, listed in ${a.country}. It is ${(k=>k<3?'the '+['largest','second-largest','third-largest'][k]:'a leading')([...A].filter(x=>x.type==='stock'&&x.mk===a.mk).sort((x,y)=>y.mcap-x.mcap).findIndex(x=>x.t===t))} company by market value among ${a.country} names covered here.</p></div>`,
+   valuation:()=>`<p class="mut" style="margin-bottom:10px">Each multiple against the median of all stocks covered in this prototype.</p>${[['P/E','pe'],['Forward P/E','fpe'],['Price / book','pb'],['EV / EBITDA','ev'],['Dividend yield %','dy']].map(([l,k])=>{const m=med(k),mx=Math.max(a[k],m)*1.15||1;return `<div class="br" style="grid-template-columns:150px 1fr 150px"><span>${l}</span><span class="b" title="${a.t} ${fmt(a[k],1)}, median ${fmt(m,1)}"><i style="left:0;width:${Math.min(100,a[k]/mx*100)}%"></i><i style="left:${m/mx*100}%;width:2px;top:-4px;bottom:-4px;background:var(--text)"></i></span><span class="num" style="text-align:right">${fmt(a[k],1)} <span class="faint">vs ${fmt(m,1)}</span></span></div>`}).join('')}<p class="sm faint" style="margin-top:8px">Blue bar: ${a.t}. Vertical mark: universe median. Lower is not automatically better; compare within a sector.</p>`,
+   financials:()=>`<div style="display:flex;gap:14px;align-items:flex-end;height:150px;padding:0 4px" role="img" aria-label="Revenue by fiscal year">${yrs.map(y=>`<div style="flex:1;text-align:center"><div class="sm num">$${fmt(y.rv,1)}B</div><div style="height:${y.rv/mxr*105}px;background:var(--blue);border-radius:4px 4px 0 0;margin-top:4px"></div><div class="sm faint">FY${y.y}</div></div>`).join('')}</div><div class="tw" style="margin-top:12px"><table class="t"><thead><tr><th scope="col">USD, billions</th>${yrs.map(y=>`<th scope="col">FY${y.y}</th>`).join('')}</tr></thead><tbody><tr><td>Revenue</td>${yrs.map(y=>`<td>${fmt(y.rv,1)}</td>`).join('')}</tr><tr><td>Net income</td>${yrs.map(y=>`<td>${fmt(y.ni,1)}</td>`).join('')}</tr><tr><td>Net margin</td>${yrs.map(y=>`<td>${fmt(y.ni/y.rv*100,1)}%</td>`).join('')}</tr><tr><td>Revenue growth</td>${yrs.map((y,i)=>`<td>${i?pct((y.rv/yrs[i-1].rv-1)*100,1):'—'}</td>`).join('')}</tr></tbody></table></div>`,
+   risk:()=>kv([['Beta vs local index',fmt(a.beta,2)],['30-day volatility',fmt(a.volat,1)+'%'],['Max drawdown (3Y)',fmt(a.dd,1)+'%'],['RSI (14)',a.rsi],['Distance from 52W high',fmt((a.price/hi-1)*100,1)+'%'],['Distance from 52W low','+'+fmt((a.price/lo-1)*100,1)+'%']]),
+   dividends:()=>a.dy>0?`${kv([['Trailing yield',fmt(a.dy,2)+'%'],['Annual payout / share',fmt(a.price*a.dy/100,2)+' '+a.ccy],['Frequency',a.mk==='us'?'Quarterly':'Semi-annual']])}<div class="tw" style="margin-top:12px"><table class="t"><thead><tr><th scope="col">Ex-date</th><th scope="col">Pay date</th><th scope="col">Amount</th></tr></thead><tbody>${['14 Aug 2026','15 May 2026','13 Feb 2026','14 Nov 2025'].slice(0,a.mk==='us'?4:2).map((d,i)=>`<tr><td>${d}</td><td>${d.replace(/^\d+/,x=>+x+14)}</td><td>${fmt(a.price*a.dy/100/(a.mk==='us'?4:2)*(1-i*.02),3)} ${a.ccy}</td></tr>`).join('')}</tbody></table></div>`:`<div class="state"><b>No dividend on record</b>${a.name} has no distributions in the current data. Create a dividend alert to be told if that changes.<br><button class="btn" data-a="alertM" data-v="${a.t}">Create alert</button></div>`,
+   peers:()=>atable(peers,['price','d1','y1','mcap','pe','revG','roic','dy'],{empty:'No peers covered yet',emptySub:'Peers appear as more companies in this sector are added.'}),
+   research:()=>`<div class="prose"><div class="chips" style="margin-bottom:10px"><span class="tag">${a.t}</span><span class="tag">${a.country}</span><span class="tag">${a.sector}</span><span class="sm faint">${NOW.date} · Demo content generated from the metrics on this page</span><button class="btn s ${S.saved.includes(t)?'on':''}" data-a="saveRes" data-v="${t}">${S.saved.includes(t)?'Saved':'Save research'}</button></div>
+    <h3>What changed</h3><p>The share price is ${a.m1>=0?'up':'down'} ${fmt(Math.abs(a.m1),1)}% over one month and ${a.y1>=0?'up':'down'} ${fmt(Math.abs(a.y1),1)}% over one year. Revenue growth is running at ${fmt(a.revG,0)}%.</p>
+    <h3>Why it matters</h3><p>At ${fmt(a.pe,1)} times trailing earnings against a covered-universe median of ${fmt(med('pe'),1)}, the market is pricing ${a.pe>med('pe')?'above':'below'}-median expectations. Forward P/E of ${fmt(a.fpe,1)} implies earnings ${a.fpe<a.pe?'growth':'pressure'} in the year ahead.</p>
+    <h3>Profitability and risk</h3><p>Return on invested capital is ${fmt(a.roic,0)}%. Beta of ${fmt(a.beta,2)} and 30-day volatility of ${fmt(a.volat,1)}% describe how far the price has tended to move relative to its home index.</p>
+    <h3>What to monitor</h3><p>The next earnings date, margin direction, and for rupee-based readers the ${a.ccy==='INR'?'domestic rate path':a.ccy+'/INR rate'}. Set an alert on any of these from the button above.</p>
+    <p class="sm">INRGIFT research describes data. It is not a recommendation to transact in any security.</p></div>`,
+   news:()=>{const n=NEWS.filter(x=>x.t===t);return n.length?`<div style="margin:-14px -16px">${n.map(newsCard).join('')}</div>`:`<div class="state"><b>No recent news for ${a.t}</b>Create a news alert to be told when coverage appears.<br><button class="btn" data-a="alertM" data-v="${a.t}">Create alert</button></div>`}};
+  const TL={overview:'Overview',valuation:'Valuation',financials:'Financials',risk:'Risk',dividends:'Dividends',peers:'Peers',research:'Research',news:'News'},cur=T[tab]?tab:'overview';
+  return `<div class="wrap stack">${assetHead(a)}${chartCard(a)}<section class="card"><div class="tabs" role="tablist">${Object.keys(TL).map(k=>`<button role="tab" aria-selected="${cur===k}" class="${cur===k?'on':''}" data-a="tab" data-v="${k}">${TL[k]}</button>`).join('')}</div><div class="mb ${cur==='peers'?'flush':''}" role="tabpanel">${dsOf(a.mk)==='LOADING'?'<div class="sk"></div>'.repeat(5):T[cur]()}</div><div class="mf"><span>${stamp(a.mk)}</span><span>Demo data</span><a href="#/data">Methodology</a></div></section>${indiaCtx(a)}${notesFor(a)}${footer()}</div>`};
+const ALLOC={SPY:[['Technology',33],['Financials',13],['Healthcare',10],['Consumer Discretionary',10],['Communication Services',9],['Industrials',8],['Other',17]],QQQ:[['Technology',58],['Communication Services',16],['Consumer Discretionary',13],['Healthcare',5],['Other',8]],GLD:[['Physical gold',100]],VWO:[['Technology',26],['Financials',22],['Consumer Discretionary',13],['Communication Services',9],['Other',30]],SCHD:[['Energy',19],['Consumer Staples',18],['Healthcare',16],['Industrials',13],['Other',34]],SOXX:[['Semiconductors',79],['Semiconductor Equipment',21]],INDA:[['Financials',29],['Technology',12],['Consumer Discretionary',12],['Energy',9],['Other',38]]};ALLOC.VOO=ALLOC.SPY;
+const GEO={SPY:[['United States',100]],VOO:[['United States',100]],QQQ:[['United States',97],['Other',3]],GLD:[['Global (bullion)',100]],VWO:[['China',28],['Taiwan',22],['India',20],['Brazil',5],['Other',25]],SCHD:[['United States',100]],SOXX:[['United States',86],['Taiwan',5],['Netherlands',9]],INDA:[['India',100]]};
+const abars=rows=>rows.map(r=>`<div class="br"><span>${r[0]}</span><span class="b"><i style="left:0;width:${r[1]}%"></i></span><span class="num" style="text-align:right">${fmt(r[1],0)}%</span></div>`).join('');
+P.etf=t=>{const a=AS[t];if(!a||a.type!=='etf')return P.nf();const r=rng(t+'e'),hs=Object.entries(a.hold),hsum=hs.reduce((s,h)=>s+h[1],0),td=-(a.er+r()*.04);
+  const sc={Cost:Math.round(Math.max(40,98-a.er*90)),Liquidity:Math.round(Math.min(98,62+Math.log10(a.mcap)*12)),Diversification:Math.round(Math.min(96,38+Math.log10(a.nh)*16)),Performance:Math.round(Math.min(95,55+a.y5/8)),Risk:Math.round(Math.max(35,95-a.volat*1.4))};
+  const steps=[['Objective',a.strategy,`Seeks to track the ${a.bench} index before fees.`],['Cost',fmt(a.er,2)+'% expense ratio',`About ₹${fmt(a.er*100,0)} a year for every ₹1,00,000 held, before brokerage and currency costs.`],['Size',cap(a.mcap)+' in assets','Larger funds are less likely to close and usually trade with tighter spreads.'],['Liquidity',big(a.vol)+' shares a day','Average daily volume, a guide to how easily the fund changes hands.'],['Holdings',fmt(a.nh,0)+' positions',hs.length?`Top ${hs.length} covered holdings make up ${fmt(hsum,1)}% of the fund.`:'Holds physical gold bullion in allocated vaults.'],['Allocation',ALLOC[t][0][0]+' '+ALLOC[t][0][1]+'%','Largest sector weight. Concentration above 30% deserves a closer look.'],['Performance',`${a.y1>=0?'+':'−'}${fmt(Math.abs(a.y1),1)}% over 1Y`,`Tracking difference of ${fmt(td,2)}% a year against the benchmark.`],['Risk',fmt(a.volat,1)+'% volatility',`Maximum drawdown of ${fmt(a.dd,1)}% over three years.`]];
+  return `<div class="wrap stack">${assetHead(a)}${chartCard(a)}
+  ${kv([['Expense ratio',fmt(a.er,2)+'%'],['Assets (AUM)',cap(a.mcap)],['Avg volume',big(a.vol)],['Distribution yield',fmt(a.dy,2)+'%'],['Benchmark',a.bench],['Holdings',fmt(a.nh,0)],['Issuer',a.issuer],['Tracking difference',fmt(td,2)+'%']])}
+  <div class="grid g2" style="align-items:start">${mod('Top holdings',hs.length?`<div class="tw"><table class="t"><thead><tr><th scope="col">Holding</th><th scope="col">Weight</th><th scope="col">1D</th></tr></thead><tbody>${hs.map(([k,w])=>`<tr><td>${assetCell(AS[k])}</td><td>${fmt(w,1)}%</td><td>${pct(AS[k].d1)}</td></tr>`).join('')}<tr><td class="mut">Other holdings</td><td>${fmt(100-hsum,1)}%</td><td></td></tr></tbody></table></div>`:`<div class="state"><b>Single-asset fund</b>${a.name} holds physical gold bullion rather than securities.</div>`,{mk:'us',sub:'Covered names link to research'})}
+  <div class="stack">${mod('Sector allocation',`<div class="mb">${abars(ALLOC[t])}</div>`,{mk:'us',rows:3})}${mod('Geographic allocation',`<div class="mb">${abars(GEO[t])}</div>`,{mk:'us',rows:2})}</div></div>
+  ${mod('Performance',`<div class="tw"><table class="t"><thead><tr><th scope="col">Period</th><th scope="col">Fund</th><th scope="col">Benchmark</th><th scope="col">Difference</th></tr></thead><tbody>${[['1 month','m1',1/12],['Year to date','ytd',.76],['1 year','y1',1],['3 years','y3',3],['5 years','y5',5]].map(([l,k,y])=>`<tr><td>${l}</td><td>${pct(a[k])}</td><td>${pct(a[k]-td*y)}</td><td>${pct(td*y)}</td></tr>`).join('')}</tbody></table></div>`,{mk:'us',sub:'Total return in USD'})}
+  <section class="card" id="review"><div class="mh"><h2>8-step ETF review</h2><span class="sp"></span><button class="btn s ${S.saved.includes(t)?'on':''}" data-a="saveRes" data-v="${t}">${S.saved.includes(t)?'Saved':'Save review'}</button></div>
+  <div class="mb"><div class="kv" style="margin-bottom:14px">${Object.entries(sc).map(([k,v])=>`<div><small>${k}</small><b>${v}<span class="faint sm"> / 100</span></b></div>`).join('')}</div><p class="sm faint" style="margin-bottom:12px">INRGIFT Research Score. A rules-based summary of the data below, not financial advice. <a href="#/data">How scores are calculated</a></p>
+  <ol style="list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px">${steps.map((s,i)=>`<li class="tile" style="cursor:default"><span class="sm faint">Step ${i+1} of 8</span><h3>${s[0]}</h3><b class="num">${s[1]}</b><small>${s[2]}</small></li>`).join('')}</ol></div></section>
+  ${indiaCtx(a)}<section><h2 style="margin-bottom:12px">Related ETFs</h2><div class="grid g4">${A.filter(x=>x.type==='etf'&&x.t!==t).slice(0,4).map(x=>`<a class="tile" href="${href(x)}"><h3>${x.t}</h3><small>${x.name}</small><div style="margin-top:8px">${pct(x.y1)} <span class="sm faint">1Y · ${fmt(x.er,2)}% cost</span></div></a>`).join('')}</div></section>${notesFor(a)}${footer()}</div>`};
+
+/* screener */
+const FD={region:['Region','cat'],country:['Market','cat'],sector:['Sector','cat'],mcap:['Market cap / AUM ($B)'],pe:['P/E'],fpe:['Forward P/E'],revG:['Revenue growth %'],roic:['ROIC %'],dy:['Dividend yield %'],beta:['Beta'],volat:['Volatility %'],rsi:['RSI (14)'],d1:['1D change %'],y1:['1Y return %'],er:['Expense ratio % (ETFs)']};
+const node=p=>p===''?S.scr.tree:p.split('.').reduce((n,i)=>n.rules[+i],S.scr.tree);
+const ev=(n,a)=>n.rules?(n.rules.length?(n.op==='AND'?n.rules.every(x=>ev(x,a)):n.rules.some(x=>ev(x,a))):true):(v=>v==null||n.v===''?false:n.o==='is'?String(v)===n.v:n.o==='not'?String(v)!==n.v:n.o==='>='?v>=+n.v:v<=+n.v)(a[n.f]);
+function ruleUI(n,p){if(n.rules)return `<div class="grp"><div class="grph"><div class="seg" role="group" aria-label="Match"><button class="${n.op==='AND'?'on':''}" data-a="scrOp" data-v="${p}|AND">All of (AND)</button><button class="${n.op==='OR'?'on':''}" data-a="scrOp" data-v="${p}|OR">Any of (OR)</button></div><button class="btn s" data-a="scrAdd" data-v="${p}">${ic('plus')}Filter</button>${p.split('.').length<3?`<button class="btn s" data-a="scrAddG" data-v="${p}">${ic('plus')}Group</button>`:''}${p?`<button class="btn s g" data-a="scrDel" data-v="${p}" aria-label="Remove group">${ic('x')}</button>`:''}</div>${n.rules.map((x,i)=>ruleUI(x,p===''?''+i:p+'.'+i)).join('')||'<p class="sm faint" style="margin-top:8px">No filters in this group. It matches everything.</p>'}</div>`;
+  const cat=FD[n.f][1]==='cat',opts=cat?[...new Set(A.map(a=>a[n.f]))].sort():[];
+  return `<div class="rule"><select aria-label="Field" data-c="scrF" data-v="${p}">${Object.entries(FD).map(([k,v])=>`<option value="${k}" ${n.f===k?'selected':''}>${v[0]}</option>`).join('')}</select><select aria-label="Operator" data-c="scrO" data-v="${p}">${(cat?[['is','is'],['not','is not']]:[['>=','at least'],['<=','at most']]).map(o=>`<option value="${o[0]}" ${n.o===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>${cat?`<select aria-label="Value" data-c="scrV" data-v="${p}">${opts.map(o=>`<option ${n.v===o?'selected':''}>${o}</option>`).join('')}</select>`:`<input aria-label="Value" type="number" step="any" value="${n.v}" data-c="scrV" data-v="${p}">`}<button class="btn s g" data-a="scrDel" data-v="${p}" aria-label="Remove filter">${ic('x')}</button></div>`}
+P.screener=()=>{const sc=S.scr,uni=A.filter(a=>sc.uni==='all'||a.type===sc.uni),res=uni.filter(a=>ev(sc.tree,a));
+  return `<div class="wrap stack"><div class="ph"><div><h1>Global screener</h1><p>Build filters with AND, OR and nested groups. Results update as you change them.</p></div><div class="chips"><input class="inp" style="width:190px" placeholder="Name this screen" aria-label="Screen name" value="${esc(sc.name)}" data-c="scrName"><button class="btn p" data-a="scrSave">Save screen</button><button class="btn" data-a="scrReset">Reset</button></div></div>
+  <div class="grid g13" style="align-items:start"><section class="card" aria-label="Filters"><div class="mh"><h2>Filters</h2></div><div class="mb"><label class="sm faint" style="display:block;margin-bottom:6px">Universe</label><div class="seg" role="group" style="margin-bottom:12px">${[['all','All'],['stock','Stocks'],['etf','ETFs']].map(o=>`<button class="${sc.uni===o[0]?'on':''}" data-a="uni" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>${ruleUI(sc.tree,'')}</div></section>
+  ${mod('Results',atable(res,sc.cols,{empty:'No assets match these filters',emptySub:'Remove a filter, switch a group to "Any of", or widen the universe.'}),{sub:`<b aria-live="polite">${res.length}</b> of ${uni.length} match`,rows:8,tools:`<details class="dd"><summary class="btn s">Columns</summary><div class="menu rt" style="min-width:180px">${Object.keys(COLS).filter(k=>k!=='status').map(k=>`<button data-a="scrCol" data-v="${k}" role="menuitemcheckbox" aria-checked="${sc.cols.includes(k)}">${sc.cols.includes(k)?'✓':'　'} ${COLS[k][0]}</button>`).join('')}</div></details>`})}</div>${footer()}</div>`};
+
+/* compare */
+const CC=['var(--blue)','var(--saffron)','var(--up)','var(--text)'],CDASH=['','7 4','2 3','10 3 2 3'];
+P.compare=()=>{const L=S.compare.map(t=>AS[t]),rk=S.cmpR,[n,key]=RG[rk];
+  const ser=L.map(a=>{const c=series(a,rk).map(x=>x.c);return c.map(v=>(v/c[0]-1)*100)}),all=ser.flat(),mn=Math.min(0,...all),mx=Math.max(0,...all),W=1000,H=300,PR=110,X=i=>i/(n-1)*(W-PR),Y=v=>10+(1-(v-mn)/((mx-mn)||1))*(H-34);
+  const rows=[['Price',a=>price(a)],['1D',a=>pct(a.d1),a=>a.d1,1],['1Y return',a=>pct(a.y1),a=>a.y1,1],['3Y return',a=>pct(a.y3),a=>a.y3,1],['5Y return',a=>pct(a.y5),a=>a.y5,1],['Market cap / AUM',a=>cap(a.mcap),a=>a.mcap,1],['Revenue growth',a=>a.revG==null?'—':fmt(a.revG,0)+'%',a=>a.revG,1],['P/E',a=>fmt(a.pe,1),a=>a.pe,-1],['Forward P/E',a=>fmt(a.fpe,1),a=>a.fpe,-1],['EV / EBITDA',a=>a.type==='etf'?'—':fmt(a.ev,1),a=>a.type==='etf'?null:a.ev,-1],['ROIC',a=>a.roic==null?'—':fmt(a.roic,0)+'%',a=>a.roic,1],['Beta',a=>fmt(a.beta,2),a=>a.beta,-1],['Volatility',a=>fmt(a.volat,1)+'%',a=>a.volat,-1],['Dividend yield',a=>fmt(a.dy,2)+'%',a=>a.dy,1],['Expense ratio (ETF)',a=>a.er==null?'—':fmt(a.er,2)+'%',a=>a.er,-1],['Holdings (ETF)',a=>a.nh==null?'—':fmt(a.nh,0),a=>a.nh,1]];
+  return `<div class="wrap stack"><div class="ph"><div><h1>Compare</h1><p>Up to four stocks or ETFs side by side. Returns are rebased to zero at the start of the period.</p></div><div class="chips">${L.length<4?`<select class="sel" data-c="cmpAdd" aria-label="Add an asset"><option value="">Add an asset…</option>${A.filter(a=>!S.compare.includes(a.t)).map(a=>`<option value="${a.t}">${a.name} (${a.t})</option>`).join('')}</select>`:'<span class="sm faint">Four of four slots used</span>'}<button class="btn p" data-a="cmpSave" ${L.length<2?'disabled':''}>Save comparison</button></div></div>
+  ${L.length<2?`<div class="card state"><b>Add ${L.length?'one more asset':'two assets'} to compare</b>Use the selector above, or the compare button on any table row.</div>`:`
+  ${mod('Relative performance',`<div class="cbar"><div class="seg" role="group" aria-label="Period">${['1M','6M','YTD','1Y','3Y','5Y'].map(r=>`<button class="${rk===r?'on':''}" data-a="cmpR" data-v="${r}">${r}</button>`).join('')}</div><span style="flex:1"></span>${L.map((a,i)=>`<span class="sm"><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${CC[i]}" stroke-width="2.4" stroke-dasharray="${CDASH[i]}"/></svg> ${a.t}</span>`).join('')}</div><div class="chart mb"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Rebased ${rk} returns: ${L.map((a,i)=>a.t+' '+fmt(ser[i][n-1],1)+' percent').join(', ')}">${[0,1,2,3,4].map(k=>{const v=mn+(mx-mn)*k/4;return `<line x1="0" x2="${W-PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${W-PR+70}" y="${Y(v)+4}">${v>0?'+':''}${fmt(v,0)}%</text>`}).join('')}<line x1="0" x2="${W-PR}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line2)" stroke-width="1.5"/>${ser.map((s,i)=>`<polyline fill="none" stroke="${CC[i]}" stroke-width="2" stroke-dasharray="${CDASH[i]}" points="${s.map((v,j)=>X(j).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/><text x="${W-PR+6}" y="${Y(s[n-1])+4}" style="fill:${CC[i]};font-weight:600">${L[i].t}</text>`).join('')}${[0,2,4].map(k=>`<text x="${X(Math.round(k*(n-1)/4))}" y="${H-4}" text-anchor="${k==0?'start':k==4?'end':'middle'}">${dlabel(rk,Math.round(k*(n-1)/4),n)}</text>`).join('')}</svg></div>`,{rows:7})}
+  ${mod('Metrics',`<div class="tw"><table class="t"><thead><tr><th scope="col">Metric</th>${L.map((a,i)=>`<th scope="col"><a href="${href(a)}" style="color:${CC[i]}">${a.name}</a><br><span class="faint">${a.t} · ${a.type==='etf'?'ETF':a.country}</span> <button data-a="cmpDel" data-v="${a.t}" aria-label="Remove ${a.name}" style="margin-left:4px;vertical-align:middle">${ic('x')}</button></th>`).join('')}</tr></thead><tbody>${rows.map(r=>{const vals=r[2]?L.map(r[2]):[],ok=vals.filter(v=>v!=null),best=r[3]&&ok.length>1?(r[3]>0?Math.max(...ok):Math.min(...ok)):null;return `<tr><td>${r[0]}</td>${L.map((a,i)=>`<td class="${best!=null&&vals[i]===best?'best':''}">${r[1](a)}${best!=null&&vals[i]===best?'<span class="sr"> (best in row)</span>':''}</td>`).join('')}</tr>`}).join('')}</tbody></table></div>`,{sub:'Shaded cell: highest return or yield, lowest cost, multiple or risk',rows:8})}`}${footer()}</div>`};
+
+P.collection=id=>{const c=COLL.find(x=>x.id===id);if(!c)return P.nf();const l=A.filter(c.f),avg=k=>l.reduce((s,a)=>s+a[k],0)/l.length;
+  return `<div class="wrap stack"><div class="crumbs"><a href="#/assets">Assets</a> / Collections / ${c.name}</div><div class="ph"><div><h1>${c.name}</h1><p>${c.d}. Equal-weighted averages across ${l.length} assets.</p></div></div>${kv([['1D',pct(avg('d1'))],['1M',pct(avg('m1'))],['YTD',pct(avg('ytd'))],['1Y',pct(avg('y1'))],['Markets',new Set(l.map(a=>a.mk)).size],['Assets',l.length]])}${mod('Collection heatmap',`<div class="mb">${heatmap({group:'country',size:'mcap',metric:'m1',uni:'all',path:[]},{compact:true,list:l})}</div>`,{sub:'Coloured by 1M change'})}${mod('Assets',atable(l),{rows:6})}${footer()}</div>`};
+P.research=()=>`<div class="wrap stack"><div class="ph"><div><h1>Research</h1><p>Structured notes on companies, ETFs and markets. Each one names its asset, market, topic and date.</p></div></div><div class="grid g2" style="align-items:start">${mod('Latest research',`<div class="mb flush">${RES.map(resCard).join('')}</div>`)}${mod('Market news',`<div class="mb flush">${NEWS.map(newsCard).join('')}</div>`)}</div><p class="sm faint">Research and headlines in this prototype are demo content. Theme, macro and market-level research arrive in the next phase.</p>${footer()}</div>`;
+P.data=()=>`<div class="wrap stack"><div class="ph"><div><h1>Data and methodology</h1><p>How to read every number in this prototype.</p></div></div><section class="card"><div class="mh"><h2>Data status</h2></div><div class="tw"><table class="t"><thead><tr><th scope="col">Status</th><th scope="col" class="l">Meaning</th><th scope="col" class="l">What you see</th></tr></thead><tbody>${[['LIVE','Streaming or polled within seconds of the exchange','Timestamp reads "Updated hh:mm IST"'],['DELAYED','Exchange-mandated delay, usually 15 minutes','Timestamp reads "As of hh:mm IST"'],['EOD','The session has ended; values are the official close','Close date and time in IST'],['CLOSED','No session today, for example a market holiday','Date of the last close'],['UNAVAILABLE','The current source has no value for this module','"Last available" timestamp and a link to coverage'],['ERROR','The request failed','A message naming the module, and a Retry button'],['LOADING','The request is in flight','Skeleton rows, never an open-ended "Updating"']].map(r=>`<tr><td>${badge(r[0])}</td><td class="l" style="white-space:normal">${r[1]}</td><td class="l" style="white-space:normal">${r[2]}</td></tr>`).join('')}</tbody></table></div><div class="mf">Use "Preview data state" in the top strip to force any state across every module.</div></section>
+  <section class="card mb prose"><h3 style="margin-top:0">Demo data</h3><p>All prices, fundamentals, holdings, headlines and research in this prototype are static demo values dated ${NOW.date}, ${NOW.ist} IST. They are shaped like real data and do not reflect current markets.</p><h3>Architecture</h3><p>The interface reads one normalized Asset shape and one normalized Market shape. In production these come from the INRGIFT API, which sits on a normalization layer over provider adapters, so no screen depends on a provider's field names and a fallback provider can be swapped in.</p><h3>INRGIFT Research Score</h3><p>ETF scores are rules-based summaries of cost, liquidity, diversification, performance and risk on a 0 to 100 scale. They describe data and are not financial advice.</p><h3>India context</h3><p>INR values use a reference rate per currency. Session times are regular trading hours converted to IST.</p></section>${footer()}</div>`;
+P.next=()=>`<div class="wrap stack"><div class="ph"><div><h1>What comes next</h1><p>This prototype covers the eleven priority screens. The routes below are planned on the same design system and are not built yet.</p></div><a class="btn p" href="#/">Back to home</a></div><div class="grid g3">${[['Assets','Stock, ETF and index directories · Currencies · Commodities · Bonds · REITs · Funds'],['Discover','Movers · Trending · 52-week highs and lows · Collections hub'],['Research','Market research · Themes · Macro'],['Resources','News · Earnings · Dividends · IPOs · Market calendar · Learning · Glossary'],['Account','Verification email · Password reset · Profile · Security · Notification centre'],['Trust','About · Pricing · FAQ · Support · Contact · Legal']].map(x=>`<div class="tile" style="cursor:default"><h3>${x[0]}</h3><small>${x[1]}</small></div>`).join('')}</div>${footer()}</div>`;
+P.nf=()=>`<div class="wrap"><div class="card state" style="padding:60px 16px"><b style="font-size:22px">We couldn't find that market.</b>The address may be mistyped, or the asset is not in this prototype's coverage.<br><button class="btn p" data-a="search">Search everything</button> <a class="btn" href="#/markets">Browse markets</a></div></div>`;
+
+/* workspace */
+const WS=[['MY WORKSPACE',[['','Overview','home'],['watchlist','Watchlist','star'],['alerts','Alerts','bell']]],['DISCOVER',[['screens','Saved Screens','filter'],['comparisons','Saved Comparisons','cols'],['collections','Collections','grid'],['recent','Recent','clock']]],['RESEARCH',[['research','Saved Research','doc'],['notes','Notes','note'],['history','History','history']]]];
+const wsCount=k=>({watchlist:S.watch.size,alerts:S.alerts.length,screens:S.screens.length,comparisons:S.comparisons.length,research:S.saved.length,notes:S.notes.length}[k]);
+const empty=(t,s,cta)=>`<div class="card state" style="padding:44px 16px"><b>${t}</b>${s}<br>${cta}</div>`;
+P.app=sec=>{const wl=[...S.watch].map(t=>AS[t]);const W={
+  '':()=>`<div class="ph"><div><h1>Good evening, Aarav.</h1><p>Your global market workspace · ${NOW.date}, ${NOW.ist} IST</p></div><button class="btn" data-a="search">${ic('search')}Search</button></div><div class="strip">${['NIFTY 50','S&P 500','NASDAQ Composite','DAX','Nikkei 225','Hang Seng'].map(n=>idxTile(IDX.find(i=>i.name===n))).join('')}</div>
+    <div class="grid g21" style="align-items:start">${mod('Watchlist',atable(wl.slice(0,6),['price','d1','w1','status'],{nosort:true,empty:'Your watchlist is empty',emptySub:'Use the star on any asset to add it.'}),{more:['Open watchlist','#/app/watchlist']})}<div class="stack"><section class="card"><div class="mh"><h2>Alerts</h2><span class="sp"></span><a href="#/app/alerts" class="sm">All alerts</a></div><div class="mb flush">${S.alerts.slice(0,3).map(alertRow).join('')||'<div class="state">No alerts yet.</div>'}</div></section>
+    <section class="card"><div class="mh"><h2>Recently viewed</h2></div><div class="mb chips">${S.recent.slice(0,6).map(t=>`<a class="chip" href="${href(AS[t])}">${t}</a>`).join('')}</div></section>
+    <section class="card"><div class="mh"><h2>Saved screens</h2></div>${S.screens.length?`<div class="mb flush">${S.screens.map((s,i)=>`<a class="rc" href="#/screener" data-a="scrLoad" data-v="${i}"><b>${esc(s.name)}</b><small>${s.count} matches when saved</small></a>`).join('')}</div>`:`<div class="state">No saved screens. <a href="#/screener">Build one</a></div>`}</section></div></div>`,
+  watchlist:()=>`<div class="ph"><div><h1>Watchlist</h1><p>${wl.length} assets across ${new Set(wl.map(a=>a.mk)).size} markets.</p></div><a class="btn" href="#/screener">${ic('plus')}Find assets</a></div>${wl.length?mod('All watched assets',atable(wl,['price','d1','w1','m1','y1','vol','status']),{rows:6}):empty('Your watchlist is empty','Add assets with the star on any table row or asset page.','<a class="btn p" href="#/assets">Explore assets</a>')}`,
+  alerts:()=>`<div class="ph"><div><h1>Alerts</h1><p>Price, movement, 52-week, earnings, dividend and news conditions.</p></div><button class="btn p" data-a="alertM" data-v="${S.recent[0]||'NVDA'}">${ic('plus')}Create alert</button></div>${S.alerts.length?`<div class="card">${S.alerts.map(alertRow).join('')}</div>`:empty('No alerts yet','Create one from any asset page to be notified when a condition is met.','<a class="btn p" href="#/assets">Explore assets</a>')}`,
+  screens:()=>`<div class="ph"><div><h1>Saved Screens</h1></div><a class="btn p" href="#/screener">${ic('plus')}New screen</a></div>${S.screens.length?`<div class="grid g3">${S.screens.map((s,i)=>`<div class="tile" style="cursor:default"><h3>${esc(s.name)}</h3><small>${s.uni==='all'?'All assets':s.uni==='etf'?'ETFs':'Stocks'} · ${s.count} matches · saved ${NOW.date}</small><div class="chips" style="margin-top:10px"><a class="btn s" href="#/screener" data-a="scrLoad" data-v="${i}">Open</a><button class="btn s" data-a="scrDup" data-v="${i}">Duplicate</button><button class="btn s g" data-a="scrRm" data-v="${i}">Delete</button></div></div>`).join('')}</div>`:empty('No saved screens','Build a set of filters in the screener, name it, and save it here.','<a class="btn p" href="#/screener">Open screener</a>')}`,
+  comparisons:()=>`<div class="ph"><div><h1>Saved Comparisons</h1></div><a class="btn p" href="#/compare">${ic('plus')}New comparison</a></div>${S.comparisons.length?`<div class="grid g3">${S.comparisons.map((c,i)=>`<div class="tile" style="cursor:default"><h3>${c.join(' vs ')}</h3><small>${c.length} assets · saved ${NOW.date}</small><div class="chips" style="margin-top:10px"><a class="btn s" href="#/compare" data-a="cmpLoad" data-v="${i}">Open</a><button class="btn s g" data-a="cmpRm" data-v="${i}">Delete</button></div></div>`).join('')}</div>`:empty('No saved comparisons','Compare up to four assets and save the set to reopen it later.','<a class="btn p" href="#/compare">Open compare</a>')}`,
+  collections:()=>`<div class="ph"><div><h1>Collections</h1><p>Curated groups you can open as a heatmap and table.</p></div></div><div class="grid g3">${COLL.map(c=>`<a class="tile" href="#/collection/${c.id}"><h3>${c.name}</h3><small>${c.d}</small><div style="margin-top:8px"><span class="tag">${A.filter(c.f).length} assets</span></div></a>`).join('')}</div>`,
+  recent:()=>`<div class="ph"><h1>Recent</h1></div>${S.recent.length?mod('Recently viewed assets',atable(S.recent.map(t=>AS[t]),['price','d1','y1','status'],{nosort:true})):empty('Nothing viewed yet','Assets you open appear here.','<a class="btn p" href="#/assets">Explore assets</a>')}`,
+  research:()=>`<div class="ph"><h1>Saved Research</h1></div>${S.saved.length?`<div class="card">${S.saved.map(t=>`<a class="rc" href="${href(AS[t])}" data-a="tab" data-v="research"><b>${AS[t].name}: ${AS[t].type==='etf'?'8-step ETF review':'research note'}</b><small><span class="tag">${t}</span>${AS[t].country}</small></a>`).join('')}</div>`:empty('No saved research','Save a research note or ETF review from any asset page.','<a class="btn p" href="#/research">Browse research</a>')}`,
+  notes:()=>`<div class="ph"><div><h1>Notes</h1><p>A personal research notebook. Link a note to an asset and it also appears on that asset's page.</p></div><button class="btn p" data-a="noteM" data-v="">${ic('plus')}New note</button></div>${S.notes.length?`<div class="grid g2">${S.notes.map((n,i)=>`<div class="tile" style="cursor:default"><h3>${esc(n.title)}</h3><p class="mut" style="margin:6px 0">${esc(n.body)}</p><small>${n.t?`<a class="tag" href="${href(AS[n.t])}">${n.t}</a>`:''}${n.ts} <button class="btn s g" data-a="noteRm" data-v="${i}">Delete</button></small></div>`).join('')}</div>`:empty('No notes yet','Write down what you are watching and why.','<button class="btn p" data-a="noteM" data-v="">New note</button>')}`,
+  history:()=>`<div class="ph"><h1>History</h1>${S.recent.length?'<button class="btn" data-a="clearHist">Clear history</button>':''}</div>${S.recent.length?`<div class="card">${S.recent.map(t=>`<a class="rc" href="${href(AS[t])}"><b>${AS[t].name}</b><small>Viewed asset · ${t} · this session</small></a>`).join('')}</div>`:empty('History is clear','Assets, screens and comparisons you open will be listed here.','<a class="btn p" href="#/">Go to home</a>')}`,
+  settings:()=>`<div class="ph"><h1>Settings</h1></div><div class="card mb form" style="max-width:520px"><label for="sc">Display currency</label><select id="sc" class="sel" data-c="ccy"><option value="LOCAL" ${S.ccy==='LOCAL'?'selected':''}>Local currency of each market</option><option value="INR" ${S.ccy==='INR'?'selected':''}>Indian rupee (approximate)</option></select><label for="tz">Time zone</label><select id="tz" class="sel" disabled><option>India Standard Time (IST)</option></select><p class="sm faint" style="margin-top:6px">More time zones arrive with the account settings phase.</p><label>Theme</label><div class="seg" role="group">${[['','System'],['light','Light'],['dark','Dark']].map(o=>`<button class="${(document.documentElement.dataset.theme||'')===o[0]?'on':''}" data-a="theme" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>`,
+  help:()=>`<div class="ph"><h1>Help</h1></div><div class="card">${[['Is INRGIFT a broker?','No. INRGIFT is a research platform. You cannot place orders, hold funds or connect a brokerage account here.'],['Are these prices real?','Not in this prototype. Every value is demo data dated '+NOW.date+'. Production data will carry a status and timestamp on every module.'],['What do Live, Delayed and End of day mean?','They describe how fresh a number is. The full list is on the data and methodology page.'],['How do I see prices in rupees?','Use the currency selector in the header. Converted values are approximate and use a reference rate.'],['How do I compare assets?','Use the compare button on any table row or asset page, then open Compare. You can save the set to your workspace.']].map(q=>`<details class="rc"><summary style="cursor:pointer;font-weight:600">${q[0]}</summary><p class="mut" style="margin-top:6px;max-width:70ch">${q[1]}</p></details>`).join('')}</div><p class="sm" style="margin-top:12px"><a href="#/data">Data and methodology</a></p>`};
+  return `<div class="wrap stack">${(W[sec||'']||(()=>P.nf()))()}</div>`};
+const alertRow=(al,i)=>`<div class="rc" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b><a href="${href(AS[al.t])}">${AS[al.t].name}</a> · ${al.type}${al.v?' '+esc(al.v):''}</b><small>Created ${al.created} · Last triggered: ${al.last}</small></div><span class="badge ${al.status==='Triggered'?'st-DELAYED':'st-LIVE'}">${al.status}</span><button class="btn s g" data-a="alertRm" data-v="${i}" aria-label="Delete alert">${ic('x')}</button></div>`;
+
+/* auth */
+const authL=()=>`<div class="l"><a class="logo" href="#/"><i></i>INRGIFT</a><div><h1>Global markets. One intelligence platform.</h1><p>Research the world from India.</p></div><div><div style="margin-bottom:10px;font-weight:600;color:#fff">Open right now, ${NOW.ist} IST</div>${rail(['us','uk','jp','in'].map(k=>M[k]))}</div></div>`;
+P.login=()=>`<div class="auth">${authL()}<div class="r"><div class="form"><h1 style="font-size:26px">Sign in</h1><p class="mut" style="margin-top:4px">Pick up your watchlists, alerts and saved research.</p><label for="le">Email</label><input id="le" class="inp" type="email" autocomplete="email" placeholder="you@example.com" aria-describedby="lerr">${S.err.login?`<p class="err" id="lerr" role="alert">${S.err.login}</p>`:''}<label for="lp">Password</label><input id="lp" class="inp" type="password" autocomplete="current-password"><p class="sm" style="margin-top:8px;text-align:right"><a href="#/next">Forgot password?</a></p><button class="btn p" style="width:100%;justify-content:center;margin-top:14px" data-a="login">Sign in</button><button class="btn" style="width:100%;justify-content:center;margin-top:8px" data-a="demoLogin">Continue with the demo account</button><p class="sm mut" style="margin-top:16px">Your watchlists, research and preferences are private.</p><p style="margin-top:16px">New to INRGIFT? <a href="#/signup">Create account</a></p><p class="sm faint" style="margin-top:20px">INRGIFT is a research platform, not a broker or investment adviser.</p></div></div></div>`;
+P.signup=()=>{const u=S.su,st=['Account','Verify','Personalise','Complete'],pick=(set,k,v,l)=>`<button class="chip ${u[set].has(v)?'on':''}" aria-pressed="${u[set].has(v)}" data-a="suPick" data-v="${set}|${v}">${l||v}</button>`;
+  const mask=e=>{const [a,b]=e.split('@');return a.slice(0,1)+'•••'+(a.length>3?a.slice(-1):'')+'@'+b};
+  const body=[()=>`<label for="sn">Full name</label><input id="sn" class="inp" autocomplete="name" value="${esc(u.name)}"><label for="se">Email</label><input id="se" class="inp" type="email" autocomplete="email" value="${esc(u.email)}"><label for="sco">Country</label><select id="sco" class="sel"><option>India</option><option>United Arab Emirates</option><option>Singapore</option><option>United Kingdom</option><option>United States</option><option>Other</option></select><label for="sp">Password</label><input id="sp" class="inp" type="password" autocomplete="new-password" aria-describedby="spr"><p class="sm faint" id="spr" style="margin-top:4px">At least 10 characters, with a number and a symbol.</p><label for="sp2">Confirm password</label><input id="sp2" class="inp" type="password" autocomplete="new-password"><label style="display:flex;gap:8px;font-weight:400;align-items:flex-start"><input type="checkbox" id="stc" style="margin-top:3px"> <span>I agree to the Terms and Privacy Policy, and understand INRGIFT does not execute trades or give advice.</span></label>${S.err.su?`<p class="err" role="alert">${S.err.su}</p>`:''}<button class="btn p" style="width:100%;justify-content:center;margin-top:14px" data-a="suNext">Create account</button><p style="margin-top:14px">Already have an account? <a href="#/login">Sign in</a></p>`,
+   ()=>`<h2 style="margin-top:14px">Check your inbox</h2><p class="mut" style="margin:6px 0 14px">We sent a verification link to <b>${esc(mask(u.email))}</b>. It expires in 30 minutes.</p><div class="chips"><button class="btn" data-a="suResend">Resend email</button><button class="btn g" data-a="suStep" data-v="1">Change email</button></div><button class="btn p" style="width:100%;justify-content:center;margin-top:18px" data-a="suStep" data-v="3">I've verified my email (prototype)</button>`,
+   ()=>`<label>Markets you follow</label><div class="chips">${['in','us','uk','jp','hk','sg','ae','de'].map(k=>pick('mk','mk',k,M[k].name)).join('')}</div><label>Asset classes</label><div class="chips">${['Stocks','ETFs','Indices','Currencies','Commodities','Bonds'].map(k=>pick('as','as',k)).join('')}</div><label>Themes</label><div class="chips">${COLL.slice(0,4).map(c=>pick('th','th',c.name)).join('')}</div><label for="scc">Display currency</label><select id="scc" class="sel" data-c="suCcy"><option value="INR" ${u.ccy==='INR'?'selected':''}>Indian rupee (approximate)</option><option value="LOCAL" ${u.ccy==='LOCAL'?'selected':''}>Local currency of each market</option></select><div class="chips" style="margin-top:18px"><button class="btn p" data-a="suStep" data-v="4">Save preferences</button><button class="btn g" data-a="suStep" data-v="4">Skip for now</button></div>`,
+   ()=>`<h2 style="margin-top:14px">Your workspace is ready${u.name?', '+esc(u.name.split(' ')[0]):''}.</h2><p class="mut" style="margin:6px 0 14px">Following ${u.mk.size} markets and ${u.as.size} asset classes. Prices will show in ${u.ccy==='INR'?'rupees':'local currency'}; change this any time in Settings.</p><button class="btn p" style="width:100%;justify-content:center" data-a="suDone">Open workspace</button>`][u.step-1]();
+  return `<div class="auth">${authL()}<div class="r"><div class="form"><h1 style="font-size:26px">Create your account</h1><ol class="steps" aria-label="Progress">${st.map((s,i)=>`<li class="${i+1===u.step?'on':i+1<u.step?'dn':''}" ${i+1===u.step?'aria-current="step"':''}>${i+1}. ${s}</li>`).join('')}</ol>${body}</div></div></div>`};
+
+/* ============ shell ============ */
+function shell(inner,r){const on=k=>r[0]===k||(k==='home'&&!r[0])?'on':'';const open=MK.filter(m=>m.ses==='Open').length;
+  const side=S.signedIn?`<aside class="side ${S.collapsed?'c':''} ${S.drawer?'open':''}" aria-label="Personal workspace"><nav>${WS.map(g=>`<h4>${g[0]}</h4>${g[1].map(i=>{const c=wsCount(i[0]),act=r[0]==='app'&&(r[1]||'')===i[0];return `<a href="#/app${i[0]?'/'+i[0]:''}" class="${act?'on':''}" ${act?'aria-current="page"':''} title="${i[1]}">${ic(i[2])}<span>${i[1]}</span>${c?`<em class="${i[0]==='alerts'&&S.alerts.some(a=>a.status==='Triggered')?'unread':''}">${c}</em>`:''}</a>`}).join('')}`).join('')}</nav><div class="bot"><a href="#/app/settings" class="${r[1]==='settings'?'on':''}" title="Settings">${ic('gear')}<span>Settings</span></a><a href="#/app/help" class="${r[1]==='help'?'on':''}" title="Help">${ic('help')}<span>Help</span></a><div class="who"><span class="av">AM</span><div><b>Aarav Mehta</b><br><span class="sm faint">Demo account</span></div></div></div></aside>`:'';
+  return `<div class="demo"><b>Prototype</b><span>Demo data snapshot, ${NOW.date} ${NOW.ist} IST. Not current market prices.</span><span class="sp"></span><label>Preview data state <select data-c="ds" aria-label="Preview data state">${['AUTO','LIVE','DELAYED','EOD','CLOSED','UNAVAILABLE','ERROR','LOADING'].map(d=>`<option value="${d}" ${S.ds===d?'selected':''}>${d==='AUTO'?'Per market (default)':DSL[d]}</option>`).join('')}</select></label></div>
+  <header class="hdr">${S.signedIn?`<button class="ib" data-a="side" aria-label="Toggle workspace sidebar" aria-expanded="${!S.collapsed}">${ic('side')}</button>`:''}<a class="logo" href="#/" aria-label="INRGIFT home"><i></i><span>INRGIFT</span></a>
+  <nav class="nav" aria-label="Primary"><a class="${on('markets')}" href="#/markets">Markets</a><a class="${on('assets')||on('stocks')||on('etfs')}" href="#/assets">Assets</a><details class="dd"><summary class="${on('screener')||on('compare')||on('heatmap')}">Discover</summary><div class="menu"><a href="#/screener">Screener<small>Filter stocks and ETFs worldwide</small></a><a href="#/heatmap">Heatmap<small>Region, market and sector drill-down</small></a><a href="#/compare">Compare<small>Up to four assets side by side</small></a><a href="#/collection/ai-semis">Collections<small>Curated themes</small></a></div></details><a class="${on('research')}" href="#/research">Research</a><details class="dd"><summary class="${on('data')||on('next')}">Resources</summary><div class="menu"><a href="#/data">Data and methodology<small>Statuses, sources and scores</small></a><a href="#/next">Calendars, news and learning<small>Planned for the next phase</small></a></div></details></nav>
+  <button class="srch" data-a="search" aria-label="Search anything">${ic('search')}<span>Search anything…</span><kbd class="hide-m">Ctrl K</kbd></button>
+  <div class="hr"><select class="sel hide-m" data-c="ccy" aria-label="Display currency" style="width:auto"><option value="LOCAL" ${S.ccy==='LOCAL'?'selected':''}>Local</option><option value="INR" ${S.ccy==='INR'?'selected':''}>INR ₹</option></select><a class="ib hide-m" href="#/markets" title="Market status">${ic('globe')}<span class="sm">${open} open</span></a>
+  ${S.signedIn?`<details class="dd"><summary class="ib" aria-label="Notifications${S.notif?', '+S.notif+' unread':''}">${ic('bell')}${S.notif?'<span class="dot"></span>':''}</summary><div class="menu rt" style="min-width:290px"><a href="#/app/alerts" data-a="readN">SPY moved more than 2% in a day<small>Alert triggered · 01 Oct, 20:14 IST</small></a><a href="#/markets/cn" data-a="readN">China markets closed for holiday<small>Market event · reopens 08 Oct</small></a></div></details><details class="dd"><summary class="ib" aria-label="Account menu"><span class="av">AM</span></summary><div class="menu rt"><a href="#/app">Workspace overview</a><a href="#/app/settings">Settings</a><button data-a="logout">Sign out</button></div></details>`:`<a class="btn hide-m" href="#/login">Sign in</a><a class="btn p" href="#/signup">Create account</a>`}</div></header>
+  <div class="shell">${side}<main class="main" id="main">${inner}</main></div>
+  <nav class="bnav" aria-label="Mobile">${[['','Home','home','home'],['markets','Markets','globe','markets'],['screener','Discover','compass','screener'],['research','Research','doc','research'],[S.signedIn?'app':'login','Workspace','user','app']].map(b=>`<a href="#/${b[0]}" class="${on(b[3])}">${ic(b[2])}${b[1]}</a>`).join('')}</nav>`}
+function modal(){const m=S.modal;if(!m)return'';if(m.k==='alert'){const a=AS[m.t];return `<div class="ov" data-a="closeM" data-self="1"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">Create alert</h2><label for="at">Asset</label><select id="at" class="sel">${A.map(x=>`<option value="${x.t}" ${x.t===a.t?'selected':''}>${x.name} (${x.t})</option>`).join('')}</select><label for="ak">Condition</label><select id="ak" class="sel">${['Price above','Price below','Daily move beyond','52-week high','52-week low','Earnings date','Dividend declared','News published'].map(x=>`<option>${x}</option>`).join('')}</select><label for="av">Value <span class="faint" style="font-weight:400">(price in ${a.ccy} or a percentage; leave blank for event alerts)</span></label><input id="av" class="inp" inputmode="decimal" placeholder="${fmt(a.price*1.05,dp(a))}"><p class="sm faint" style="margin-top:8px">Alerts notify you. They never place an order.</p><div class="chips" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-a="closeM">Cancel</button><button class="btn p" data-a="alertAdd">Create alert</button></div></div></div>`}
+  return `<div class="ov" data-a="closeM" data-self="1"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">New note</h2><label for="nt">Title</label><input id="nt" class="inp"><label for="nb">Note</label><textarea id="nb" class="inp" rows="4"></textarea><label for="na">Linked asset</label><select id="na" class="sel"><option value="">None</option>${A.map(x=>`<option value="${x.t}" ${x.t===m.t?'selected':''}>${x.name} (${x.t})</option>`).join('')}</select>${S.err.note?`<p class="err" role="alert">${S.err.note}</p>`:''}<div class="chips" style="margin-top:16px;justify-content:flex-end"><button class="btn" data-a="closeM">Cancel</button><button class="btn p" data-a="noteAdd">Save note</button></div></div></div>`}
+
+/* ============ search palette ============ */
+const SR={open:false,q:'',i:0,items:[]};
+function sresults(q){q=q.trim().toLowerCase();const g=[];if(!q){g.push(['Recent',S.recent.slice(0,4).map(t=>[AS[t].name,href(AS[t]),t])]);g.push(['Markets',['in','us','jp'].map(k=>[M[k].name,'#/markets/'+k,M[k].ses])]);g.push(['Collections',COLL.slice(0,3).map(c=>[c.name,'#/collection/'+c.id,'Collection'])]);return g}
+  const rank=a=>a.t.toLowerCase()===q?0:a.name.toLowerCase()===q?1:a.t.toLowerCase().startsWith(q)?2:a.name.toLowerCase().startsWith(q)?3:(a.name+' '+a.t+' '+M[a.mk].ex).toLowerCase().includes(q)?4:(a.sector+' '+a.industry).toLowerCase().includes(q)?5:9;
+  const as=A.map(a=>[rank(a),a]).filter(x=>x[0]<9).sort((x,y)=>x[0]-y[0]||y[1].mcap-x[1].mcap).slice(0,6).map(([,a])=>[a.name,href(a),`${a.t} · ${M[a.mk].ex.split(' · ')[0]} · ${a.type==='etf'?'ETF':'Stock'}`]);
+  const ix=IDX.filter(i=>i.name.toLowerCase().includes(q)).slice(0,3).map(i=>[i.name,'#/markets/'+i.mk,'Index · '+M[i.mk].name]);
+  const mk=MK.filter(m=>(m.name+' '+m.ex+' '+m.region+' '+m.ccy).toLowerCase().includes(q)).slice(0,4).map(m=>[m.name,'#/markets/'+m.id,m.ex]);
+  const rs=RES.filter(r=>(r.title+r.t).toLowerCase().includes(q)).slice(0,3).map(r=>[r.title,href(AS[r.t]),'Research']);
+  const nw=NEWS.filter(n=>(n.head+n.t+AS[n.t].name).toLowerCase().includes(q)).slice(0,3).map(n=>[AS[n.t].name+': '+n.head,href(AS[n.t]),'News']);
+  const co=COLL.filter(c=>(c.name+c.d).toLowerCase().includes(q)).map(c=>[c.name,'#/collection/'+c.id,'Collection']);
+  [['Assets',[...as,...ix]],['Markets',mk],['Research',rs],['News',nw],['Collections',co]].forEach(x=>x[1].length&&g.push(x));return g}
+function drawSearch(){const el=document.getElementById('sres');if(!el)return;const g=sresults(SR.q);SR.items=g.flatMap(x=>x[1]);SR.i=Math.min(SR.i,Math.max(0,SR.items.length-1));let n=0;
+  el.innerHTML=SR.items.length?g.map(x=>`<h5>${x[0]}</h5>${x[1].map(it=>`<a href="${it[1]}" class="${n===SR.i?'act':''}" data-i="${n++}" role="option" aria-selected="${n-1===SR.i}">${esc(it[0])}<small>${esc(it[2])}</small></a>`).join('')}`).join(''):`<div class="state"><b>No results for "${esc(SR.q)}"</b>Try a ticker such as NVDA, a company name, a market such as Japan, or a theme.</div>`;
+  el.querySelector('.act')?.scrollIntoView?.({block:'nearest'})}
+function openSearch(){SR.open=true;SR.q='';SR.i=0;document.getElementById('ov').innerHTML=`<div class="ov" id="sov"><div class="pal" role="dialog" aria-modal="true" aria-label="Search"><input id="sq" type="text" role="combobox" aria-expanded="true" aria-controls="sres" autocomplete="off" placeholder="Search assets, markets, research, news, collections"><div class="res" id="sres" role="listbox"></div><div class="mf"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div></div>`;drawSearch();const q=document.getElementById('sq');q.focus();
+  q.addEventListener('input',()=>{SR.q=q.value;SR.i=0;drawSearch()});
+  q.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){SR.i=Math.min(SR.items.length-1,SR.i+1);drawSearch();e.preventDefault()}else if(e.key==='ArrowUp'){SR.i=Math.max(0,SR.i-1);drawSearch();e.preventDefault()}else if(e.key==='Enter'&&SR.items[SR.i]){const h=SR.items[SR.i][1];closeSearch();location.hash=h}});
+  document.getElementById('sov').addEventListener('click',e=>{if(e.target.id==='sov'||e.target.closest('a'))closeSearch()})}
+function closeSearch(){SR.open=false;document.getElementById('ov').innerHTML=''}
+
+/* ============ router + actions ============ */
+const route=()=>location.hash.replace(/^#\/?/,'').split('/').map(decodeURIComponent);
+let lastHash=null;
+function render(){const r=route(),k=r[0]||'home';
+  if(k==='app'&&!S.signedIn){location.hash='#/login';return}
+  if((k==='stocks'||k==='etfs')&&AS[r[1]]&&lastHash!==location.hash){S.recent=[r[1],...S.recent.filter(t=>t!==r[1])].slice(0,12)}
+  const page=k==='home'?P.home():k==='markets'?(r[1]?P.market(r[1]):P.markets()):k==='stocks'?P.stock(r[1]):k==='etfs'?P.etf(r[1]):k==='collection'?P.collection(r[1]):k==='app'?P.app(r[1]):Object.hasOwn(P,k)&&!['market','stock','etf','nf'].includes(k)?P[k]():P.nf();
+  const auth=k==='login'||k==='signup';
+  document.getElementById('app').innerHTML=(auth?page:shell(page,r))+modal();
+  const ttl={home:'Global market intelligence from India',markets:r[1]&&M[r[1]]?M[r[1]].name+' market':'Global markets',stocks:AS[r[1]]?.name,etfs:AS[r[1]]?.name,heatmap:'Global heatmap',assets:'Explore global assets',screener:'Global screener',compare:'Compare',login:'Sign in',signup:'Create account',app:'Workspace',research:'Research',data:'Data and methodology'}[k]||'INRGIFT';
+  document.title=ttl+' · INRGIFT (prototype)';
+  if(lastHash!==location.hash){window.scrollTo(0,0);lastHash=location.hash}
+  bindChart();if(S.modal)document.querySelector('.modal input,.modal select')?.focus()}
+function bindChart(){const svg=document.getElementById('csvg');if(!svg||!chart.cur)return;const {d,n,W,PR,a,range,Y}=chart.cur,cx=document.getElementById('cx'),cd=document.getElementById('cd'),ro=document.getElementById('cro'),base=ro.innerHTML;
+  const mv=e=>{const b=svg.getBoundingClientRect(),px=((e.touches?e.touches[0].clientX:e.clientX)-b.left)/b.width*W,i=Math.max(0,Math.min(n-1,Math.round(px/(W-PR)*(n-1)))),x=i/(n-1)*(W-PR),p=d[i];
+    cx.setAttribute('x1',x);cx.setAttribute('x2',x);cx.setAttribute('visibility','visible');cd.setAttribute('cx',x);cd.setAttribute('cy',Y(p.c));cd.setAttribute('visibility','visible');
+    ro.innerHTML=`<b>${dlabel(range,i,n)}</b> · O ${fmt(p.o,dp(a))} · H ${fmt(p.h,dp(a))} · L ${fmt(p.l,dp(a))} · C <b>${fmt(p.c,dp(a))}</b> ${a.ccy} · Vol ${big(p.v)} · ${pct((p.c/d[0].c-1)*100)} since start`};
+  svg.addEventListener('mousemove',mv);svg.addEventListener('touchmove',mv,{passive:true});svg.addEventListener('mouseleave',()=>{cx.setAttribute('visibility','hidden');cd.setAttribute('visibility','hidden');ro.innerHTML=base})}
+const parentOf=p=>{const a=p.split('.'),i=+a.pop();return[node(a.join('.')),i]};
+const ACT={
+  search:()=>openSearch(),go:v=>{location.hash=v},retry:()=>{S.ds='AUTO';toast('Data reloaded')},
+  side:()=>{if(window.innerWidth<=1180)S.drawer=!S.drawer;else S.collapsed=!S.collapsed},
+  watch:v=>{S.watch.has(v)?(S.watch.delete(v),toast(v+' removed from watchlist')):(S.watch.add(v),toast(v+' added to watchlist'))},
+  addCmp:(v,el)=>{if(S.compare.includes(v)){if(!el.dataset.go)toast(v+' is already in compare')}else if(S.compare.length>=4){toast('Compare holds four assets. Remove one first.');if(!el.dataset.go)return}else{S.compare.push(v);toast(v+' added to compare ('+S.compare.length+' of 4)')}if(el.dataset.go)location.hash='#/compare'},
+  cmpDel:v=>{S.compare=S.compare.filter(t=>t!==v)},cmpR:v=>{S.cmpR=v},cmpSave:()=>{S.comparisons.unshift([...S.compare]);toast('Comparison saved to your workspace')},cmpLoad:v=>{S.compare=[...S.comparisons[v]]},cmpRm:v=>{S.comparisons.splice(v,1)},
+  alertM:v=>{if(!S.signedIn){location.hash='#/login';return}S.modal={k:'alert',t:v}},noteM:v=>{if(!S.signedIn){location.hash='#/login';return}S.err={};S.modal={k:'note',t:v}},
+  closeM:(v,el,e)=>{if(el.dataset.self&&e.target!==el)return 'skip';S.modal=null},
+  alertAdd:()=>{const g=id=>document.getElementById(id).value;S.alerts.unshift({t:g('at'),type:g('ak'),v:g('av').trim(),status:'Active',created:NOW.date,last:'Not yet triggered'});S.modal=null;toast('Alert created')},
+  alertRm:v=>{S.alerts.splice(v,1);toast('Alert deleted')},
+  noteAdd:()=>{const g=id=>document.getElementById(id).value.trim();if(!g('nt')){S.err.note='Give the note a title so you can find it later.';return}S.notes.unshift({title:g('nt'),body:g('nb'),t:g('na'),ts:NOW.date});S.modal=null;toast('Note saved')},noteRm:v=>{S.notes.splice(v,1)},
+  saveRes:v=>{S.saved.includes(v)?S.saved=S.saved.filter(t=>t!==v):(S.saved.unshift(v),toast('Saved to your research'))},
+  sort:v=>{S.sort=S.sort.k===v?{k:v,d:-S.sort.d}:{k:v,d:-1}},tab:v=>{S.tab=v},
+  crange:v=>{S.chart.range=v},ctype:v=>{S.chart.type=v},cind:v=>{S.chart[v]=!S.chart[v]},
+  mkf:v=>{S.mkf.region=v},uni:v=>{S.scr.uni=v},
+  hmSet:v=>{const [k,x]=v.split('|');S.hm[k]=x;if(k==='group'||k==='uni'){S.hm.path=[];S.hm.sel=null}},
+  hmDrill:(v,el)=>{if(el.dataset.go){const j=JSON.parse(el.dataset.go);S.hm={...S.hm,group:j.g,path:j.p,uni:'all',sel:null};location.hash='#/heatmap';return}S.hm.path.push(v);S.hm.sel=null},
+  hmUp:v=>{S.hm.path=S.hm.path.slice(0,+v);S.hm.sel=null},hmPreset:v=>{const [g,x]=v.split('|');S.hm={...S.hm,group:g,path:[x],uni:'all',sel:null}},
+  hmSel:(v,el)=>{S.hm.sel=v;document.querySelectorAll('.ht.sel').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');document.getElementById('hmq').innerHTML=hmQuick(AS[v]);return 'skip'},
+  scrOp:v=>{const [p,o]=v.split('|');node(p).op=o},scrAdd:v=>{node(v).rules.push({f:'pe',o:'<=',v:30})},scrAddG:v=>{node(v).rules.push({op:'OR',rules:[{f:'y1',o:'>=',v:20}]})},
+  scrDel:v=>{const [par,i]=parentOf(v);par.rules.splice(i,1)},scrCol:v=>{const c=S.scr.cols;c.includes(v)?c.splice(c.indexOf(v),1):c.push(v);S.scr.cols=Object.keys(COLS).filter(k=>c.includes(k))},
+  scrReset:()=>{S.scr.tree={op:'AND',rules:[]};S.scr.uni='all';S.scr.name=''},
+  scrSave:()=>{const sc=S.scr,name=sc.name.trim()||'Untitled screen '+(S.screens.length+1);S.screens.unshift({name,uni:sc.uni,tree:JSON.stringify(sc.tree),count:A.filter(a=>(sc.uni==='all'||a.type===sc.uni)&&ev(sc.tree,a)).length});toast('"'+name+'" saved to your workspace')},
+  scrLoad:v=>{const s=S.screens[v];S.scr.tree=JSON.parse(s.tree);S.scr.uni=s.uni;S.scr.name=s.name},scrDup:v=>{S.screens.splice(+v+1,0,{...S.screens[v],name:S.screens[v].name+' copy'})},scrRm:v=>{S.screens.splice(v,1)},
+  scrMarket:v=>{S.scr.uni='all';S.scr.tree={op:'AND',rules:[{f:'country',o:'is',v}]}},scrSector:v=>{S.scr.uni='stock';S.scr.tree={op:'AND',rules:[{f:'sector',o:'is',v}]}},
+  scrSort:v=>{const [k,d]=v.split('|');S.scr.uni=k==='revG'?'stock':'all';S.scr.tree={op:'AND',rules:[]};S.sort={k,d:+d};if(!S.scr.cols.includes(k)&&COLS[k])S.scr.cols.push(k)},
+  clearHist:()=>{S.recent=[];toast('History cleared')},readN:()=>{S.notif=0},theme:v=>{v?document.documentElement.dataset.theme=v:delete document.documentElement.dataset.theme},
+  login:()=>{const e=document.getElementById('le').value.trim(),p=document.getElementById('lp').value;if(!/^\S+@\S+\.\S+$/.test(e)){S.err.login='Enter a valid email address, such as you@example.com.';return}if(!p){S.err.login='Enter your password.';return}S.err={};S.signedIn=true;location.hash='#/app'},
+  demoLogin:()=>{S.err={};S.signedIn=true;location.hash='#/app'},logout:()=>{S.signedIn=false;S.drawer=false;location.hash='#/';toast('Signed out')},
+  suNext:()=>{const g=id=>document.getElementById(id),u=S.su;u.name=g('sn').value.trim();u.email=g('se').value.trim();const p=g('sp').value;
+    S.err.su=!u.name?'Enter your full name.':!/^\S+@\S+\.\S+$/.test(u.email)?'Enter a valid email address.':p.length<10||!/\d/.test(p)||!/[^\w\s]/.test(p)?'Password needs at least 10 characters, a number and a symbol.':p!==g('sp2').value?'The two passwords do not match.':!g('stc').checked?'Tick the box to accept the terms.':'';if(!S.err.su)u.step=2},
+  suStep:v=>{S.su.step=+v;S.err={}},suResend:()=>{toast('Verification email sent again');return 'skip'},suPick:v=>{const [s,x]=v.split('|');S.su[s].has(x)?S.su[s].delete(x):S.su[s].add(x)},
+  suDone:()=>{S.ccy=S.su.ccy;S.signedIn=true;S.su.step=1;location.hash='#/app'}};
+const CHG={ds:v=>{S.ds=v},ccy:v=>{S.ccy=v},suCcy:v=>{S.su.ccy=v},scrName:v=>{S.scr.name=v;return 'skip'},cmpAdd:v=>{if(v&&S.compare.length<4)S.compare.push(v)},
+  scrF:(v,p)=>{const n=node(p),cat=FD[v][1]==='cat';n.f=v;n.o=cat?'is':'>=';n.v=cat?[...new Set(A.map(a=>a[v]))].sort()[0]:0},scrO:(v,p)=>{node(p).o=v},scrV:(v,p)=>{node(p).v=v}};
+document.addEventListener('click',e=>{const dds=document.querySelectorAll('details.dd[open]');dds.forEach(d=>{if(!d.contains(e.target)||e.target.closest('.menu a'))d.removeAttribute('open')});
+  const el=e.target.closest('[data-a]');if(!el){if(S.drawer&&!e.target.closest('.side')){S.drawer=false;render()}return}
+  const isLink=el.tagName==='A'&&el.getAttribute('href');const before=location.hash;const r=ACT[el.dataset.a]?.(el.dataset.v,el,e);
+  if(isLink){if(el.dataset.a==='tab')S.keepTab=el.getAttribute('href')!==before;if(el.getAttribute('href')===before){e.preventDefault();render()}return}
+  if(r!=='skip'&&location.hash===before&&el.dataset.a!=='search')render()});
+document.addEventListener('dblclick',e=>{const t=e.target.closest('.ht[data-a="hmSel"]');if(t)location.hash=href(AS[t.dataset.v])});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-c]');if(!el)return;if(CHG[el.dataset.c](el.value,el.dataset.v)!=='skip')render()});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();SR.open?closeSearch():openSearch()}else if(e.key==='Escape'){if(SR.open)closeSearch();else if(S.modal){S.modal=null;render()}else if(S.chart.fs){S.chart.fs=false;render()}else if(S.drawer){S.drawer=false;render()}}});
+window.addEventListener('hashchange',()=>{S.drawer=false;S.modal=null;if(!/^#\/(stocks|etfs)\//.test(location.hash))S.chart.fs=false;if(!S.keepTab)S.tab='overview';S.keepTab=false;render()});
+render();
+</script>
+</body>
+</html>

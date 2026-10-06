@@ -1,0 +1,44 @@
+# Auth and security
+
+## Modes
+- **Supabase** when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set.
+- **Demo** otherwise: browser-local user, any email/password, code `123456`, five wrong codes lock for 60 s,
+  session cookie `inrgift_demo_session`. For development only.
+
+Both implement `AuthAdapter` in `src/features/auth/auth-service.ts`; forms must use `useSession().auth` and nothing else.
+
+## Flows (logic implemented, pages not built)
+Sign up: email + password → email verification (`/auth/callback` exchanges the code) → phone OTP → TOTP enrolment →
+onboarding → workspace.
+Login: email + password **or** phone OTP → MFA challenge when the account has a verified factor (AAL2) → workspace.
+Recovery: forgot password → emailed link → `/auth/callback?next=/reset-password` → new password.
+
+Adapter methods: getUser, onChange, signUp, signIn, confirmEmail (demo), resendEmail, sendPhoneOtp, verifyPhoneOtp,
+resetPassword, updatePassword, mfaEnroll, mfaVerify, mfaFactorId, mfaUnenroll, updateName, activity, signOut.
+Helpers: `passwordProblem` (≥10 chars, a number, a symbol), `isEmail`, `isPhone` (E.164), `normalizePhone`.
+Errors are mapped to `AuthError` codes: INVALID, RATE_LIMITED, EXPIRED, WEAK_PASSWORD, UNKNOWN.
+
+## Pages to build (see ROADMAP)
+`/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/onboarding`,
+`/account/security` (email verified, phone verified, TOTP status, MFA status, current session, security activity).
+Required UI states: resend cooldown, rate-limited, expired link/code, invalid, loading; masked email on `/verify`.
+Supabase cannot list all sessions from the client; show the current session and activity, and say so.
+
+## Session and route protection
+`src/middleware.ts` refreshes the Supabase cookie on every request, validates with `getUser()` (never trust
+`getSession()` server-side), redirects unauthenticated requests for `/app`, `/account`, `/notifications`,
+`/onboarding` to `/login?next=…`, and sets `noindex` + `no-store` on private routes.
+
+## Data security
+- RLS on every private table, forced; ownership set by the database; child rows verified against parent owner.
+- Client never sends `user_id`; `supabaseRepo.update` strips it.
+- Service-role key and provider keys are server-only env vars; only `/api/internal/*` may use them.
+- Ingest route compares the secret with `timingSafeEqual`.
+- All API query input is zod-validated; screener share links are sanitised on decode (`decodeTree`).
+- `next` redirect targets are restricted to same-origin paths.
+- Security headers in `next.config.mjs` (nosniff, frame deny, referrer policy, permissions policy, HSTS).
+
+## Not done
+CSP header · distributed rate limiting (current limiter is per-instance memory) · rate limiting on auth forms beyond
+Supabase's own · Supabase project configuration (SMS provider, email templates, MFA enabled) · any test against a
+real Supabase project · legal review of auth copy.

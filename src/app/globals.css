@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-padding-top: 88px; }
+  body { @apply bg-bg text-navy font-sans text-sm antialiased; line-height: 1.55; }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; line-height: 1.2; }
+  :focus-visible { outline: 2px solid #245BFE; outline-offset: 2px; border-radius: 4px; }
+  ::selection { background: #EAF0FF; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  dialog::backdrop { background: rgba(7, 26, 51, .45); }
+  dialog[open] { animation: pop-in .2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+}
+@layer components {
+  .skeleton { @apply rounded-md animate-shimmer; background: linear-gradient(90deg, #EEF2F7 25%, #E5EAF1 37%, #EEF2F7 63%); background-size: 200% 100%; }
+  .link { @apply text-brand-ink hover:underline; }
+  .field { @apply h-10 w-full rounded-ctl border border-line2 bg-white px-3 text-sm transition-colors duration-150 placeholder:text-faint hover:border-faint focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20; }
+  .label { @apply mb-1.5 block text-[13px] font-semibold text-navy; }
+  .prose-doc p { @apply mb-3 max-w-[72ch] text-[15px] leading-relaxed text-slate2; }
+  .prose-doc h2 { @apply mb-1.5 mt-6 text-lg font-bold; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
