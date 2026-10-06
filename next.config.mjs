@@ -9,6 +9,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 export default {
   reactStrictMode: true,
+  // NEXT_OUTPUT=standalone produces .next/standalone/server.js for GoDaddy cPanel "Setup Node.js App" (docs/DEPLOY.md).
+  ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
   async headers() { return [{ source: '/:path*', headers: securityHeaders }]; },
 };

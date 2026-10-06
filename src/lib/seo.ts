@@ -9,7 +9,8 @@ import { config, isIndexable } from './config';
  *    and are `noindex, follow` so crawl budget goes to the base page;
  *  - private, auth and workspace pages are `noindex, nofollow` (middleware adds the header as well).
  */
-export const SITE = { name: 'INRGIFT', tagline: 'Global market intelligence from India', promise: 'Every market. Every asset. One research view.' };
+/** `slogan` is the approved brand tagline; it appears in the logo artwork and must not be reworded. */
+export const SITE = { name: 'INRGIFT', slogan: 'Invest Beyond Borders', tagline: 'Global market intelligence from India', promise: 'Every market. Every asset. One research view.' };
 export const absoluteUrl = (path: string) => new URL(path, config.siteUrl).toString();
 
 interface PageMeta {

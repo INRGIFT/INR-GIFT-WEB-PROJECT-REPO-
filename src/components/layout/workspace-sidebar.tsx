@@ -18,7 +18,7 @@ export function WorkspaceSidebar() {
   useEffect(() => { setCollapsed(localStorage.getItem('inrgift.sidebar') === '1'); }, []);
   const toggle = () => setCollapsed((c) => { localStorage.setItem('inrgift.sidebar', c ? '0' : '1'); return !c; });
   return (
-    <aside aria-label="Personal workspace" className={cn('sticky top-16 hidden h-[calc(100vh-64px)] shrink-0 flex-col overflow-y-auto border-r border-line bg-white px-2.5 py-3 transition-[width] duration-200 ease-out md:flex', collapsed ? 'w-16' : 'w-[248px] max-lg:w-16')}>
+    <aside aria-label="Personal workspace" className={cn('sticky top-[var(--header-h)] hidden h-[calc(100vh-var(--header-h))] shrink-0 flex-col overflow-y-auto border-r border-line bg-white px-2.5 py-3 transition-[width] duration-200 ease-out md:flex', collapsed ? 'w-16' : 'w-[248px] max-lg:w-16')}>
       <nav className="flex-1">
         {WORKSPACE_NAV.map((g) => (
           <div key={g.group} className={g.group === 'System' ? 'mt-3 border-t border-line pt-2' : ''}>
@@ -47,7 +47,7 @@ export function WorkspaceSidebar() {
 export function WorkspaceTabs() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Workspace sections" className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-line bg-white px-3 py-2 md:hidden">
+    <nav aria-label="Workspace sections" className="sticky top-[var(--header-h)] z-20 flex gap-1 overflow-x-auto border-b border-line bg-white px-3 py-2 md:hidden">
       {WORKSPACE_NAV.flatMap((g) => g.items as readonly (readonly [string, string, string, string | null])[]).map(([label, href]) => { const on = href === '/app' ? pathname === '/app' : pathname.startsWith(href); return <Link key={href} href={href} aria-current={on ? 'page' : undefined} className={cn('whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[13px] font-medium', on ? 'bg-brand-soft text-brand-ink' : 'text-slate2')}>{label}</Link>; })}
     </nav>
   );

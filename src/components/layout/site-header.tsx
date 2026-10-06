@@ -13,14 +13,8 @@ import { useWorkspace } from '@/features/workspace/workspace-context';
 import { cn } from '@/lib/format';
 import { ACCOUNT_NAV, NAV } from '@/lib/routes';
 
-export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
-  return (
-    <Link href="/" aria-label="INRGIFT home" className={cn('flex shrink-0 items-center gap-2 font-display text-lg font-extrabold tracking-wide', light ? 'text-white' : 'text-navy')}>
-      <span aria-hidden className={cn('relative block h-[26px] w-[26px] rounded-[7px]', light ? 'bg-white' : 'bg-brand')}><span className={cn('absolute inset-[6px] rounded-full border-2', light ? 'border-brand' : 'border-white')} /><span className={cn('absolute bottom-1 left-3 top-1 w-0.5', light ? 'bg-brand' : 'bg-white')} /></span>
-      <span className={compact ? 'sr-only' : 'hidden sm:inline'}>INRGIFT</span>
-    </Link>
-  );
-}
+export { Logo } from '@/components/brand/brand-logo';
+import { Logo } from '@/components/brand/brand-logo';
 const ACTIVE: Record<string, RegExp> = { Markets: /^\/markets/, Assets: /^\/(assets|stocks|etfs|indices|fx|commodities|bonds|reits)/, Discover: /^\/discover/, Research: /^\/research/, Resources: /^\/resources/ };
 const initialsOf = (name?: string | null) => (name ?? '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'ME';
 
@@ -42,7 +36,7 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur-sm supports-[backdrop-filter]:bg-white/90">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:shadow-pop">Skip to content</a>
-      <div className="mx-auto flex h-16 max-w-wide items-center gap-2 px-4 md:px-6 lg:px-8">
+      <div className="mx-auto flex h-[var(--header-h)] max-w-wide items-center gap-2 px-4 md:px-6 lg:px-8">
         <button type="button" onClick={() => setDrawer(true)} aria-label="Open menu" aria-expanded={drawer} className="-ml-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-ctl text-slate2 transition-colors hover:bg-hover hover:text-navy lg:hidden"><MenuIcon size={20} /></button>
         <Logo />
         <nav aria-label="Primary" className="ml-4 hidden items-center gap-0.5 lg:flex">
@@ -51,7 +45,7 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
             return (
               <Menu key={n.label} label={`${n.label} menu`} items={[{ label: `${n.label} overview`, href: n.href, hint: n.hint }, { kind: 'separator' }, ...n.items.map(([label, href, hint]) => ({ label, href, hint: hint || undefined }))]}
                 triggerClassName={cn('relative flex items-center gap-1 rounded-lg px-2.5 py-2 font-medium transition-colors duration-micro', on ? 'text-brand-ink' : 'text-slate2 hover:bg-hover hover:text-navy')}
-                trigger={(open) => (<>{n.label}<ChevronDown size={14} className={cn('transition-transform duration-micro', open && 'rotate-180')} /><span aria-hidden className={cn('absolute inset-x-2.5 -bottom-[13px] h-0.5 rounded bg-brand transition-opacity duration-panel', on ? 'opacity-100' : 'opacity-0')} /></>)} />
+                trigger={(open) => (<>{n.label}<ChevronDown size={14} className={cn('transition-transform duration-micro', open && 'rotate-180')} /><span aria-hidden className={cn('absolute inset-x-2.5 -bottom-[17px] h-0.5 rounded bg-brand transition-opacity duration-panel', on ? 'opacity-100' : 'opacity-0')} /></>)} />
             );
           })}
         </nav>

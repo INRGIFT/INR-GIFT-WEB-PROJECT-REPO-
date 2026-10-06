@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getLogoProvider } from '@/lib/logos';
-import { Logo } from './site-header';
+import { BrandMark } from '@/components/brand/brand-logo';
 
 const COLS: [string, [string, string][]][] = [
   ['Product', [['Markets', '/markets'], ['Assets', '/assets'], ['Screener', '/discover/screener'], ['Heatmap', '/discover/heatmap'], ['Compare', '/discover/compare'], ['Research', '/research']]],
@@ -14,8 +14,8 @@ export function SiteFooter() {
     <footer className="mt-10 border-t border-line bg-white pb-20 md:pb-0">
       <div className="mx-auto grid max-w-page gap-8 px-4 py-10 md:grid-cols-[1.6fr_repeat(4,1fr)] md:px-6 lg:px-8">
         <div>
-          <Logo />
-          <p className="mt-3 max-w-xs text-slate2">Global markets, understood from India.</p>
+          <Link href="/" aria-label="INRGIFT home" className="inline-block"><BrandMark lockup="horizontal" height={72} decorative /></Link>
+          <p className="mt-3 max-w-xs text-slate2">Global market intelligence from India.</p>
           <p className="mt-4 max-w-sm text-xs leading-relaxed text-faint">INRGIFT is a research and information platform. It is not a broker or an investment adviser and does not hold client funds. Nothing here is a recommendation.</p>
         </div>
         {COLS.map(([title, links]) => (

@@ -6,13 +6,13 @@ Anything marked **unverified** could not be confirmed from an official page.
 
 | Area | Service | Code status | Live status |
 | --- | --- | --- | --- |
-| Domain | GoDaddy (registrar/DNS) | Nothing in code; no domain in the repo | Production domain not provided |
-| Hosting | Not decided | Standard `next build` / `next start`; no deploy config in the repo | Not deployed |
+| Domain | GoDaddy (registrar/DNS) | Nothing in code | Owner confirmed GoDaddy for domain; domain name not yet supplied |
+| Hosting | GoDaddy (owner confirmed) | `npm run package:godaddy` → standalone `server.js` bundle; `docs/DEPLOY.md` | Not deployed |
 | Market data | NSE (designated provider) | `src/providers/nse` source adapter + provider; `MARKET_DATA_PROVIDER=nse` | Not connected: no licensed product, spec or credentials |
-| Database | Supabase Postgres | 5 migrations, RLS verified locally (`npm run test:db`) | No Supabase project linked |
-| Authentication | Supabase Auth (`@supabase/ssr` 0.12) | Login, signup, email verification, phone OTP, TOTP, reset, logout, guard | Not live-tested; needs a project |
+| Database | Supabase Postgres, project `odiflbsoitgktylaksng` (ap-south-1, free plan) | Migrations 0001–0006 applied to the hosted project; RLS verified locally and live | Live; advisors clean (security) |
+| Authentication | Supabase Auth (`@supabase/ssr` 0.12) | Login, signup, email verification, phone OTP, TOTP, reset, logout, guard | Project connected; Site URL/redirects, templates, SMTP and SMS still to set in the dashboard |
 | Storage | Supabase Storage | Not used: no upload feature exists, so no buckets | n/a |
-| Stock/ETF logos | Logo.dev (replaceable) | `src/lib/logos` + `AssetLogo` with ticker-tile fallback | Needs a `pk_` key; fallback tested |
+| Stock/ETF logos | Logo.dev (replaceable) | `src/lib/logos` + `AssetLogo` with ticker-tile fallback | Publishable key supplied (in `.env.local`, gitignored; set it on the host) |
 | Email | Resend via Supabase custom SMTP | Templates in `supabase/templates` | Needs a Resend key and verified domain |
 
 ## NSE market data

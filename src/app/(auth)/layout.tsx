@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Logo } from '@/components/layout/site-header';
+import { BrandMark, Logo } from '@/components/brand/brand-logo';
 import { hhmm } from '@/lib/format';
 import { getMarkets } from '@/services/market-data';
 
@@ -14,7 +14,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-navy px-10 py-9 text-white lg:flex">
-        <Logo light />
+        <Link href="/" aria-label="INRGIFT home" className="self-start"><BrandMark lockup="stacked" tone="dark" height={144} decorative /></Link>
         <div>
           <p className="text-[13px] font-semibold text-[#9DB7FF]">Global market intelligence from India</p>
           <p className="mt-2 max-w-md font-display text-[34px] font-extrabold leading-[1.1]">Every market. Every asset. One research view.</p>

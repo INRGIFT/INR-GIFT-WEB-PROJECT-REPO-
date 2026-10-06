@@ -12,7 +12,11 @@ export const config = {
   /** Client-safe Supabase key. The publishable key (`sb_publishable_…`) is current; the legacy anon key still works. */
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
 };
-export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey);
+/**
+ * Supabase auth and workspace storage are used whenever both values are set. NEXT_PUBLIC_AUTH_MODE=demo forces the
+ * built-in demo account (browser-local data) for automated test builds; never set it on a public deployment.
+ */
+export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey) && process.env.NEXT_PUBLIC_AUTH_MODE !== 'demo';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).
 export const isDemoData = config.provider === 'demo' || config.fallbackProvider === 'demo';
 /**

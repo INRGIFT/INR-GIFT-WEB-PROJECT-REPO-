@@ -15,5 +15,5 @@ instead, which works only in the browser that started the flow; both routes are 
 Set **Site URL** to the production origin and add `https://<domain>/auth/confirm` and `https://<domain>/auth/callback`
 to **Redirect URLs**. Emails are sent through custom SMTP (Resend); see `docs/CONNECTORS.md`.
 
-The header is a plain-text wordmark. Replace it with the official INRGIFT logo (hosted on the production domain)
-once the brand files are supplied. Do not substitute another image.
+The header is the official horizontal logo PNG (`public/brand/email/…@2x.png`, shown at 220 px wide, its minimum),
+loaded from `{{ .SiteURL }}`, so the Site URL must be the live production origin. Do not substitute another image.
