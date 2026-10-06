@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Badge, Change, Metric, MetricGrid, PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
@@ -9,7 +10,7 @@ import { dateShort } from '@/lib/format';
 import * as md from '@/services/market-data';
 
 type Props = { params: Promise<{ id: string }> };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const t = await md.getTheme((await params).id); return t ? { title: `${t.theme.name} collection`, description: t.theme.description } : { title: 'Not found' }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const t = await md.getTheme((await params).id); return t ? pageMetadata({ title: `${t.theme.name}: theme and collection`, description: `${t.theme.description}. ${t.assets.length} assets across ${new Set(t.assets.map((a) => a.country)).size} markets, with heatmap, performance and research.`, path: `/discover/collections/${t.theme.id}` }) : { title: 'Not found' }; }
 export default async function CollectionPage({ params }: Props) {
   const { id } = await params;
   const t = await md.getTheme(id);

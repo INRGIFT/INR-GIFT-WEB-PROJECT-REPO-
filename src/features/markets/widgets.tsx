@@ -4,13 +4,13 @@ import { Change, DivergingBar, Panel } from '@/components/ui/primitives';
 import { Sparkline } from '@/components/ui/sparkline';
 import { MiniList } from '@/features/assets/asset-table';
 import { SESSION_LABEL } from '@/lib/calendar';
-import { cn, hhmm, num, priceDp } from '@/lib/format';
+import { cn, hhmm, num, priceDp, usdCompact } from '@/lib/format';
 import { assetHref, marketHref } from '@/lib/routes';
 import type { Asset, DataMeta, MarketView } from '@/lib/types';
-import { movers, sectors } from '@/services/market-data';
+import { freshest, movers, sectors, turnoverUsd } from '@/services/market-data';
 
 /** Freshest status among the rows, for a module that mixes markets. */
-export const freshest = (list: { meta: DataMeta }[]): DataMeta | null => { const order = ['LIVE', 'DELAYED', 'STALE', 'END_OF_DAY', 'CLOSED', 'UNAVAILABLE', 'ERROR']; return [...list].sort((a, b) => order.indexOf(a.meta.dataStatus) - order.indexOf(b.meta.dataStatus))[0]?.meta ?? null; };
+export { freshest } from '@/services/market-data';
 export function ModuleFoot({ meta, more }: { meta: DataMeta | null; more?: [string, string] }) {
   return (<>{meta && <DataStatus meta={meta} />}<Link href="/resources/data" className="hover:text-brand-ink">Methodology</Link>{more && <Link href={more[1]} className="link ml-auto">{more[0]}</Link>}</>);
 }
@@ -22,7 +22,7 @@ export function SessionRail({ markets, now }: { markets: MarketView[]; now: Date
   return (
     <div>
       <div className="grid grid-cols-[minmax(84px,150px)_1fr] items-center gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[minmax(84px,150px)_1fr_104px]">
-        <span /><div className="relative h-4 text-[11px] text-faint">{[0, 6, 12, 18, 24].map((h) => <span key={h} className="absolute -translate-x-1/2" style={{ left: `${(h / 24) * 100}%` }}>{String(h % 24).padStart(2, '0')}:00</span>)}</div><span className="hidden text-faint sm:block">IST</span>
+        <span /><div className="relative h-4 text-[11px] text-faint">{[0, 6, 12, 18, 24].map((h) => <span key={h} className={cn('absolute', h === 0 ? '' : h === 24 ? '-translate-x-full' : '-translate-x-1/2')} style={{ left: `${(h / 24) * 100}%` }}>{String(h % 24).padStart(2, '0')}:00</span>)}</div><span className="hidden text-right text-faint sm:block">Status</span>
         {markets.map((m) => {
           const segs = m.istClose < m.istOpen ? [[m.istOpen, 24], [0, m.istClose]] : [[m.istOpen, m.istClose]];
           const open = m.session === 'OPEN';
@@ -63,7 +63,7 @@ export function Movers({ list }: { list: Asset[] }) {
     <div className="grid gap-4 lg:grid-cols-3">
       <Panel title="Top gainers" flush footer={<ModuleFoot meta={meta} />}><MiniList rows={m.gainers} metric="d1" /></Panel>
       <Panel title="Top losers" flush footer={<ModuleFoot meta={meta} />}><MiniList rows={m.losers} metric="d1" /></Panel>
-      <Panel title="Most active" sub="by volume" flush footer={<ModuleFoot meta={meta} />}><MiniList rows={m.active} metric="volume" /></Panel>
+      <Panel title="Most active" sub="by traded value, USD" flush footer={<ModuleFoot meta={meta} />}><MiniList rows={m.active} metric="volume" values={Object.fromEntries(m.active.map((a) => [a.id, <span key={a.id} className="num" title="Price × volume, converted to US dollars">{usdCompact(turnoverUsd(a))}</span>]))} /></Panel>
     </div>
   );
 }

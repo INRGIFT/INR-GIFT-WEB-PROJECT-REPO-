@@ -131,13 +131,14 @@ export interface ErrorEnvelope { error: { code: string; message: string } }
 export interface WorkspaceTables {
   watchlists: { id: string; name: string; position: number; created_at: string };
   watchlist_items: { id: string; watchlist_id: string; instrument_id: string; position: number; created_at: string };
-  alerts: { id: string; instrument_id: string; kind: string; threshold: number | null; status: 'active' | 'paused' | 'triggered'; channel: 'in_app' | 'email'; last_triggered_at: string | null; created_at: string };
+  alerts: { id: string; instrument_id: string; kind: string; threshold: number | null; status: 'active' | 'paused' | 'triggered'; channel: 'in_app' | 'email'; last_triggered_at: string | null; created_at: string; note?: string | null };
   saved_screens: { id: string; name: string; definition: string; universe: string; created_at: string };
   saved_comparisons: { id: string; name: string; instrument_ids: string[]; created_at: string };
   saved_research: { id: string; ref_type: 'document' | 'asset'; ref_id: string; title: string; href: string; tags: string[]; created_at: string };
   notes: { id: string; title: string; body: string; tags: string[]; instrument_id: string | null; created_at: string; updated_at: string };
   recent_history: { id: string; kind: 'asset' | 'screen' | 'comparison' | 'research'; title: string; href: string; created_at: string };
-  notifications: { id: string; category: 'market' | 'research' | 'account' | 'system'; title: string; body: string; href: string | null; read: boolean; created_at: string };
+  notifications: { id: string; category: 'market' | 'research' | 'account' | 'system'; title: string; body: string; href: string | null; read: boolean; created_at: string; ref_id?: string | null };
+  collections: { id: string; name: string; description: string; instrument_ids: string[]; created_at: string };
 }
 export type TableName = keyof WorkspaceTables;
 export interface UserPrefs { currency: 'LOCAL' | 'INR'; timezone: string; locale: string; regions: string[]; assetClasses: string[]; themes: string[]; notifyEmail: boolean; notifyInApp: boolean }

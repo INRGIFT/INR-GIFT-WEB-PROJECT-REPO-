@@ -1,5 +1,5 @@
 'use client';
-import { Bell, Clock, Columns2, FileText, Filter, History, LayoutDashboard, LayoutGrid, LifeBuoy, PanelLeft, Settings, Star, StickyNote, type LucideIcon } from 'lucide-react';
+import { Bell, Clock, Columns2, FileText, Filter, History, Inbox, LayoutDashboard, LayoutGrid, LifeBuoy, PanelLeft, Settings, Shield, Star, StickyNote, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -8,7 +8,7 @@ import { cn } from '@/lib/format';
 import { WORKSPACE_NAV } from '@/lib/routes';
 import type { TableName } from '@/lib/types';
 
-const ICONS: Record<string, LucideIcon> = { LayoutDashboard, Star, Bell, Filter, Columns2, LayoutGrid, Clock, FileText, StickyNote, History, Settings, LifeBuoy };
+const ICONS: Record<string, LucideIcon> = { LayoutDashboard, Star, Bell, Inbox, Filter, Columns2, LayoutGrid, Clock, FileText, StickyNote, History, Settings, Shield, LifeBuoy };
 
 /** Personal research sidebar. Research data only: there is no portfolio, order or position entry. */
 export function WorkspaceSidebar() {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/data-status';
 import { Change, PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
@@ -9,7 +10,7 @@ import { HomeSearch } from '@/features/site/home-search';
 import { CLASS_LABEL, DIRECTORY_CLASS, marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Explore global assets', description: 'Stocks, ETFs, indices, currencies, commodities, bonds and REITs across global markets.', alternates: { canonical: '/assets' } };
+export const metadata: Metadata = pageMetadata({ title: 'Explore global assets', description: 'Stocks, ETFs, indices, currencies, commodities, bonds and REITs across global markets.', path: '/assets' });
 const BLURB: Record<string, string> = { stocks: 'Fundamentals, valuation, charts and research', etfs: 'Cost, holdings, allocation and tracking', indices: 'Headline benchmarks for every market', fx: 'INR pairs and the major crosses', commodities: 'Metals and energy benchmarks', bonds: 'Government yields, coupons and duration', reits: 'Yield, FFO and occupancy', funds: 'Mutual funds, where a source supports them' };
 const screen = (field: 'dividendYield' | 'revenueGrowth' | 'volatility', op: 'gte' | 'lte', value: string) => `/discover/screener?q=${encodeTree({ op: 'AND', rules: [{ field, op, value }] })}`;
 const BEHAVIOUR: [string, string][] = [['Top gainers and losers', '/discover/trending'], ['High dividend', screen('dividendYield', 'gte', '3.5')], ['High growth', screen('revenueGrowth', 'gte', '15')], ['Low volatility', screen('volatility', 'lte', '22')]];

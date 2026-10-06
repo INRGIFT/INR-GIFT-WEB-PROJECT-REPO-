@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { PageContainer, PageHeader } from '@/components/ui/primitives';
 import { Heatmap } from '@/features/heatmap/heatmap';
 
-export const metadata: Metadata = { title: 'Global heatmap', description: 'A treemap of global stocks, ETFs and REITs. Drill from region to country to sector to industry to asset.', alternates: { canonical: '/discover/heatmap' } };
+/** Filtered or shared states are kept out of the index; the canonical stays on the base page. */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ group?: string, path?: string }> }): Promise<Metadata> { const sp = await searchParams; return pageMetadata({ title: 'Global heatmap', description: 'A treemap of global stocks, ETFs and REITs. Drill from region to country to sector to industry to asset.', path: '/discover/heatmap', index: sp.group || sp.path ? 'faceted' : 'index' }); }
 const GROUPS = ['region', 'country', 'exchange', 'sector', 'industry', 'cls'] as const;
 export default async function HeatmapPage({ searchParams }: { searchParams: Promise<{ group?: string; path?: string }> }) {
   const sp = await searchParams;

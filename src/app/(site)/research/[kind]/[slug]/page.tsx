@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ButtonLink } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import type { ResearchKind } from '@/lib/types';
 import * as md from '@/services/market-data';
 
 type Props = { params: Promise<{ kind: string; slug: string }> };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind, slug } = await params; const d = await md.getResearchDoc(kind as ResearchKind, slug); return d ? { title: d.title, description: d.summary, openGraph: { type: 'article', title: d.title, description: d.summary, publishedTime: d.publishedAt } } : { title: 'Not found' }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind, slug } = await params; const d = await md.getResearchDoc(kind as ResearchKind, slug); return d ? pageMetadata({ title: d.title, description: d.summary, path: `/research/${d.kind}/${d.slug}`, type: 'article', publishedTime: d.publishedAt }) : { title: 'Not found' }; }
 export default async function ResearchDocPage({ params }: Props) {
   const { kind, slug } = await params;
   const d = await md.getResearchDoc(kind as ResearchKind, slug);

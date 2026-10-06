@@ -9,7 +9,8 @@ import type { Asset, AssetClass, CalendarKind, ChartRange, DataMeta, Envelope, M
  * This is the layer that applies validation, aggregation and envelope metadata.
  */
 const p = () => getProvider();
-export const nowMeta = (dataStatus: DataMeta['dataStatus'] = 'DELAYED'): DataMeta => { const t = new Date().toISOString(); return { timestamp: t, ingestedAt: t, timezone: 'UTC', source: p().name, dataStatus }; };
+/** Meta for responses that are not market data (content, reference lists). Market-data responses pass their own. */
+export const nowMeta = (dataStatus: DataMeta['dataStatus'] = 'END_OF_DAY'): DataMeta => { const t = new Date().toISOString(); return { timestamp: t, ingestedAt: t, timezone: 'UTC', source: p().name, dataStatus }; };
 export function envelope<T>(data: T, meta?: Partial<DataMeta>, pagination?: Pagination): Envelope<T> { return { data, meta: { ...nowMeta(), ...meta }, ...(pagination ? { pagination } : {}) }; }
 export function paginate<T>(rows: T[], page = 1, pageSize = 25): { rows: T[]; pagination: Pagination } {
   const total = rows.length, totalPages = Math.max(1, Math.ceil(total / pageSize)), pg = Math.min(Math.max(1, page), totalPages);
@@ -42,10 +43,15 @@ export async function getCalendar(kind?: CalendarKind | CalendarKind[]) { const 
 
 export const EQUITY_LIKE: AssetClass[] = ['stock', 'etf', 'reit'];
 const tradable = (a: Asset) => a.status !== 'CLOSED' && a.m.d1 != null;
+/** Price × volume in US dollars, so activity is comparable across currencies. */
+export const turnoverUsd = (a: Pick<Asset, 'price' | 'currency' | 'm'>) => (a.price == null || a.m.volume == null ? 0 : (a.price * a.m.volume * (INR_PER[a.currency] ?? 0)) / INR_PER.USD);
+/** Status for a module or response that mixes rows: the freshest row wins, matching how the UI labels mixed modules. */
+const FRESHNESS: DataMeta['dataStatus'][] = ['LIVE', 'DELAYED', 'STALE', 'END_OF_DAY', 'CLOSED', 'UNAVAILABLE', 'ERROR'];
+export const freshest = (list: { meta: DataMeta }[]): DataMeta | null => [...list].sort((a, b) => FRESHNESS.indexOf(a.meta.dataStatus) - FRESHNESS.indexOf(b.meta.dataStatus))[0]?.meta ?? null;
 export function movers(list: Asset[], n = 5) {
   const live = list.filter(tradable);
   const by = (f: (a: Asset) => number, dir: 1 | -1) => [...live].sort((a, b) => (f(b) - f(a)) * dir).slice(0, n);
-  return { gainers: by((a) => a.m.d1!, 1), losers: by((a) => a.m.d1!, -1), active: by((a) => a.m.volume ?? 0, 1) };
+  return { gainers: by((a) => a.m.d1!, 1), losers: by((a) => a.m.d1!, -1), active: by(turnoverUsd, 1) };
 }
 /** Cap-weighted one-day change by sector. */
 export function sectors(list: Asset[]) {

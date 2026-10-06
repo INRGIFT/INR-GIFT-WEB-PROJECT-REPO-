@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import { cn, pct } from '@/lib/format';
 
 export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
@@ -59,6 +59,34 @@ export function ErrorState({ title = 'This could not load', children, action }: 
   return <EmptyState title={title} action={action} icon={<AlertTriangle size={22} strokeWidth={1.75} className="text-down" />}>{children}</EmptyState>;
 }
 export function InlineError({ children }: { children: ReactNode }) { return <p role="alert" className="mt-1.5 text-[13px] text-down">{children}</p>; }
+/** Page- or module-level notice. Each tone has its own glyph, so the meaning survives without colour. */
+export function Callout({ tone = 'info', title, children, action, className }: { tone?: 'info' | 'warn' | 'error' | 'neutral' | 'success'; title: ReactNode; children?: ReactNode; action?: ReactNode; className?: string }) {
+  const tones = { info: ['border-brand/25 bg-brand-soft/60', 'text-brand-ink', 'ℹ'], warn: ['border-warn/30 bg-warn/5', 'text-warn', '◐'], error: ['border-down/30 bg-down/5', 'text-down', '◆'], neutral: ['border-line2 bg-soft', 'text-slate2', '◌'], success: ['border-up/30 bg-up/5', 'text-up', '✓'] } as const;
+  const [box, ink, glyph] = tones[tone];
+  return (
+    <div role={tone === 'error' ? 'alert' : 'status'} className={cn('flex flex-wrap items-start gap-x-3 gap-y-2 rounded-card border px-4 py-3', box, className)}>
+      <span aria-hidden className={cn('mt-px font-bold', ink)}>{glyph}</span>
+      <div className="min-w-0 flex-1"><p className="font-semibold">{title}</p>{children && <div className="mt-0.5 text-slate2">{children}</div>}</div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+/** Pager for client-side and API-backed lists. */
+export function Pagination({ page, pages, total, pageSize, onPage, label = 'Pagination' }: { page: number; pages: number; total: number; pageSize: number; onPage: (p: number) => void; label?: string }) {
+  if (pages <= 1) return null;
+  const btn = 'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[13px] font-medium transition-colors duration-micro disabled:pointer-events-none disabled:opacity-40';
+  return (
+    <nav aria-label={label} className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-2.5 text-xs text-faint">
+      <span className="num">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}</span>
+      <span className="flex items-center gap-1">
+        <button type="button" className={cn(btn, 'text-slate2 hover:bg-hover')} disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft size={15} /></button>
+        <span className="num px-1">Page {page} of {pages}</span>
+        <button type="button" className={cn(btn, 'text-slate2 hover:bg-hover')} disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page"><ChevronRight size={15} /></button>
+      </span>
+    </nav>
+  );
+}
+export function Kbd({ children }: { children: ReactNode }) { return <kbd className="rounded border border-line2 bg-white px-1.5 font-sans text-[11px] font-medium text-slate2">{children}</kbd>; }
 export function Breadcrumbs({ items }: { items: [string, string?][] }) {
   return (
     <nav aria-label="Breadcrumb" className="mb-2 text-xs text-faint">
@@ -92,11 +120,11 @@ export function Section({ title, link, children, className }: { title: string; l
   );
 }
 /** Stateless segmented control. `onChange` makes it usable only from client components. */
-export function Segmented<T extends string>({ value, options, onChange, label, size = 'md' }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; label: string; size?: 'sm' | 'md' }) {
+export function Segmented<T extends string>({ value, options, onChange, label, size = 'md', nowrap }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; label: string; size?: 'sm' | 'md'; nowrap?: boolean }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-hover p-[3px]">
+    <div role="group" aria-label={label} className={cn('inline-flex gap-0.5 rounded-ctl bg-hover p-[3px]', nowrap ? 'flex-nowrap' : 'flex-wrap')}>
       {options.map(([v, text]) => (
-        <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)} className={cn('rounded-lg font-medium transition-[background-color,color,box-shadow] duration-150', size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-[13px]', v === value ? 'bg-white text-navy shadow-card' : 'text-slate2 hover:text-navy')}>{text}</button>
+        <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)} className={cn('shrink-0 rounded-lg font-medium transition-[background-color,color,box-shadow] duration-150', size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-[13px]', v === value ? 'bg-white text-navy shadow-card' : 'text-slate2 hover:text-navy')}>{text}</button>
       ))}
     </div>
   );

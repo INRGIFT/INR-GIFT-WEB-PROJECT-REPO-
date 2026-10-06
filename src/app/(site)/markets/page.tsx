@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { ButtonLink } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/data-status';
@@ -11,7 +12,8 @@ import { cn, dateShort, timeIST } from '@/lib/format';
 import { marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Global markets', description: 'Sessions, indices, sectors, movers and currencies across every covered market, shown in IST.', alternates: { canonical: '/markets' } };
+/** Filtered or shared states are kept out of the index; the canonical stays on the base page. */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ region?: string }> }): Promise<Metadata> { const sp = await searchParams; return pageMetadata({ title: 'Global markets', description: 'Sessions, indices, sectors, movers and currencies across every covered market, shown in IST.', path: '/markets', index: sp.region ? 'faceted' : 'index' }); }
 
 export default async function MarketsPage({ searchParams }: { searchParams: Promise<{ region?: string }> }) {
   const { region } = await searchParams;

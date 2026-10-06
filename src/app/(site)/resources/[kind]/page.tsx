@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -16,7 +17,7 @@ const TITLES: Record<string, [string, string]> = {
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
 type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string }> };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind } = await params; const t = TITLES[kind]; return t ? { title: t[0], description: t[1], alternates: { canonical: `/resources/${kind}` } } : { title: 'Not found' }; }
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, { category }] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: category ? 'faceted' : 'index' }) : { title: 'Not found' }; }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 const cell = 'num whitespace-nowrap border-b border-line px-4 py-2 text-right';

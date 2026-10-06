@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
 import { AssetTable } from '@/features/assets/asset-table';
 import { ModuleFoot, Movers, freshest } from '@/features/markets/widgets';
 import type { Asset } from '@/lib/types';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Trending', description: 'Movers, most active and momentum leaders across global stocks, ETFs and REITs.', alternates: { canonical: '/discover/trending' } };
+export const metadata: Metadata = pageMetadata({ title: 'Trending', description: 'Movers, most active and momentum leaders across global stocks, ETFs and REITs.', path: '/discover/trending' });
 export default async function TrendingPage() {
   const all = await md.getAssets({ cls: md.EQUITY_LIKE });
   const top = (f: (a: Asset) => number | null | undefined, n = 8) => [...all].filter((a) => f(a) != null).sort((a, b) => f(b)! - f(a)!).slice(0, n);

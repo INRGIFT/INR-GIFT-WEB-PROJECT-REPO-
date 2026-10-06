@@ -81,10 +81,10 @@ export function AssetTable({ rows, columns, pageSize = 25, initialSort, showStat
     </div>
   );
 }
-/** Compact three-column list for movers. */
-export function MiniList({ rows, metric }: { rows: Asset[]; metric: MetricKey }) {
+/** Compact three-column list for movers. `values` replaces the metric cell per asset id (server-rendered nodes). */
+export function MiniList({ rows, metric, values }: { rows: Asset[]; metric: MetricKey; values?: Record<string, ReactNode> }) {
   const { showPrice } = useWorkspace();
   if (!rows.length) return <EmptyState title="Nothing to rank">No assets with a current value.</EmptyState>;
-  return <ul>{rows.map((a) => <li key={a.id} className="flex items-center gap-3 border-b border-line px-4 py-2 last:border-0 hover:bg-bg"><div className="min-w-0 flex-1"><AssetIdentity asset={a} sub={`${a.symbol} · ${a.country}`} /></div><span className="num text-[13px] font-medium">{showPrice(a)}</span><span className="w-[84px] text-right text-[13px]"><MetricCell k={metric} v={a.m[metric]} /></span></li>)}</ul>;
+  return <ul>{rows.map((a) => <li key={a.id} className="flex items-center gap-3 border-b border-line px-4 py-2 last:border-0 hover:bg-bg"><div className="min-w-0 flex-1"><AssetIdentity asset={a} sub={`${a.symbol} · ${a.country}`} /></div><span className="num text-[13px] font-medium">{showPrice(a)}</span><span className="w-[84px] text-right text-[13px]">{values?.[a.id] ?? <MetricCell k={metric} v={a.m[metric]} />}</span></li>)}</ul>;
 }
 export function Price({ asset, className }: { asset: Pick<Asset, 'price' | 'currency'>; className?: string }) { const { showPrice } = useWorkspace(); return <span className={cn('num', className)}>{showPrice(asset)}</span>; }

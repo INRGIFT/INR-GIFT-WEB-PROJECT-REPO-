@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/data-status';
 import { PageContainer, PageHeader } from '@/components/ui/primitives';
@@ -7,7 +8,7 @@ import { hhmm } from '@/lib/format';
 import { marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Markets directory', description: 'Every market INRGIFT covers, with exchanges, currency, hours in IST and data status.', alternates: { canonical: '/markets/all' } };
+export const metadata: Metadata = pageMetadata({ title: 'Markets directory', description: 'Every market INRGIFT covers, with exchanges, currency, hours in IST and data status.', path: '/markets/all' });
 
 export default async function MarketsDirectory() {
   const [markets, all] = await Promise.all([md.getMarkets(), md.getAssets({ cls: ['index'] })]);

@@ -8,7 +8,7 @@ import type { Asset, TableName, UserPrefs } from '@/lib/types';
 import { DEFAULT_PREFS, makeRepo, type NewRow, type Row, type WorkspaceRepo } from './repo';
 
 type All = { [K in TableName]: Row<K>[] };
-const EMPTY: All = { watchlists: [], watchlist_items: [], alerts: [], saved_screens: [], saved_comparisons: [], saved_research: [], notes: [], recent_history: [], notifications: [] };
+const EMPTY: All = { watchlists: [], watchlist_items: [], alerts: [], saved_screens: [], saved_comparisons: [], saved_research: [], notes: [], recent_history: [], notifications: [], collections: [] };
 const ANON_PREFS = 'inrgift.prefs.anon';
 
 interface Workspace {

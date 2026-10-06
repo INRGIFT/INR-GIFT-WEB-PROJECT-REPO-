@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { Badge, PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
 import { ResearchList } from '@/features/site/research-list';
 import { dateShort } from '@/lib/format';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Research', description: 'Structured research on stocks, ETFs, markets and themes. Data and context, not recommendations.', alternates: { canonical: '/research' } };
+export const metadata: Metadata = pageMetadata({ title: 'Research', description: 'Structured research on stocks, ETFs, markets and themes. Data and context, not recommendations.', path: '/research' });
 const KINDS = [['stocks', 'Stock research', 'What changed, why it matters, what to monitor'], ['etfs', 'ETF research', 'Cost, liquidity, holdings and risk in eight steps'], ['markets', 'Market research', 'Trend, leadership and the currency angle'], ['themes', 'Themes', 'Who is in a theme and how it has moved']] as const;
 export default async function ResearchHub() {
   const [docs, news] = await Promise.all([md.getResearch(), md.getNews({ limit: 5 })]);

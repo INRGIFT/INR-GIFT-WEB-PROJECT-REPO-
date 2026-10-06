@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { Change, PageContainer, PageHeader } from '@/components/ui/primitives';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Collections', description: 'Curated themes and groups of related assets.', alternates: { canonical: '/discover/collections' } };
+export const metadata: Metadata = pageMetadata({ title: 'Collections', description: 'Curated themes and groups of related assets.', path: '/discover/collections' });
 export default async function CollectionsPage() {
   const [themes, all] = await Promise.all([md.getThemes(), md.getAssets()]);
   return (

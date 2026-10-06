@@ -68,7 +68,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
           <div role="dialog" aria-modal="true" aria-label="Search" className="flex max-h-[78vh] w-full max-w-[640px] animate-pop-in flex-col overflow-hidden rounded-card border border-line2 bg-white shadow-pop">
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search size={18} className="text-faint" />
-              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={flat[active] ? `sr-${active}` : undefined} autoComplete="off" placeholder="Search companies, tickers, ETFs, indices, currencies, markets, research" className="h-[52px] w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
+              <input ref={input} autoFocus value={q} onChange={(e) => setQ(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={flat[active] ? `sr-${active}` : undefined} autoComplete="off" placeholder="Search companies, tickers, ETFs, indices, currencies, markets, research" className="h-[52px] w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(flat.length - 1, i + 1)); }
                   else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }

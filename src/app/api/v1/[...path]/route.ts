@@ -32,14 +32,14 @@ const list = async (q: Q, cls?: AssetClass[]): Promise<Envelope<unknown>> => {
   let rows = await md.getAssets({ cls: cls ?? classes(q.class), marketId: market, region: q.region, sector: q.sector });
   if (q.ids) { const want = q.ids.split(','); rows = rows.filter((a) => want.includes(a.id) || want.includes(a.slug)); }
   const { rows: page, pagination } = md.paginate(rows, q.page, q.pageSize);
-  return md.envelope(page, undefined, pagination);
+  return md.envelope(page, md.freshest(rows) ?? undefined, pagination);
 };
 const asset = async (id: string) => { if (!ID.test(id)) throw new NotFound(); const a = await md.getAsset(undefined, id); if (!a) throw new NotFound(); return a; };
 const p = () => getProvider();
 
 type Handler = (m: string[], q: Q) => Promise<Envelope<unknown>>;
 const ROUTES: [RegExp, Handler][] = [
-  [/^markets$/, async () => md.envelope(await md.getMarkets())],
+  [/^markets$/, async () => { const m = await md.getMarkets(); return md.envelope(m, md.freshest(m) ?? undefined); }],
   [/^markets\/([^/]+)$/, async ([slug]) => { const m = await md.getMarket(slug); if (!m) throw new NotFound(); return md.envelope(m, m.meta); }],
   [/^exchanges$/, async () => md.envelope((await md.getMarkets()).flatMap((m) => m.exchanges.map((e) => ({ ...e, marketId: m.id, country: m.name }))))],
   [/^assets$/, (_, q) => list(q)],
@@ -61,9 +61,9 @@ const ROUTES: [RegExp, Handler][] = [
   [/^commodities$/, (_, q) => list(q, ['commodity'])],
   [/^bonds$/, (_, q) => list(q, ['bond'])],
   [/^reits$/, (_, q) => list(q, ['reit'])],
-  [/^heatmap$/, async (_, q) => md.envelope(await md.getAssets({ cls: q.universe === 'all' ? md.EQUITY_LIKE : [q.universe] }))],
-  [/^movers$/, async (_, q) => md.envelope(md.movers(await md.getAssets({ cls: md.EQUITY_LIKE, region: q.region }), 10))],
-  [/^sectors$/, async (_, q) => md.envelope(md.sectors(await md.getAssets({ cls: ['stock'], region: q.region })))],
+  [/^heatmap$/, async (_, q) => { const rows = await md.getAssets({ cls: q.universe === 'all' ? md.EQUITY_LIKE : [q.universe] }); return md.envelope(rows, md.freshest(rows) ?? undefined); }],
+  [/^movers$/, async (_, q) => { const rows = await md.getAssets({ cls: md.EQUITY_LIKE, region: q.region }); return md.envelope(md.movers(rows, 10), md.freshest(rows) ?? undefined); }],
+  [/^sectors$/, async (_, q) => { const rows = await md.getAssets({ cls: ['stock'], region: q.region }); return md.envelope(md.sectors(rows), md.freshest(rows) ?? undefined); }],
   [/^calendar$/, async (_, q) => md.envelope(await md.getCalendar(q.kind as CalendarKind | undefined))],
   [/^earnings$/, async () => md.envelope(await md.getCalendar('earnings'))],
   [/^dividends$/, async () => md.envelope(await md.getCalendar('dividend'))],

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { Columns2, Filter, Flame, LayoutGrid, Map as MapIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Change, PageContainer, PageHeader, Panel, Section } from '@/components/ui/primitives';
@@ -7,7 +8,7 @@ import { Heatmap } from '@/features/heatmap/heatmap';
 import { ModuleFoot, Movers, SectorPanel, freshest } from '@/features/markets/widgets';
 import * as md from '@/services/market-data';
 
-export const metadata: Metadata = { title: 'Discover', description: 'Screener, heatmap, compare, trending and collections: the tools for finding what to research next.', alternates: { canonical: '/discover' } };
+export const metadata: Metadata = pageMetadata({ title: 'Discover', description: 'Screener, heatmap, compare, trending and collections: the tools for finding what to research next.', path: '/discover' });
 const TOOLS = [['Screener', 'Filter the global universe with AND, OR and nested groups', '/discover/screener', Filter], ['Heatmap', 'Drill from region to country to sector to company', '/discover/heatmap', MapIcon], ['Compare', 'Up to four assets, rebased and side by side', '/discover/compare', Columns2], ['Trending', 'Movers, activity and 52-week extremes', '/discover/trending', Flame], ['Collections', 'Themes and curated groups', '/discover/collections', LayoutGrid]] as const;
 
 export default async function DiscoverPage() {

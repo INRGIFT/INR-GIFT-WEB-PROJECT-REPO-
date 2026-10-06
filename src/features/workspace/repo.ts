@@ -5,7 +5,7 @@ import { supabaseBrowser } from '@/supabase/client';
 
 export type Row<T extends TableName> = WorkspaceTables[T];
 export type NewRow<T extends TableName> = Omit<Row<T>, 'id' | 'created_at' | 'updated_at'>;
-export const TABLES: TableName[] = ['watchlists', 'watchlist_items', 'alerts', 'saved_screens', 'saved_comparisons', 'saved_research', 'notes', 'recent_history', 'notifications'];
+export const TABLES: TableName[] = ['watchlists', 'watchlist_items', 'alerts', 'saved_screens', 'saved_comparisons', 'saved_research', 'notes', 'recent_history', 'notifications', 'collections'];
 export const DEFAULT_PREFS: UserPrefs = { currency: 'LOCAL', timezone: 'Asia/Kolkata', locale: 'en-IN', regions: [], assetClasses: [], themes: [], notifyEmail: true, notifyInApp: true };
 
 /** Data access for the private workspace. The UI depends on this interface, not on Supabase. */
@@ -18,7 +18,7 @@ export interface WorkspaceRepo {
   setPrefs(p: UserPrefs): Promise<void>;
 }
 type All = { [K in TableName]: Row<K>[] };
-const empty = (): All => ({ watchlists: [], watchlist_items: [], alerts: [], saved_screens: [], saved_comparisons: [], saved_research: [], notes: [], recent_history: [], notifications: [] });
+const empty = (): All => ({ watchlists: [], watchlist_items: [], alerts: [], saved_screens: [], saved_comparisons: [], saved_research: [], notes: [], recent_history: [], notifications: [], collections: [] });
 const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
 /** Browser-local store used when Supabase is not configured. Same shapes as the SQL tables. */

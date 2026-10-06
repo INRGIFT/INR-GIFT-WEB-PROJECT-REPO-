@@ -25,11 +25,12 @@ const SCALE: Record<Colour, number> = { d1: 3, w1: 6, m1: 12, ytd: 40, y1: 50, v
 const dimValue = (a: Asset, d: Dim) => (d === 'cls' ? CLASS_LABEL[a.cls].many : String(a[d] ?? 'Other'));
 
 export function tileColour(v: number | null | undefined, metric: Colour): string {
-  if (v == null) return '#B8C2D1';
+  if (v == null) return '#C3CBD8';
   const mix = (a: number[], b: number[], t: number) => `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(',')})`;
   if (metric === 'volatility') return mix([120, 134, 160], [23, 62, 190], Math.min(1, Math.max(0, (v - 12) / 33)));
-  if (v === 0) return 'rgb(92,104,124)';
-  return mix([92, 104, 124], v > 0 ? [11, 122, 82] : [190, 50, 42], 0.25 + Math.min(1, Math.abs(v) / SCALE[metric]) * 0.75);
+  if (v === 0) return 'rgb(108,118,136)';
+  // Square-root easing makes small moves visibly tinted while keeping large moves saturated.
+  return mix([108, 118, 136], v > 0 ? [8, 128, 84] : [198, 46, 38], 0.3 + Math.sqrt(Math.min(1, Math.abs(v) / SCALE[metric])) * 0.7);
 }
 const sizeOf = (a: Asset, s: Size): number => { const usd = a.m.marketCap ?? a.m.aum ?? 0; return s === 'volume' ? Math.max(1, (a.m.volume ?? 0) * (a.price ?? 0)) : s === 'aum' ? (a.m.aum ?? 0) : usd; };
 
