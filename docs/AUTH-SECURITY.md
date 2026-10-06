@@ -7,7 +7,7 @@
 
 Both implement `AuthAdapter` in `src/features/auth/auth-service.ts`; forms must use `useSession().auth` and nothing else.
 
-## Flows (logic implemented, pages not built)
+## Flows (pages built in `src/app/(auth)`, forms in `src/features/auth/forms.tsx`)
 Sign up: email + password → email verification (`/auth/callback` exchanges the code) → phone OTP → TOTP enrolment →
 onboarding → workspace.
 Login: email + password **or** phone OTP → MFA challenge when the account has a verified factor (AAL2) → workspace.
@@ -18,9 +18,9 @@ resetPassword, updatePassword, mfaEnroll, mfaVerify, mfaFactorId, mfaUnenroll, u
 Helpers: `passwordProblem` (≥10 chars, a number, a symbol), `isEmail`, `isPhone` (E.164), `normalizePhone`.
 Errors are mapped to `AuthError` codes: INVALID, RATE_LIMITED, EXPIRED, WEAK_PASSWORD, UNKNOWN.
 
-## Pages to build (see ROADMAP)
-`/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/onboarding`,
-`/account/security` (email verified, phone verified, TOTP status, MFA status, current session, security activity).
+## Pages
+Built: `/login` `/signup` `/verify` `/verify-phone` `/mfa` (`?mode=enrol|challenge`) `/forgot-password`
+`/reset-password` `/onboarding`, `/account/profile` `/account/settings` `/account/security` (email verified, phone verified, TOTP status, MFA status, current session, security activity).
 Required UI states: resend cooldown, rate-limited, expired link/code, invalid, loading; masked email on `/verify`.
 Supabase cannot list all sessions from the client; show the current session and activity, and say so.
 
@@ -35,7 +35,8 @@ Supabase cannot list all sessions from the client; show the current session and 
 - Service-role key and provider keys are server-only env vars; only `/api/internal/*` may use them.
 - Ingest route compares the secret with `timingSafeEqual`.
 - All API query input is zod-validated; screener share links are sanitised on decode (`decodeTree`).
-- `next` redirect targets are restricted to same-origin paths.
+- `next` redirect targets are restricted to same-origin paths (`safeNext`, unit-tested).
+- Auth routes send `X-Robots-Tag: noindex`; contact form is rate limited and has a honeypot.
 - Security headers in `next.config.mjs` (nosniff, frame deny, referrer policy, permissions policy, HSTS).
 
 ## Not done

@@ -33,7 +33,7 @@ npm run dev          # http://localhost:3000, runs with no env vars (demo data +
 npm run typecheck    # must pass before every commit
 npm test             # vitest
 npm run build        # must pass before every commit
-npm run test:e2e     # Playwright; no specs exist yet
+npm run test:e2e     # Playwright journeys in e2e/ (E2E_BASE_URL to reuse a server, PW_CHROMIUM_PATH for a local Chromium)
 ```
 
 ## Stack
@@ -56,7 +56,9 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 7. **Metrics** are declared once in `src/lib/metrics.ts`; tables, screener and compare read that registry.
 8. **Routes/nav** are declared in `src/lib/routes.ts`.
 9. **Design tokens** only. No raw hex in components except inside SVG chart renderers.
-10. Route groups: `(site)` public shell, `(workspace)` authenticated shell with sidebar, `(auth)` auth layout (to be created).
+10. Route groups: `(site)` public shell, `(workspace)` authenticated shell with sidebar, `(auth)` two-column auth layout.
+11. **Metadata** through `pageMetadata()` / `privateMetadata()` in `src/lib/seo.ts`; structured data through `src/lib/structured-data.tsx`.
+12. **Content** (learn, glossary, FAQ, legal, videos) only through the async getters in `src/services/content.ts` (the CMS seam).
 
 ## Conventions
 
@@ -69,9 +71,10 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 
 ## Current state in one paragraph
 
-Public product is built and compiles: home, markets, assets, all seven asset detail types, discover (heatmap,
-screener, compare, collections, trending), research, resources, the `/api/v1` router, DemoProvider and both SQL
-migrations. Auth and workspace **logic** exists (adapters, session, repo, context, middleware) but their **pages do
-not**: `/login`, `/signup` and everything under `/app`, `/account`, `/notifications` are the next thing to build.
-Static pages (`/about`, `/pricing`, `/faq`, `/support`, `/contact`, `/legal/*`) are also missing; their content is
-already in `src/services/content.ts`. Nothing has been reviewed visually in a browser. Details: `docs/ROADMAP.md`.
+The documented product scope is built and runs with no configuration: every public route, the auth flow
+(`(auth)`), account pages, the full workspace (watchlists, alerts with an evaluator, notifications, screens,
+comparisons, research, notes, collections, history), resources with learn and glossary detail pages, the eight-step
+ETF review, SEO (robots, sitemaps, JSON-LD, OG) and captioned product tutorials. It has been audited in a browser at
+desktop, tablet and phone widths (`docs/AUDIT.md`). What is **not** done is anything needing an external account:
+Supabase has never been connected, SMS and email are not configured, and there is no live market-data vendor.
+Start with `docs/ROADMAP.md`.

@@ -34,7 +34,11 @@ etf_holdings, etf_allocations, index_profiles, fx_pairs, commodity_profiles, bon
 news_articles, news_assets, research_documents, research_assets, themes, theme_assets, calendar_events,
 data_entitlements. Public read via RLS, service-role write; quarantine is not readable.
 
-**Status:** both migrations are written and reviewed by eye only. They have never been run against a Postgres or
+**0003_workspace_collections.sql:** `collections` (owner-only, ≤100 instrument ids), `alerts.note`,
+`notifications.ref_id` (links a notification to the alert that fired it).
+**0004_support_requests.sql:** contact messages; insert-only for anon and authenticated, no read policy.
+
+**Status:** all four migrations are written and reviewed by eye only. They have never been run against a Postgres or
 Supabase instance. Run them first thing and fix whatever surfaces.
 
 ## Demo seed (src/providers/demo/seed.ts)

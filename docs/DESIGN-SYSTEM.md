@@ -19,7 +19,7 @@ cue (▲/▼ + sign; status glyphs ● ▲ ■ ○ ◌ ◐ ◆).
 
 ## Typography
 Manrope (`font-display`, 600–800) for headings and large metrics; Inter (`font-sans`, 400–700) for UI, body, data.
-Loaded via `<link>` in `src/app/layout.tsx` (move to `next/font` — see ROADMAP).
+Self-hosted variable fonts declared in `globals.css` and preloaded in `src/app/layout.tsx`.
 Scale: hero 34→46px · page H1 28→34px · section H2 18px · panel title 15px · body 14–15px · small 12–13px · micro 11px.
 Line-height: display 1.08–1.15, headings 1.2, body 1.55. Numbers use `.num` (tabular, no wrap). Sentence case; no
 all-caps eyebrows.
@@ -44,12 +44,17 @@ feature components: AssetTable, AssetIdentity, MetricCell, MiniList, Price, Asse
 SvgChart, Heatmap, Screener (FilterBuilder inside), Compare, SearchProvider, SessionRail, IndexStrip, Movers,
 SectorPanel, WatchButton, AlertButton, CompareButton, SaveButton, RowActions, AssetNotes, NoteDialog.
 
-## Named in the brief but not built yet
-Tabs, Tooltip (native `title` is used), Popover/Dropdown (header has ad-hoc menus), Combobox, Drawer, DateRange,
-standalone Pagination, ChartToolbar (inline in ChartShell), CalendarList/NewsList (inline). Extract when a second
-consumer appears; do not duplicate.
+## Added in October 2026
+`ui/tabs` Tabs (WAI-ARIA, arrow keys) · `ui/menu` Menu (dropdown with keyboard navigation) · `ui/drawer` Drawer ·
+`ui/field` TextField, PasswordField, SelectField, TextArea, CodeField, Switch, Checkbox, ChoiceChips ·
+`ui/primitives` Callout, Pagination, Kbd · component classes `.card-link`, `.row-link`, `.chip`, `.hint` ·
+`layout/route-states` PageSkeleton, RouteError · `charts/multi-line-chart` MultiLineChart, SeriesLegend ·
+`media/video-module` VideoModule · `workspace/ws-ui` WsPage, AssetPicker (combobox), useAssets.
+Rules: grids default to `minmax(0,1fr)` and scroll containers are positioned, so content never widens the page.
+
+Still not built (extract when needed): Tooltip (native `title` is used), Combobox for non-asset values, DateRange.
 
 ## Charts
-Thin gridlines (#E5EAF1), 11px axis labels, right-hand price axis, compact tooltip, shared range control. Line/area
+Drawn at real pixel width (labels stay 11px on phones). Thin gridlines (#E5EAF1), 11px axis labels, right-hand price axis, compact tooltip, shared range control. Line/area
 colour follows period direction; overlays: SMA 20 solid brand, EMA 50 dashed saffron, benchmark dashed slate.
 Compare lines are distinguished by colour **and** dash pattern.

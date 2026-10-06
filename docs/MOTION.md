@@ -19,5 +19,8 @@ Implemented (Tailwind keyframes in `tailwind.config.ts`, base rules in `globals.
 Rules: no parallax, no bouncing, no animated number tickers, no per-card entrance animations on dashboards, nothing
 essential conveyed only by motion.
 
-Not built: route transitions, tab-content transitions (no Tabs primitive yet), animated sliding nav indicator,
-section reveals on editorial pages (About, Learn) — optional and only there.
+Also implemented: duration tokens (`duration-micro` 150 ms, `duration-panel` 220 ms, `duration-layout` 320 ms);
+`animate-fade-in` route transition via `(site)/template.tsx`; tab content fade and indicator; drawer slide-in;
+chart crosshair tooltip fade; video play-button press; onboarding step fade-up.
+
+Not built (optional): section reveals on editorial pages.

@@ -3,8 +3,8 @@
 ## Shells
 - **Public `(site)`**: header + main + footer + mobile bottom nav. No sidebar.
 - **Authenticated `(workspace)`**: header + personal sidebar (248px, collapses to 64px; icons only below `lg`) +
-  horizontal section tabs on phones + bottom nav. Layout exists; pages do not yet.
-- **Auth `(auth)`**: two-column, navy brand panel left, form right. Not created yet. The v1 prototype shows the intent.
+  horizontal section tabs on phones + bottom nav. Pages: overview, watchlist, alerts, notifications, screens, comparisons, collections, recent, research, notes, history.
+- **Auth `(auth)`**: two-column, navy brand panel left, form right. Built; brand panel shows a live IST session read-out.
 
 ## Navigation (`src/lib/routes.ts`)
 Top: Markets · Assets · Discover · Research · Resources (dropdowns). Utilities: search, display currency, open-market
@@ -14,17 +14,17 @@ Sidebar groups: My workspace (Overview, Watchlist, Alerts) · Discover (Saved Sc
 Recent) · Research (Saved Research, Notes, History) · System (Settings, Help). Counters when data exists. Never Portfolio.
 
 ## Route map and status
-✅ built · ⬜ not built
+✅ built · ✅ not built
 
 Public: ✅ `/` · ✅ `/markets` `/markets/all` `/markets/[market]` · ✅ `/assets` `/assets/[cls]` (stocks, etfs, indices,
 fx, commodities, bonds, reits, funds) · ✅ `/stocks/[symbol]` `/etfs/[symbol]` `/indices/[index]` `/fx/[pair]`
 `/commodities/[commodity]` `/bonds/[bond]` `/reits/[reit]` · ✅ `/discover` `/discover/heatmap` `/discover/screener`
 `/discover/compare` `/discover/collections` `/discover/collections/[id]` `/discover/trending` · ✅ `/research`
 `/research/[kind]` `/research/[kind]/[slug]` · ✅ `/resources/[kind]` (news, earnings, dividends, ipo, calendar, learn,
-glossary, data) · ⬜ `/about` `/pricing` `/faq` `/support` `/contact` · ⬜ `/legal/[doc]`
-Auth: ⬜ `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/onboarding` · ✅ `/auth/callback`
-Authenticated: ⬜ `/app` · ⬜ `/app/[section]` (watchlist, alerts, screens, comparisons, collections, recent, research,
-notes, history) · ⬜ `/account/[section]` (profile, settings, security) · ⬜ `/notifications`
+glossary, data) · ✅ `/about` `/pricing` `/faq` `/support` `/contact` · ✅ `/legal/[doc]` · ✅ `/resources` `/resources/learn/[slug]` `/resources/glossary/[slug]` `/search` `/etfs/[symbol]/review`
+Auth: ✅ `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/onboarding` · ✅ `/auth/callback`
+Authenticated: ✅ `/app` · ✅ `/app/[section]` (watchlist, alerts, screens, comparisons, collections, recent, research,
+notes, history) · ✅ `/account/[section]` (profile, settings, security) · ✅ `/notifications`
 
 ## Acceptance flows (more important than isolated polish)
 1. Search → asset → chart → metrics → compare → save → alert.
@@ -50,8 +50,7 @@ EMAAR no fundamentals, INDA no holdings, TSM/2330 cross-listing, funds no covera
 
 ## Responsive
 Desktop first, designed per breakpoint. Tables: sticky header and first column, horizontal scroll, never squeezed.
-Heatmap aspect changes on phones. Compare table scrolls with a sticky metric column. Known gap: below `lg` the top
-nav dropdowns are hidden and only the five bottom-nav destinations are reachable directly — add a menu drawer.
+Heatmap aspect changes on phones. Compare table scrolls with a sticky metric column. Below `lg` a menu drawer carries the full navigation, account links and currency.
 
 ## Search
 `/` or Ctrl/Cmd+K. Debounced `/api/v1/search`, grouped by asset class then markets, research, themes. Arrow keys,

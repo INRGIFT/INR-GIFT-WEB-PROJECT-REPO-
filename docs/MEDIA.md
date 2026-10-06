@@ -6,13 +6,16 @@ gradients. Charts, heatmaps and data are the imagery.
 What exists
 - Logo: CSS-drawn mark + wordmark in `src/components/layout/site-header.tsx` (`Logo`). No logo file from the client yet.
 - Icons: `lucide-react` only, stroke 1.75–2.
-- Fonts: Manrope and Inter from Google Fonts via `<link>`.
+- Fonts: Inter and Manrope variable fonts self-hosted in `public/fonts` (latin and latin-ext, OFL licences alongside).
 - Asset "avatars": ticker text on a neutral tile. No company logos (licensing).
-- `public/` is empty.
+- Tutorials in `public/media`: three screen recordings of the real product (WebM), each with a WebVTT caption file,
+  a JPEG poster, chapters and a transcript in `VIDEOS` (`src/services/content.ts`). `VideoModule`
+  (`src/features/media/video-module.tsx`) loads nothing until play, shows captions by default and falls back to the
+  transcript. Placements: learn articles, support, resources, heatmap and screener.
+- App icon `src/app/icon.svg` and a generated social card `src/app/opengraph-image.tsx`.
 
 Needed
 - Official INRGIFT logo (SVG), favicon, app icons, Open Graph image (or an OG image route).
-- Self-hosted fonts through `next/font` (the build sandbox blocked Google Fonts, so `<link>` was used).
 - Decision on company/fund logos: licensed source or keep ticker tiles.
 - Social profile links for the footer.
 
