@@ -22,7 +22,7 @@ export function SessionRail({ markets, now }: { markets: MarketView[]; now: Date
   return (
     <div>
       <div className="grid grid-cols-[minmax(84px,150px)_1fr] items-center gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[minmax(84px,150px)_1fr_104px]">
-        <span /><div className="relative h-4 text-[11px] text-faint">{[0, 6, 12, 18, 24].map((h) => <span key={h} className={cn('absolute', h === 0 ? '' : h === 24 ? '-translate-x-full' : '-translate-x-1/2')} style={{ left: `${(h / 24) * 100}%` }}>{String(h % 24).padStart(2, '0')}:00</span>)}</div><span className="hidden text-right text-faint sm:block">Status</span>
+        <span /><div className="relative h-4 text-[11px] text-faint">{[0, 6, 12, 18, 24].map((h) => <span key={h} className={cn('absolute', h === 0 ? '' : h === 24 ? '-translate-x-full' : '-translate-x-1/2', (h === 6 || h === 18) && 'hidden sm:inline')} style={{ left: `${(h / 24) * 100}%` }}>{String(h % 24).padStart(2, '0')}:00</span>)}</div><span className="hidden text-right text-faint sm:block">Status</span>
         {markets.map((m) => {
           const segs = m.istClose < m.istOpen ? [[m.istOpen, 24], [0, m.istClose]] : [[m.istOpen, m.istClose]];
           const open = m.session === 'OPEN';

@@ -54,7 +54,7 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
         </button>
         <div className="flex shrink-0 items-center gap-1">
           <div className="hidden md:block">{currency}</div>
-          <Link href="/markets" title="Markets open right now" className="hidden h-9 items-center gap-1.5 rounded-ctl px-2 text-[13px] text-slate2 transition-colors hover:bg-hover hover:text-navy xl:flex"><Globe2 size={17} />{openCount} open</Link>
+          <Link href="/markets" title="Markets open right now" className="hidden h-9 items-center gap-1.5 rounded-ctl px-2 text-[13px] text-slate2 transition-colors hover:bg-hover hover:text-navy 2xl:flex"><Globe2 size={17} />{openCount} open</Link>
           {demo && <Link href="/resources/data#data-source" title="Demo data. Connect a live provider to enable production market feeds." className="hidden rounded-md bg-warn/10 px-1.5 py-0.5 text-[11px] font-semibold text-warn sm:block">Demo data</Link>}
           {loading ? <span className="skeleton h-9 w-20" aria-hidden /> : user ? (
             <>
