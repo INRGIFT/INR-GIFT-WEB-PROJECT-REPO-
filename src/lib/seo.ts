@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { config } from './config';
+import { config, isIndexable } from './config';
 
 /**
  * Metadata engine. Every route builds its metadata here so canonical, Open Graph, Twitter and robots rules stay
@@ -33,7 +33,8 @@ export function pageMetadata({ title, description, path, index = 'index', type =
     description,
     keywords,
     alternates: { canonical: path },
-    robots: index === 'index' ? { index: true, follow: true } : index === 'faceted' ? { index: false, follow: true } : { index: false, follow: false },
+    // While the site serves demo data (or SITE_INDEXABLE=false), nothing is indexable; see config.isIndexable.
+    robots: !isIndexable || index === 'private' ? { index: false, follow: index !== 'private' } : index === 'faceted' ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: { type, title: ogTitle, description, url: path, siteName: SITE.name, locale: 'en_IN', ...(type === 'article' ? { publishedTime, modifiedTime } : {}) },
     twitter: { card: 'summary_large_image', title: ogTitle, description },
   };

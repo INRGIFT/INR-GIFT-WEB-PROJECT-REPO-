@@ -8,4 +8,9 @@ export const config = {
 };
 export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseAnonKey);
 export const isDemoData = config.provider === 'demo';
+/**
+ * Search engines may index the site only with live data or an explicit opt-in (SITE_INDEXABLE=true).
+ * Demo prices must never be presented to crawlers as market data (docs/SEO.md).
+ */
+export const isIndexable = process.env.SITE_INDEXABLE === 'true' || (!isDemoData && process.env.SITE_INDEXABLE !== 'false');
 export const DEMO_SESSION_COOKIE = 'inrgift_demo_session';
