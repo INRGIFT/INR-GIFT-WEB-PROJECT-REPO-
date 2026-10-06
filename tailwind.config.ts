@@ -4,19 +4,31 @@ import type { Config } from 'tailwindcss';
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
+    /** Breakpoints (mobile-first): phone < 640 ≤ large phone < 768 ≤ tablet < 1024 ≤ desktop < 1280 ≤ wide < 1536 ≤ ultra. */
+    screens: { sm: '640px', md: '768px', lg: '1024px', xl: '1280px', '2xl': '1536px' },
     extend: {
       colors: {
         brand: { DEFAULT: '#245BFE', ink: '#1B46C9', soft: '#EAF0FF' },
         navy: '#071A33', slate2: '#4A5770', faint: '#6F7C93',
         bg: '#F7F9FC', soft: '#F2F5F9', hover: '#EEF2F7', line: '#E5EAF1', line2: '#D7DEE8',
         up: '#0B7F56', down: '#C2352B', warn: '#9A6408', saffron: '#E8862A',
+        /** Brand library colours (logo artwork itself is never recoloured; see docs/BRAND_ASSET_INVENTORY.md). */
+        ice: '#DCE8FF', ink: '#0B0E14', focus: '#245BFE',
+        /** Data-status tokens: one hue per status; every badge also carries a distinct glyph. */
+        status: { live: '#0B7F56', delayed: '#9A6408', eod: '#1B46C9', closed: '#4A5770', unavailable: '#6F7C93', stale: '#9A6408', error: '#C2352B' },
       },
+      /** Type scale (px): micro 11 · caption 12 · ui 13 · body 14 · lead 15 · h4 17 · h3 20 · h2 24 · h1 34 · display 48. */
+      fontSize: { micro: ['11px', '1.4'], caption: ['12px', '1.45'], ui: ['13px', '1.5'], body: ['14px', '1.55'], lead: ['15px', '1.6'], h4: ['17px', '1.35'], h3: ['20px', '1.3'], h2: ['24px', '1.25'], h1: ['34px', '1.15'], display: ['48px', '1.08'] },
+      /** Control heights: compact 32–36, standard 40, primary/action 44, search 44–48. */
+      height: { 'ctl-sm': '32px', 'ctl-cmp': '36px', ctl: '40px', 'ctl-lg': '44px', search: '44px', 'search-lg': '48px' },
+      borderWidth: { hair: '1px' },
+      ringColor: { focus: '#245BFE' },
       fontFamily: {
         display: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       borderRadius: { card: '13px', ctl: '10px' },
-      boxShadow: { card: '0 1px 2px rgba(7,26,51,.05)', pop: '0 14px 36px rgba(7,26,51,.16)' },
+      boxShadow: { card: '0 1px 2px rgba(7,26,51,.05)', raised: '0 4px 14px rgba(7,26,51,.08)', pop: '0 14px 36px rgba(7,26,51,.16)' },
       maxWidth: { page: '1360px', wide: '1560px' },
       transitionTimingFunction: { out: 'cubic-bezier(0.22, 1, 0.36, 1)' },
       /** Motion tokens (docs/MOTION.md): micro interactions, panels and popovers, layout changes. */

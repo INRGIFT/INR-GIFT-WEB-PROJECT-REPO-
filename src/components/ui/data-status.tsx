@@ -2,7 +2,7 @@ import { cn, dateTimeIST, timeIST } from '@/lib/format';
 import type { DataMeta, DataStatus as Status } from '@/lib/types';
 
 export const STATUS_LABEL: Record<Status, string> = { LIVE: 'Live', DELAYED: 'Delayed · 15 min', END_OF_DAY: 'End of day', CLOSED: 'Closed', UNAVAILABLE: 'Unavailable', STALE: 'Stale', ERROR: 'Error' };
-const TONE: Record<Status, string> = { LIVE: 'bg-up/10 text-up', DELAYED: 'bg-warn/10 text-warn', END_OF_DAY: 'bg-brand-soft text-brand-ink', CLOSED: 'bg-hover text-slate2', UNAVAILABLE: 'bg-hover text-slate2', STALE: 'bg-warn/10 text-warn', ERROR: 'bg-down/10 text-down' };
+const TONE: Record<Status, string> = { LIVE: 'bg-status-live/10 text-status-live', DELAYED: 'bg-status-delayed/10 text-status-delayed', END_OF_DAY: 'bg-brand-soft text-status-eod', CLOSED: 'bg-hover text-status-closed', UNAVAILABLE: 'bg-hover text-status-unavailable', STALE: 'bg-status-stale/10 text-status-stale', ERROR: 'bg-status-error/10 text-status-error' };
 /** Each status has its own glyph shape, so it is distinguishable without colour. */
 const GLYPH: Record<Status, string> = { LIVE: '●', DELAYED: '▲', END_OF_DAY: '■', CLOSED: '○', UNAVAILABLE: '◌', STALE: '◐', ERROR: '◆' };
 

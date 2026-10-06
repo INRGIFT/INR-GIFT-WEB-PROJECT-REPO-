@@ -30,7 +30,7 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
   const signOut = async () => { await auth.signOut(); router.push('/'); router.refresh(); };
   const currency = (
     <select aria-label="Display currency" value={ws.prefs.currency} onChange={(e) => ws.setPrefs({ currency: e.target.value as 'LOCAL' | 'INR' })} className="h-9 rounded-ctl border border-line2 bg-white px-2 text-[13px] font-medium transition-colors hover:border-faint">
-      <option value="LOCAL">Local currency</option><option value="INR">INR ₹</option>
+      <option value="LOCAL">Local</option><option value="INR">₹ INR</option>
     </select>
   );
   return (
@@ -49,8 +49,8 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
             );
           })}
         </nav>
-        <button type="button" onClick={openSearch} className="mx-auto flex h-10 min-w-0 max-w-[460px] flex-1 items-center gap-2 rounded-ctl border border-line2 bg-bg px-3 text-faint transition-colors duration-micro hover:border-brand" aria-label="Search everything" aria-keyshortcuts="/ Control+K Meta+K">
-          <Search size={16} className="shrink-0" /><span className="flex-1 truncate text-left">Search assets, markets, research…</span><span className="hidden md:inline"><Kbd>/</Kbd></span>
+        <button type="button" onClick={openSearch} className="mx-auto flex h-search min-w-0 max-w-[460px] flex-1 lg:min-w-[200px] items-center gap-2 rounded-ctl border border-line2 bg-bg px-3 text-faint transition-colors duration-micro hover:border-brand" aria-label="Search everything" aria-keyshortcuts="/ Control+K Meta+K">
+          <Search size={16} className="shrink-0" /><span className="flex-1 truncate text-left">Search assets, markets, research…</span><span className="hidden items-center gap-1 xl:flex"><Kbd>⌘</Kbd><Kbd>K</Kbd></span>
         </button>
         <div className="flex shrink-0 items-center gap-1">
           <div className="hidden md:block">{currency}</div>

@@ -116,4 +116,6 @@ export class NSEMarketDataProvider implements MarketDataProvider {
   async getResearch() { return []; }
   async getThemes() { return []; }
   async getCalendar() { return []; }
+  /** Comes from the licensed NSE security master once loaded into market.issuers/instruments/listings. */
+  async getIdentity() { return null; }
 }

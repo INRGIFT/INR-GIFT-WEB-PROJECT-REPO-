@@ -1,3 +1,5 @@
+import { TutorialDisclosure } from '@/features/media/video-module';
+import { getVideoFor } from '@/services/content';
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
@@ -29,6 +31,7 @@ export default async function MarketsPage({ searchParams }: { searchParams: Prom
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const chip = (label: string, href: string, on: boolean) => <Link key={label} href={href} scroll={false} className={cn('rounded-lg px-2.5 py-1 text-[13px] font-medium transition-colors', on ? 'bg-white text-navy shadow-card' : 'text-slate2 hover:text-navy')}>{label}</Link>;
+  const video = await getVideoFor('page:markets');
   return (
     <PageContainer wide>
       <PageHeader title="Global markets" lead={`${allMarkets.filter((m) => m.session === 'OPEN').length} of ${allMarkets.length} markets are open at ${timeIST(now.toISOString())}.`} actions={<ButtonLink href="/markets/all">Markets directory</ButtonLink>} />
@@ -52,6 +55,7 @@ export default async function MarketsPage({ searchParams }: { searchParams: Prom
           {markets.map((m) => <tr key={m.id} className="border-b border-line last:border-0 hover:bg-bg"><td className="px-4 py-2"><Link href={marketHref(m.slug)} className="link font-semibold">{m.name}</Link></td><td className="px-4 py-2 text-slate2">{m.exchanges.map((e) => e.name).join(' · ')}</td><td className="px-4 py-2 text-right">{m.currency}</td><td className="num px-4 py-2 text-right">{m.localTime}</td><td className="px-4 py-2 text-right">{SESSION_LABEL[m.session]}</td><td className="px-4 py-2 text-right"><StatusBadge status={m.dataStatus} /></td></tr>)}
         </tbody></table></div>
       </Panel>
+      {video && <TutorialDisclosure video={video} label="How market hours on India time work" />}
     </PageContainer>
   );
 }

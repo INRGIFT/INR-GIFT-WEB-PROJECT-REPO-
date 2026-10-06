@@ -18,7 +18,10 @@ import { useApi } from '@/lib/use-api';
 
 type Dim = 'region' | 'country' | 'exchange' | 'sector' | 'industry' | 'cls';
 type Size = 'marketCap' | 'volume' | 'aum';
-type Colour = 'd1' | 'w1' | 'm1' | 'ytd' | 'y1' | 'volatility';
+type Period = 'd1' | 'w1' | 'm1' | 'ytd' | 'y1';
+type Colour = Period | 'volatility';
+export type ColourMetric = 'performance' | 'volatility';
+export const PERIODS = [['d1', '1D'], ['w1', '1W'], ['m1', '1M'], ['ytd', 'YTD'], ['y1', '1Y']] as const;
 const CHAIN: Record<Dim, Dim[]> = { region: ['region', 'country', 'sector', 'industry'], country: ['country', 'sector', 'industry'], exchange: ['exchange', 'sector', 'industry'], sector: ['sector', 'industry'], industry: ['industry'], cls: ['cls', 'sector', 'industry'] };
 const DIM_LABEL: Record<Dim, string> = { region: 'Region', country: 'Country', exchange: 'Exchange', sector: 'Sector', industry: 'Industry', cls: 'Asset type' };
 const SCALE: Record<Colour, number> = { d1: 3, w1: 6, m1: 12, ytd: 40, y1: 50, volatility: 45 };
@@ -44,7 +47,10 @@ export function Heatmap({ compact, assets, initial }: Props) {
   const [universe, setUniverse] = useState<'all' | 'stock' | 'etf' | 'reit'>('all');
   const [group, setGroup] = useState<Dim>(initial?.group ?? 'region');
   const [size, setSize] = useState<Size>('marketCap');
-  const [colour, setColour] = useState<Colour>(initial?.colour ?? 'd1');
+  const [metric, setMetric] = useState<ColourMetric>(initial?.colour === 'volatility' ? 'volatility' : 'performance');
+  const [period, setPeriod] = useState<Period>(initial?.colour && initial.colour !== 'volatility' ? initial.colour : 'd1');
+  // Colour encodes the chosen metric; performance is measured over the chosen period, volatility is annualised 30-day.
+  const colour: Colour = metric === 'volatility' ? 'volatility' : period;
   const [path, setPath] = useState<string[]>(initial?.path ?? []);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -107,7 +113,8 @@ export function Heatmap({ compact, assets, initial }: Props) {
         {seg('Universe', universe, (v) => { setUniverse(v); setPath([]); setSelected(null); }, [['all', 'All'], ['stock', 'Stocks'], ['etf', 'ETFs'], ['reit', 'REITs']] as const)}
         {seg('Group by', group, (v) => { setGroup(v); setPath([]); setSelected(null); }, (Object.keys(DIM_LABEL) as Dim[]).map((d) => [d, DIM_LABEL[d]] as const))}
         {seg('Tile size', size, setSize, [['marketCap', 'Market cap'], ['volume', 'Volume'], ['aum', 'AUM']] as const)}
-        {seg('Colour', colour, setColour, [['d1', '1D'], ['w1', '1W'], ['m1', '1M'], ['ytd', 'YTD'], ['y1', '1Y'], ['volatility', 'Volatility']] as const)}
+        {seg('Colour metric', metric, setMetric, [['performance', 'Performance'], ['volatility', 'Volatility']] as const)}
+        {metric === 'performance' ? seg('Period', period, setPeriod, PERIODS) : <span className="text-xs text-faint">Period: annualised 30-day volatility</span>}
         <label className="relative ml-auto"><span className="sr-only">Filter tiles by name or ticker</span><Search size={14} className="absolute left-2.5 top-2.5 text-faint" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find in map" className="field h-9 w-44 pl-8" /></label>
       </div>
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2.2fr)_minmax(280px,1fr)]">

@@ -49,3 +49,13 @@ export function VideoModule({ video, compact }: { video: VideoItem; compact?: bo
     </figure>
   );
 }
+
+/** Collapsed "watch a tour" disclosure placed under a page's main tool. Nothing loads until it is opened and played. */
+export function TutorialDisclosure({ video, label }: { video: VideoItem; label?: string }) {
+  return (
+    <details className="group rounded-card border border-line bg-white px-4 py-3">
+      <summary className="cursor-pointer list-none font-semibold [&::-webkit-details-marker]:hidden">{label ?? `Watch: ${video.title}`} <span className="font-normal text-faint">({Math.round(video.durationSeconds)} s, captioned)</span> <span aria-hidden className="text-faint group-open:hidden">+</span></summary>
+      <div className="mt-3 max-w-2xl"><VideoModule video={video} compact /></div>
+    </details>
+  );
+}

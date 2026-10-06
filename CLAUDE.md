@@ -34,6 +34,7 @@ npm run dev          # http://localhost:3000, runs with no env vars (demo data +
 npm run typecheck    # must pass before every commit
 npm test             # vitest
 npm run test:db      # all migrations + RLS tests on a throwaway local Postgres
+npm run package:godaddy  # standalone server.js bundle for GoDaddy cPanel Node.js (docs/DEPLOY.md)
 npm run build        # must pass before every commit
 npm run test:e2e     # Playwright journeys in e2e/ (E2E_BASE_URL to reuse a server, PW_CHROMIUM_PATH for a local Chromium)
 ```
@@ -73,7 +74,9 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 
 ## Current state in one paragraph
 
-Public product, auth pages, account and workspace pages, static pages, SEO and media are built and tested (vitest,
-Playwright on desktop and mobile, local RLS suite). The app still runs on DemoProvider and demo auth: no Supabase
-project, NSE product, Logo.dev key, SMTP or production domain has been connected, and official INRGIFT brand files
-have not been supplied (the current mark is an interim placeholder). Details: `docs/ROADMAP.md`, `docs/CONNECTORS.md`.
+The documented product scope is built and runs with no configuration (demo data, demo auth): public routes, auth,
+account, the full workspace, research (stocks, ETFs, markets, themes, sectors, countries) with a structured article
+format, heatmap, screener, compare, identity model, SEO and seven recorded tutorials. Official brand files are
+integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006, `.env.local`); GoDaddy
+deployment is packaged (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
+`NEXT_PUBLIC_AUTH_MODE=demo`. Start with `docs/ROADMAP.md`.

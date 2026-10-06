@@ -3,7 +3,7 @@
 ## Shells
 - **Public `(site)`**: header + main + footer + mobile bottom nav. No sidebar.
 - **Authenticated `(workspace)`**: header + personal sidebar (248px, collapses to 64px; icons only below `lg`) +
-  horizontal section tabs on phones + bottom nav. Pages: overview, watchlist, alerts, notifications, screens, comparisons, collections, recent, research, notes, history.
+  horizontal section tabs on phones + bottom nav. Sidebar groups: **My workspace** (Overview, Watchlist, Alerts) · **Discover** (Saved screens, Saved comparisons, Collections, Recent) · **Research** (Saved research, Notes, History) · **System** (Settings, Help). Notifications are in the header bell; Security is in the account menu and settings.
 - **Auth `(auth)`**: two-column, navy brand panel left, form right. Built; brand panel shows a live IST session read-out.
 
 ## Navigation (`src/lib/routes.ts`)

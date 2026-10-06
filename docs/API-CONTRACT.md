@@ -21,6 +21,8 @@ Lists and aggregates report the freshest `dataStatus` of their rows; content end
 | `assets/:id` | Asset |
 | `assets/:id/price` | Quote |
 | `assets/:id/ohlcv?range=` | Candle[] or null (validated) |
+| `assets/:id/identity` | InstrumentIdentity or null (issuer, securities, listings) |
+| `research?kind=` | ResearchDoc[]; kinds stocks, etfs, markets, themes, sectors, countries; structured fields filled by `structureDoc` |
 | `assets/:id/fundamentals` `valuation` `technicals` `dividends` `news` `research` | per-asset blocks, null when unavailable |
 | `etfs`, `etfs/:id/holdings`, `etfs/:id/allocations` | ETF list / holdings / allocations |
 | `indices` `fx` `commodities` `bonds` `reits` | class lists |

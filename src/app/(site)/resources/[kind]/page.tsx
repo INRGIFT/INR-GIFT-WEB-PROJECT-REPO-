@@ -9,10 +9,10 @@ import { GlossaryList } from '@/features/site/glossary';
 import { cn, dateShort } from '@/lib/format';
 import { assetHref, marketHref } from '@/lib/routes';
 import type { CalendarEvent, DataStatus } from '@/lib/types';
-import { VideoModule } from '@/features/media/video-module';
+import { TutorialDisclosure, VideoModule } from '@/features/media/video-module';
 import { learnHref } from '@/lib/routes';
 import { definedTermSet, JsonLd } from '@/lib/structured-data';
-import { getGlossary, getLearnArticles, getVideos } from '@/services/content';
+import { getGlossary, getLearnArticles, getVideoFor, getVideos } from '@/services/content';
 import * as md from '@/services/market-data';
 
 const TITLES: Record<string, [string, string]> = {
@@ -58,15 +58,16 @@ export default async function ResourcePage({ params, searchParams }: Props) {
     const [learn, videos] = await Promise.all([getLearnArticles(), getVideos()]);
     const sections = [...new Set(learn.map((l) => l.section))];
     body = (<>
-      <Section title="Tutorials"><div className="grid gap-4 md:grid-cols-3">{videos.map((v) => <VideoModule key={v.id} video={v} compact />)}</div></Section>
+      <Section title="Tutorials"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{videos.map((v) => <VideoModule key={v.id} video={v} compact />)}</div></Section>
       {sections.map((s) => <section key={s}><h2 className="mb-3 text-lg font-bold">{s}</h2><div className="grid gap-3 md:grid-cols-2">{learn.filter((l) => l.section === s).map((l) => <Link key={l.slug} href={learnHref(l.slug)} className="card-link p-4"><h3 className="text-base font-bold">{l.title}</h3><p className="mt-1 text-[13px] text-slate2">{l.summary}</p><p className="mt-2 text-xs font-semibold text-brand-ink">Read the explainer</p></Link>)}</div></section>)}
     </>);
   } else if (kind === 'glossary') {
     const terms = await getGlossary();
     body = <><JsonLd data={definedTermSet(terms)} /><GlossaryList terms={terms} /></>;
   } else {
-    const markets = await md.getMarkets();
+    const [markets, video] = await Promise.all([md.getMarkets(), getVideoFor('page:data')]);
     body = (<>
+      {video && <TutorialDisclosure video={video} label="Watch: how to read data status" />}
       <Panel title="Data status" flush footer="Every market-data module carries one of these, with an exact timestamp. Hover or focus a status to see its source."><Table head={['Status', 'Meaning', 'What you see']}>{STATUS_HELP.map(([s, m, w]) => <tr key={s}><td className="border-b border-line px-4 py-2.5"><StatusBadge status={s} /><span className="sr-only">{STATUS_LABEL[s]}</span></td><td className="border-b border-line px-4 py-2.5 text-right text-slate2 sm:text-left">{m}</td><td className="border-b border-line px-4 py-2.5 text-right text-slate2">{w}</td></tr>)}</Table></Panel>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <article className="prose-doc rounded-card border border-line bg-white px-5 py-4">

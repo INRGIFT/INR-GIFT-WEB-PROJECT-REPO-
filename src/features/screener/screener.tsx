@@ -3,7 +3,7 @@ import { Columns3, Download, Link2, Plus, RotateCcw, Save, X } from 'lucide-reac
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, IconButton } from '@/components/ui/button';
-import { EmptyState, ErrorState, Panel, Segmented, SkeletonRows } from '@/components/ui/primitives';
+import { EmptyState, ErrorState, NoResults, Panel, Segmented, SkeletonRows } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { AssetTable } from '@/features/assets/asset-table';
 import { useWorkspace } from '@/features/workspace/workspace-context';
@@ -26,8 +26,9 @@ function RuleRow({ rule, assets, onChange, onRemove }: { rule: Rule; assets: Ass
   return (
     <div className="flex animate-fade-up flex-wrap items-center gap-1.5 rounded-lg bg-white p-1.5 shadow-card ring-1 ring-line">
       <select aria-label="Field" className={cn(ctl, 'max-w-[190px] font-medium')} value={rule.field} onChange={(e) => setField(e.target.value as Field)}>{FIELD_GROUPS.map(([g, fields]) => <optgroup key={g} label={g}>{fields.map((f) => <option key={f} value={f}>{f === 'marketCap' || f === 'aum' ? `${fieldLabel(f).replace(' (USD)', '')} ($B)` : fieldLabel(f)}</option>)}</optgroup>)}</select>
-      <select aria-label="Condition" className={ctl} value={rule.op} onChange={(e) => onChange({ ...rule, op: e.target.value as Op, ...(e.target.value !== 'in' && kind === 'category' ? { value: picked[0] ?? '' } : {}) })}>{OPS[kind].map(([o, l]) => <option key={o} value={o}>{l}</option>)}</select>
-      {kind === 'number' && (<><input aria-label={rule.op === 'between' ? 'Minimum' : 'Value'} type="number" step="any" className={cn(ctl, 'w-24')} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="Value" />{rule.op === 'between' && <><span className="text-xs text-faint">and</span><input aria-label="Maximum" type="number" step="any" className={cn(ctl, 'w-24')} value={rule.value2 ?? ''} onChange={(e) => onChange({ ...rule, value2: e.target.value })} placeholder="Max" /></>}</>)}
+      <select aria-label="Condition" className={ctl} value={rule.op} onChange={(e) => { const op = e.target.value as Op; const toField = op === 'gtf' || op === 'ltf', wasField = rule.op === 'gtf' || rule.op === 'ltf'; onChange({ ...rule, op, ...(op !== 'in' && kind === 'category' ? { value: picked[0] ?? '' } : toField !== wasField ? { value: '' } : {}) }); }}>{OPS[kind].map(([o, l]) => <option key={o} value={o}>{l}</option>)}</select>
+      {kind === 'number' && (rule.op === 'gtf' || rule.op === 'ltf') && <select aria-label="Compared field" className={cn(ctl, 'max-w-[220px]')} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })}><option value="">Choose a field</option>{FIELD_GROUPS.map(([g, fs]) => { const nums = fs.filter((f) => fieldKind(f) === 'number' && f !== rule.field); return nums.length ? <optgroup key={g} label={g}>{nums.map((f) => <option key={f} value={f}>{fieldLabel(f)}</option>)}</optgroup> : null; })}</select>}
+      {kind === 'number' && rule.op !== 'gtf' && rule.op !== 'ltf' && (<><input aria-label={rule.op === 'between' ? 'Minimum' : 'Value'} type="number" step="any" className={cn(ctl, 'w-24')} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="Value" />{rule.op === 'between' && <><span className="text-xs text-faint">and</span><input aria-label="Maximum" type="number" step="any" className={cn(ctl, 'w-24')} value={rule.value2 ?? ''} onChange={(e) => onChange({ ...rule, value2: e.target.value })} placeholder="Max" /></>}</>)}
       {kind === 'text' && <input aria-label="Text" className={cn(ctl, 'w-40')} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })} placeholder="e.g. bank" />}
       {kind === 'category' && rule.op !== 'in' && <select aria-label="Value" className={cn(ctl, 'max-w-[200px]')} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value })}>{options.map((o) => <option key={o}>{o}</option>)}</select>}
       {kind === 'category' && rule.op === 'in' && <div className="flex max-w-full flex-wrap gap-1">{options.map((o) => { const on = picked.includes(o); return <button key={o} type="button" aria-pressed={on} onClick={() => onChange({ ...rule, value: (on ? picked.filter((p) => p !== o) : [...picked, o]).join('|') })} className={cn('rounded-full border px-2 py-0.5 text-xs font-medium transition-colors duration-150', on ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line2 text-slate2 hover:border-faint')}>{o}</button>; })}</div>}
@@ -117,7 +118,7 @@ export function Screener() {
           )}
         </div>}>
         {api.loading && !api.data ? <SkeletonRows rows={8} /> : api.error ? <ErrorState title="Results could not load" action={<Button onClick={api.reload}>Retry</Button>}>{api.error}</ErrorState>
-          : <AssetTable rows={results} columns={cols} pageSize={20} empty={<EmptyState title="No assets match these filters">Remove a filter, switch a group to “Match any”, or widen the universe.</EmptyState>} />}
+          : <AssetTable rows={results} columns={cols} pageSize={20} empty={<NoResults>No assets match these filters. Remove a filter, switch a group to “Match any”, or widen the universe.</NoResults>} />}
       </Panel>
     </div>
   );

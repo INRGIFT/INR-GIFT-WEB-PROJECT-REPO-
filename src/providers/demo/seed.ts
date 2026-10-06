@@ -160,3 +160,19 @@ export const IPOS: [number, string, string, string, string][] = [
   [6, 'Aurora Grid Systems (demo listing)', 'in', 'Industrials', 'Upcoming'], [12, 'Meridian Health Analytics (demo listing)', 'us', 'Healthcare', 'Upcoming'],
   [-4, 'Kestrel Logistics (demo listing)', 'sg', 'Industrials', 'Priced'], [-11, 'Harbourline Semiconductor (demo listing)', 'tw', 'Technology', 'Listed'], [-20, 'Solace Renewables (demo listing)', 'uk', 'Utilities', 'Listed'],
 ];
+
+/**
+ * Reference-only securities and listings that complete an issuer's identity but are not priced in the demo dataset.
+ * Facts are public listing data (ticker, exchange, depositary ratio); ISINs are left null rather than typed in.
+ * [issuer key, security name, share class, kind, MIC, ticker, currency, ratio or null, underlying ticker or null]
+ */
+export const REFERENCE_LISTINGS: [string, string, string, 'ordinary' | 'adr' | 'gdr', string, string, string, string | null, string | null][] = [
+  ['alphabet', 'Alphabet Inc. Class C', 'Class C', 'ordinary', 'XNAS', 'GOOG', 'USD', null, null],
+  ['infosys', 'Infosys ADR', 'ADR', 'adr', 'XNYS', 'INFY', 'USD', '1 ADR = 1 ordinary share', 'INFY'],
+  ['hdfc-bank', 'HDFC Bank ADR', 'ADR', 'adr', 'XNYS', 'HDB', 'USD', '1 ADR = 3 ordinary shares', 'HDFCBANK'],
+  ['reliance-industries', 'Reliance Industries GDR', 'GDR', 'gdr', 'XLON', 'RIGD', 'USD', '1 GDR = 2 ordinary shares', 'RELIANCE'],
+];
+/** Depositary ratios for receipts that are priced in the demo dataset. */
+export const DR_RATIOS: Record<string, [string, string]> = { TSM: ['1 ADR = 5 ordinary shares', '2330'] };
+/** Share classes of priced listings (default "Ordinary"). */
+export const SHARE_CLASS: Record<string, string> = { GOOGL: 'Class A' };

@@ -102,6 +102,27 @@ export interface Asset {
   index?: { constituents: number };
 }
 
+/**
+ * Instrument identity: Issuer → Security (share class or depositary receipt) → Listing (exchange MIC + ticker) →
+ * provider symbols. Mirrors market.issuers / market.instruments / market.listings (migration 0002). Internal ids
+ * (`ins_…`) are immutable; tickers live on listings and may change. Unknown identifiers are null, never guessed.
+ */
+export interface Issuer { id: string; name: string; country: string; sector?: string; industry?: string }
+export interface Security {
+  key: string; instrumentId: string | null; issuerId: string; name: string;
+  /** e.g. "Class A", "Ordinary", "ADR". */
+  shareClass: string; kind: 'ordinary' | 'adr' | 'gdr' | 'fund_unit';
+  /** For depositary receipts: the ordinary share it represents and how many. */
+  underlyingKey?: string; ratio?: string; isin: string | null;
+}
+export interface Listing {
+  securityKey: string; instrumentId: string | null; mic: string; exchange: string; ticker: string; currency: string;
+  primary: boolean; slug?: string; cls?: AssetClass;
+  /** Whether the active data source prices this listing. Uncovered listings are shown as reference only. */
+  covered: boolean; providerSymbols: { source: string; symbol: string }[];
+}
+export interface InstrumentIdentity { issuer: Issuer; securities: Security[]; listings: Listing[]; source: string }
+
 export interface Candle { t: string; o: number; h: number; l: number; c: number; v: number }
 export interface FinancialYear { year: number; revenue: number; netIncome: number; eps: number }
 export interface Fundamentals { currency: string; years: FinancialYear[]; nextEarnings: string | null }
@@ -112,12 +133,24 @@ export interface Allocations { sectors: [string, number][]; countries: [string, 
 export interface Technicals { rsi: number | null; sma50: number | null; sma200: number | null; high52: number | null; low52: number | null; trend: 'Above both averages' | 'Between averages' | 'Below both averages' | null }
 
 export interface NewsItem { id: string; headline: string; publisher: string; publishedAt: string; category: string; assetSlug?: string; assetCls?: AssetClass; assetSymbol?: string; marketId?: string; url: string }
-export type ResearchKind = 'stocks' | 'etfs' | 'markets' | 'themes';
+export type ResearchKind = 'stocks' | 'etfs' | 'markets' | 'themes' | 'sectors' | 'countries';
+/** A chart drawn from figures in the note itself (bars or diverging bars). Values are computed, never typed in. */
+export interface ResearchChart { title: string; unit: '%' | '×' | 'bn USD'; kind: 'bar' | 'diverging'; bars: { label: string; value: number; href?: string }[]; note?: string }
+export interface ResearchSource { label: string; href?: string }
+/**
+ * Research article. `sections` carry the analysis; the structured fields frame it. Fields marked optional are filled
+ * with explicit defaults by the service layer (services/market-data.ts → structureDoc) so every article renders the
+ * full structure: takeaways, why it matters, analysis, charts, tables, interpretation, limitations, methodology,
+ * sources, author, reviewer, related assets/research, glossary and disclosure.
+ * `author` is the desk, never an invented person; `reviewer` is null unless a named human reviewer exists.
+ */
 export interface ResearchDoc {
   id: string; slug: string; kind: ResearchKind; type: 'Structured research' | 'Market commentary' | 'Data insight' | 'Educational note';
   title: string; summary: string; topic: string; publishedAt: string;
-  assetSlug?: string; assetCls?: AssetClass; assetSymbol?: string; marketId?: string; themeId?: string;
+  assetSlug?: string; assetCls?: AssetClass; assetSymbol?: string; marketId?: string; themeId?: string; sector?: string; country?: string;
   sections: { heading: string; body: string }[];
+  keyTakeaways?: string[]; whyItMatters?: string; interpretation?: string; limitations?: string[]; methodology?: string;
+  sources?: ResearchSource[]; charts?: ResearchChart[]; author?: string; reviewer?: string | null; disclosure?: string;
 }
 export interface Theme { id: string; name: string; description: string; assetIds: string[] }
 export type CalendarKind = 'earnings' | 'dividend' | 'ipo' | 'holiday' | 'macro';

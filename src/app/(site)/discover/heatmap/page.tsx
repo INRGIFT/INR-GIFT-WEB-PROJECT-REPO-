@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
 import { PageContainer, PageHeader } from '@/components/ui/primitives';
 import { Heatmap } from '@/features/heatmap/heatmap';
-import { VideoModule } from '@/features/media/video-module';
+import { HowToReadHeatmap } from '@/features/heatmap/how-to-read';
+import { TutorialDisclosure } from '@/features/media/video-module';
 import { getVideoFor } from '@/services/content';
 
 /** Filtered or shared states are kept out of the index; the canonical stays on the base page. */
@@ -15,7 +16,8 @@ export default async function HeatmapPage({ searchParams }: { searchParams: Prom
     <PageContainer wide>
       <PageHeader crumbs={[['Discover', '/discover'], ['Heatmap']]} title="Global heatmap" lead="Drill from region to country to sector to industry. Select a tile for a quick view, or double-click to open its research page." />
       <Heatmap key={`${group}-${sp.path}`} initial={{ group, path: sp.path ? sp.path.split('|').slice(0, 4) : [] }} />
-      {video && <details className="group rounded-card border border-line bg-white px-4 py-3"><summary className="cursor-pointer list-none font-semibold [&::-webkit-details-marker]:hidden">New to the heatmap? Watch a 30-second tour <span aria-hidden className="text-faint group-open:hidden">+</span></summary><div className="mt-3 max-w-2xl"><VideoModule video={video} compact /></div></details>}
+      <HowToReadHeatmap />
+      {video && <TutorialDisclosure video={video} label="New to the heatmap? Watch the tour" />}
     </PageContainer>
   );
 }

@@ -9,6 +9,7 @@ import { AssetLogo } from '@/components/ui/asset-logo';
 import { DataStatus, statusLine } from '@/components/ui/data-status';
 import { Badge, Bar, Breadcrumbs, Change, EmptyState, Metric, MetricGrid, PageContainer, Panel } from '@/components/ui/primitives';
 import { ChartShell } from '@/features/charts/chart-shell';
+import { IdentityPanel } from '@/features/assets/identity-panel';
 import { ModuleFoot } from '@/features/markets/widgets';
 import { AlertButton, CompareButton, SaveButton, TrackView, WatchButton } from '@/features/workspace/action-buttons';
 import { AssetNotes } from '@/features/workspace/asset-notes';
@@ -39,9 +40,9 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
   if (!a) notFound();
   const p = getProvider();
   const safe = <T,>(x: Promise<T>) => x.catch(() => null);
-  const [market, fundamentals, technicals, dividends, actions, holdings, allocations, news, research, universe, rates] = await Promise.all([
+  const [market, fundamentals, technicals, dividends, actions, holdings, allocations, news, research, universe, rates, identity] = await Promise.all([
     a.marketId ? md.getMarket(a.marketId) : null, safe(p.getFundamentals(a.id)), safe(p.getTechnicals(a.id)), safe(p.getDividends(a.id)), safe(p.getCorporateActions(a.id)),
-    safe(p.getETFHoldings(a.id)), safe(p.getETFAllocations(a.id)), md.getNews({ assetId: a.id }), md.getResearch(), md.getAssets(), md.fxRates(),
+    safe(p.getETFHoldings(a.id)), safe(p.getETFAllocations(a.id)), md.getNews({ assetId: a.id }), md.getResearch(), md.getAssets(), md.fxRates(), safe(p.getIdentity(a.id)),
   ]);
   const docs = research.filter((d) => d.assetSlug === a.slug || (cls === 'index' && d.marketId === a.marketId && d.kind === 'markets'));
   const marketIndex = universe.find((x) => x.cls === 'index' && x.marketId === a.marketId && x.id !== a.id);
@@ -87,7 +88,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
       {a.status === 'UNAVAILABLE' && <div className="rounded-card border border-line2 bg-soft px-4 py-3"><b>Data unavailable from source.</b> <span className="text-slate2">Figures below are the last available values. {statusLine(a.meta)}.</span></div>}
       {a.status === 'STALE' && <div className="rounded-card border border-warn/30 bg-warn/5 px-4 py-3"><b>This quote is stale.</b> <span className="text-slate2">{statusLine(a.meta)}.</span></div>}
 
-      <ChartShell assetId={a.slug} label={a.symbol} currency={cls === 'index' ? 'points' : a.currency} benchmark={benchmark} volume={['stock', 'etf', 'reit'].includes(cls)} />
+      <div id="chart" className="scroll-mt-24"><ChartShell assetId={a.slug} label={a.symbol} currency={cls === 'index' ? 'points' : a.currency} benchmark={benchmark} volume={['stock', 'etf', 'reit'].includes(cls)} /></div>
 
       <Panel title="Overview" footer={foot}>
         <p className="mb-3 max-w-[76ch] text-slate2">{a.description}</p>
@@ -101,8 +102,8 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
           {cls === 'commodity' && (<><Metric label="Unit" value={a.commodity!.unit} /><Metric label="Reference" value={a.commodity!.reference} /><M a={a} k="volatility" /></>)}
           {technicals && <><Metric label="52-week high" value={num(technicals.high52, priceDp(technicals.high52 ?? 1))} /><Metric label="52-week low" value={num(technicals.low52, priceDp(technicals.low52 ?? 1))} /></>}
         </MetricGrid>
-        {a.crossListings && <p className="mt-3 text-[13px] text-slate2">Also listed as {a.crossListings.map((c, i) => <span key={c.slug}>{i > 0 && ', '}<Link className="link" href={assetHref(c)}>{c.symbol} on {c.exchange}</Link></span>)}. Both listings share one issuer.</p>}
       </Panel>
+      {identity && <IdentityPanel identity={identity} current={a.id} />}
 
       <Panel title="Performance" footer={foot} flush>
         <div className="grid grid-cols-3 gap-px bg-line sm:grid-cols-5 lg:grid-cols-9">{(['d1', 'w1', 'm1', 'm3', 'm6', 'ytd', 'y1', 'y3', 'y5'] as MetricKey[]).map((k) => <div key={k} className="bg-white px-3 py-3 text-center"><p className="text-xs text-faint">{METRICS[k].short}</p><p className="mt-0.5 text-[13px] font-semibold">{a.m[k] === undefined ? <span className="text-faint" title="Not applicable">n/a</span> : <Change value={a.m[k]} dp={1} />}</p></div>)}</div>

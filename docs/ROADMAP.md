@@ -2,7 +2,7 @@
 
 Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md`.
 
-## Done (typecheck, 37 unit/API tests, 6 Playwright journeys on desktop and Pixel 7, local RLS tests, build)
+## Done (typecheck, 47 unit/API tests, 7 Playwright journeys on desktop and Pixel 7, local and live RLS checks, build, standalone bundle)
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -34,9 +34,22 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
   middleware, `/auth/confirm` token-hash route and email templates; NSE source adapter + `NSEMarketDataProvider`
   (not connected); LogoProvider (Logo.dev or none) with ticker-tile fallback and attribution.
 
+- **Brand (October 2026):** official logo library integrated unmodified (header, footer, auth, favicon, PWA, share
+  images, emails); `docs/BRAND_ASSET_INVENTORY.md`.
+- **Supabase live:** project `odiflbsoitgktylaksng` (ap-south-1) with migrations 0001–0006; security advisors clean;
+  live RLS check passed. App reads it when `NEXT_PUBLIC_SUPABASE_*` are set (`.env.local` locally).
+- **GoDaddy deployment:** `npm run package:godaddy` builds a standalone `server.js` bundle (verified to boot);
+  `docs/DEPLOY.md`.
+- **Product gaps closed:** design tokens (status, focus, type scale, control heights, breakpoints); sidebar groups per
+  spec; heatmap Colour metric + Period + "How to read this heatmap"; screener strict and field-to-field comparisons,
+  Chart/Research row actions, fixture tests; sector and country research; structured research articles (takeaways,
+  why it matters, charts, interpretation, limitations, methodology, sources, author/reviewer, disclosure); typed
+  identity model (issuer → security → listing) with ADR/GDR ratios and share classes, `/assets/:id/identity` and an
+  asset-page panel; NoResults / UnavailableState / RetryButton; chart Unavailable state; seven recorded tutorials.
+
 ## Not done — next, in order
-1. **Supabase for real:** create the project, run 0001–0005, enable phone (SMS provider) and TOTP, paste the email
-   templates, set custom SMTP (Resend), redirect URLs, env, and run `e2e/journey.spec.ts` against it. None of this has been executed.
+1. **Supabase dashboard settings (owner):** Site URL and redirect URLs once the domain is known, the two email
+   templates, custom SMTP (Resend), SMS provider (phone OTP) and TOTP. Then a real sign-up round trip on the deployed site.
 2. **Server-side alert job:** run `evaluateAlert` (src/lib/alerts.ts) on a schedule with the service role, write
    notifications and send email for `channel = 'email'`. Today alerts are evaluated in the browser while INRGIFT is open.
 3. **NSE** (`docs/CONNECTORS.md`): implement `NseSource` against the licensed spec, load the security master,
@@ -46,8 +59,8 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
    saved-screen history; table virtualization once the universe is large.
 6. **Dependency maintenance (deferred by the owner):** ESLint and the Next.js upgrade that clears the PostCSS
    advisory, as one separate pass.
-7. **Content:** lawyer-reviewed legal text and a named grievance officer; official logo; more tutorials (MP4 copies
-   for older Safari).
+7. **Content:** lawyer-reviewed legal text and a named grievance officer; MP4 copies of tutorials for older Safari;
+   research written and reviewed by named people (the reviewer field is ready).
 
 ## Known issues and debts
 - NSE IX hours cross midnight; `sessionState` does not model overnight sessions (only the first exchange of a market
@@ -56,8 +69,9 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
 - Rate limiter is in-memory per instance. No CSP header yet.
 - Demo auth accepts any password; it must never be enabled on a public deployment.
 - Supabase cannot list other sessions from the browser; the security page says so.
-- Social card uses the default sans font (Satori cannot read woff2).
+- Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
+  that match the type scale steps.
 
 ## Blockers needing the owner
-Supabase project and keys · SMS provider for phone OTP · Resend key and verified domain · NSE product, licence and
-credentials · official INRGIFT logo files · Logo.dev key · production domain and hosting choice · lawyer-reviewed legal text and grievance officer.
+Domain name and GoDaddy plan type (cPanel Node.js or VPS) · SMS provider for phone OTP · Resend key and verified
+domain · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer.

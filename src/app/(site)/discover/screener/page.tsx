@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
 import { Suspense } from 'react';
 import { PageContainer, PageHeader, SkeletonRows } from '@/components/ui/primitives';
-import { VideoModule } from '@/features/media/video-module';
+import { TutorialDisclosure } from '@/features/media/video-module';
 import { Screener } from '@/features/screener/screener';
 import { getVideoFor } from '@/services/content';
 
@@ -14,7 +14,7 @@ export default async function ScreenerPage() {
     <PageContainer wide>
       <PageHeader crumbs={[['Discover', '/discover'], ['Screener']]} title="Global screener" lead="Combine filters with “match all”, “match any” and nested groups. The address bar always holds a shareable link to the current screen." />
       <Suspense fallback={<SkeletonRows rows={8} />}><Screener /></Suspense>
-      {video && <details className="group rounded-card border border-line bg-white px-4 py-3"><summary className="cursor-pointer list-none font-semibold [&::-webkit-details-marker]:hidden">How the screener works: a 30-second tour <span aria-hidden className="text-faint group-open:hidden">+</span></summary><div className="mt-3 max-w-2xl"><VideoModule video={video} compact /></div></details>}
+      {video && <TutorialDisclosure video={video} label="How the screener works" />}
     </PageContainer>
   );
 }

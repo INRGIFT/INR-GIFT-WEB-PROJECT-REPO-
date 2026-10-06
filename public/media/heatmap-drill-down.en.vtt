@@ -1,25 +1,25 @@
 WEBVTT
 
 1
-00:00:03.335 --> 00:00:07.787
+00:00:00.000 --> 00:00:05.492
 Tiles are sized by market value and coloured by the change you choose.
 
 2
-00:00:07.837 --> 00:00:11.842
-Switch the colour to one month to see the trend instead of today.
+00:00:05.492 --> 00:00:10.985
+Switch the period to one month to see the trend instead of today.
 
 3
-00:00:11.892 --> 00:00:15.847
+00:00:10.985 --> 00:00:15.155
 Select a region header to drill down a level.
 
 4
-00:00:15.897 --> 00:00:19.483
+00:00:15.155 --> 00:00:18.336
 Then a country, then a sector.
 
 5
-00:00:19.533 --> 00:00:24.229
+00:00:18.336 --> 00:00:23.499
 Select a tile for a quick view with price, returns and actions.
 
 6
-00:00:24.279 --> 00:00:28.118
+00:00:23.499 --> 00:00:27.670
 The breadcrumb takes you back to the global view.

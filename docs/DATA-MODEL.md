@@ -18,6 +18,11 @@
 ## Identity
 Issuer → Instrument (security / share class) → Listing (exchange MIC + ticker + provider symbol).
 Cross-listings and ADR/GDRs share an issuer (demo: TSM on NYSE and 2330 on TWSE).
+TypeScript: `Issuer`, `Security` (share class or depositary receipt with ratio and underlying), `Listing` (MIC, ticker,
+currency, primary, coverage, provider symbols) and `InstrumentIdentity` in `src/lib/types.ts`; served by
+`provider.getIdentity` and `GET /api/v1/assets/:id/identity`; shown in the asset page's "Issuer, securities and listings"
+panel. Demo reference listings (uncovered, no prices): GOOG (Class C), INFY ADR, HDB ADR, Reliance GDR. ISINs are null
+until a licensed security master supplies them.
 
 ## SQL — private workspace (supabase/migrations/0001_user_workspace.sql)
 profiles, user_preferences, watchlists, watchlist_items, alerts, saved_screens, saved_comparisons, saved_research,

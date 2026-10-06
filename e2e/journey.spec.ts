@@ -136,3 +136,22 @@ test('stock and ETF logos fall back to ticker tiles and never show a broken imag
   // Every row keeps a readable ticker tile under (or instead of) the logo.
   await expect(page.getByRole('link', { name: /Microsoft/ }).first()).toContainText('MSFT');
 });
+
+test('research structure, sector and country research, identity and heatmap explainer', async ({ page }) => {
+  await page.goto('/research');
+  await page.getByRole('link', { name: /Sector research/ }).first().click();
+  await page.getByRole('link', { name: /Technology across markets/ }).first().click();
+  for (const h of ['Key takeaways', 'Why it matters', 'Interpretation', 'Limitations', 'Methodology', 'Sources']) await expect(page.getByRole('heading', { name: h, exact: true })).toBeVisible();
+  await expect(page.getByText(/By INRGIFT Research · Not separately reviewed/)).toBeVisible();
+  await expect(page.getByText('Disclosure.')).toBeVisible();
+  await page.goto('/research/countries');
+  await expect(page.getByRole('heading', { name: 'Country research' })).toBeVisible();
+  await page.goto('/stocks/TSM');
+  const identity = page.getByRole('region', { name: /Issuer, securities and listings/ }).or(page.locator('section', { hasText: 'Issuer, securities and listings' })).first();
+  await expect(identity).toContainText('1 ADR = 5 ordinary shares');
+  await expect(identity).toContainText('XTAI');
+  await page.goto('/discover/heatmap');
+  await expect(page.getByRole('heading', { name: 'How to read this heatmap' })).toBeVisible();
+  await page.getByRole('group', { name: 'Colour metric' }).getByRole('button', { name: 'Volatility' }).click();
+  await expect(page.getByText('Period: annualised 30-day volatility')).toBeVisible();
+});

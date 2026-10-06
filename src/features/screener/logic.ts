@@ -6,7 +6,8 @@ import { CLASS_LABEL } from '@/lib/routes';
 export type TextField = 'name';
 export type CatField = 'cls' | 'region' | 'country' | 'exchange' | 'sector' | 'industry' | 'currency';
 export type Field = MetricKey | CatField | TextField | 'price';
-export type Op = 'gte' | 'lte' | 'between' | 'is' | 'not' | 'in' | 'contains';
+/** gt/lt/eq are strict; gtf/ltf compare against another numeric field of the same asset (value holds that field). */
+export type Op = 'gte' | 'lte' | 'gt' | 'lt' | 'eq' | 'between' | 'gtf' | 'ltf' | 'is' | 'not' | 'in' | 'contains';
 export interface Rule { field: Field; op: Op; value: string; value2?: string }
 export interface Group { op: 'AND' | 'OR'; rules: Node[] }
 export type Node = Rule | Group;
@@ -16,7 +17,7 @@ export const CAT_FIELDS: Record<CatField, string> = { cls: 'Asset type', region:
 export type FieldKind = 'number' | 'category' | 'text';
 export const fieldKind = (f: Field): FieldKind => (f === 'name' ? 'text' : f in CAT_FIELDS ? 'category' : 'number');
 export const fieldLabel = (f: Field): string => (f === 'name' ? 'Name or ticker' : f === 'price' ? 'Price (local currency)' : f in CAT_FIELDS ? CAT_FIELDS[f as CatField] : METRICS[f as MetricKey].label);
-export const OPS: Record<FieldKind, [Op, string][]> = { number: [['gte', 'is at least'], ['lte', 'is at most'], ['between', 'is between']], category: [['is', 'is'], ['not', 'is not'], ['in', 'is any of']], text: [['contains', 'contains']] };
+export const OPS: Record<FieldKind, [Op, string][]> = { number: [['gte', 'is at least'], ['lte', 'is at most'], ['gt', 'is above'], ['lt', 'is below'], ['eq', 'equals'], ['between', 'is between'], ['gtf', 'is above field'], ['ltf', 'is below field']], category: [['is', 'is'], ['not', 'is not'], ['in', 'is any of']], text: [['contains', 'contains']] };
 /** Fields grouped the way the picker shows them. */
 export const FIELD_GROUPS: [string, Field[]][] = [
   ['Asset metadata', ['name', 'cls', 'region', 'country', 'exchange', 'sector', 'industry', 'currency']],
@@ -40,10 +41,21 @@ export function matchRule(a: Asset, r: Rule): boolean {
   const kind = fieldKind(r.field);
   if (kind === 'text') return r.value.trim() === '' || String(v).toLowerCase().includes(r.value.trim().toLowerCase());
   if (kind === 'category') { const list = r.value.split('|').filter(Boolean); if (!list.length) return true; return r.op === 'not' ? !list.includes(String(v)) : list.includes(String(v)); }
-  const n = Number(r.value), x = v as number;
+  const x = v as number;
+  if (r.op === 'gtf' || r.op === 'ltf') {
+    if (!VALID_FIELD.has(r.value) || fieldKind(r.value as Field) !== 'number') return true; // unfinished
+    const other = fieldValue(a, r.value as Field);
+    if (other == null) return false;
+    return r.op === 'gtf' ? x > (other as number) : x < (other as number);
+  }
+  const n = Number(r.value);
   if (r.value.trim() === '' || Number.isNaN(n)) return true; // an unfinished rule does not filter
   if (r.op === 'gte') return x >= n;
   if (r.op === 'lte') return x <= n;
+  if (r.op === 'gt') return x > n;
+  if (r.op === 'lt') return x < n;
+  // Equality on decimals uses a relative tolerance so 2.5 matches 2.4999999 from unit conversion.
+  if (r.op === 'eq') return Math.abs(x - n) <= Math.max(1e-9, Math.abs(n) * 1e-6);
   const hi = Number(r.value2);
   return x >= n && (r.value2 == null || r.value2.trim() === '' || Number.isNaN(hi) || x <= hi);
 }
@@ -67,7 +79,7 @@ export const DEFAULT_TREE: Group = { op: 'AND', rules: [{ field: 'marketCap', op
 /* Share-ready URL encoding. Validates shape on decode so a tampered link cannot inject anything. */
 const b64 = { enc: (s: string) => (typeof btoa === 'function' ? btoa(unescape(encodeURIComponent(s))) : Buffer.from(s, 'utf8').toString('base64')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), dec: (s: string) => { const p = s.replace(/-/g, '+').replace(/_/g, '/'); return typeof atob === 'function' ? decodeURIComponent(escape(atob(p))) : Buffer.from(p, 'base64').toString('utf8'); } };
 const VALID_FIELD = new Set<string>(['name', 'price', ...Object.keys(CAT_FIELDS), ...METRIC_KEYS]);
-const VALID_OP = new Set<string>(['gte', 'lte', 'between', 'is', 'not', 'in', 'contains']);
+const VALID_OP = new Set<string>(['gte', 'lte', 'gt', 'lt', 'eq', 'between', 'gtf', 'ltf', 'is', 'not', 'in', 'contains']);
 function sanitize(n: unknown, depth = 0): Node | null {
   if (!n || typeof n !== 'object' || depth > 4) return null;
   const o = n as Record<string, unknown>;

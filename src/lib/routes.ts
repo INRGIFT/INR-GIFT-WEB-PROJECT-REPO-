@@ -20,15 +20,15 @@ export const NAV = [
   { label: 'Markets', href: '/markets', hint: 'Sessions, indices and movers', items: [['Global overview', '/markets', 'Sessions, indices and movers'], ['Markets directory', '/markets/all', 'Every covered market'], ['Heatmap', '/discover/heatmap', 'Drill from region to company'], ['Market calendar', '/resources/calendar', 'Holidays, earnings and macro']] },
   { label: 'Assets', href: '/assets', hint: 'Every asset class', items: [['Stocks', '/assets/stocks', ''], ['ETFs', '/assets/etfs', ''], ['Indices', '/assets/indices', ''], ['FX', '/assets/fx', ''], ['Commodities', '/assets/commodities', ''], ['Bonds', '/assets/bonds', ''], ['REITs', '/assets/reits', ''], ['Funds', '/assets/funds', '']] },
   { label: 'Discover', href: '/discover', hint: 'Find what to research next', items: [['Screener', '/discover/screener', 'Filter the global universe'], ['Compare', '/discover/compare', 'Up to four assets'], ['Heatmap', '/discover/heatmap', 'Signature market map'], ['Themes and collections', '/discover/collections', 'Curated groups across markets'], ['Trending', '/discover/trending', 'Movers and activity']] },
-  { label: 'Research', href: '/research', hint: 'Notes, not recommendations', items: [['Stock research', '/research/stocks', ''], ['ETF research', '/research/etfs', ''], ['Market research', '/research/markets', ''], ['Theme research', '/research/themes', '']] },
+  { label: 'Research', href: '/research', hint: 'Notes, not recommendations', items: [['Stock research', '/research/stocks', ''], ['ETF research', '/research/etfs', ''], ['Market research', '/research/markets', ''], ['Theme research', '/research/themes', ''], ['Sector research', '/research/sectors', ''], ['Country research', '/research/countries', '']] },
   { label: 'Resources', href: '/resources', hint: 'News, calendars and learning', items: [['News', '/resources/news', ''], ['Earnings', '/resources/earnings', ''], ['Dividends', '/resources/dividends', ''], ['IPOs', '/resources/ipo', ''], ['Calendar', '/resources/calendar', ''], ['Learn', '/resources/learn', ''], ['Glossary', '/resources/glossary', ''], ['Data and methodology', '/resources/data', '']] },
 ] as const;
 
 export const ACCOUNT_NAV = [['Workspace', '/app'], ['Notifications', '/notifications'], ['Profile', '/account/profile'], ['Settings', '/account/settings'], ['Security', '/account/security']] as const;
 
 export const WORKSPACE_NAV = [
-  { group: 'My workspace', items: [['Overview', '/app', 'LayoutDashboard', null], ['Watchlist', '/app/watchlist', 'Star', 'watchlist_items'], ['Alerts', '/app/alerts', 'Bell', 'alerts'], ['Notifications', '/notifications', 'Inbox', null]] },
+  { group: 'My workspace', items: [['Overview', '/app', 'LayoutDashboard', null], ['Watchlist', '/app/watchlist', 'Star', 'watchlist_items'], ['Alerts', '/app/alerts', 'Bell', 'alerts']] },
   { group: 'Discover', items: [['Saved screens', '/app/screens', 'Filter', 'saved_screens'], ['Saved comparisons', '/app/comparisons', 'Columns2', 'saved_comparisons'], ['Collections', '/app/collections', 'LayoutGrid', 'collections'], ['Recent', '/app/recent', 'Clock', null]] },
   { group: 'Research', items: [['Saved research', '/app/research', 'FileText', 'saved_research'], ['Notes', '/app/notes', 'StickyNote', 'notes'], ['History', '/app/history', 'History', null]] },
-  { group: 'System', items: [['Settings', '/account/settings', 'Settings', null], ['Security', '/account/security', 'Shield', null], ['Help', '/support', 'LifeBuoy', null]] },
+  { group: 'System', items: [['Settings', '/account/settings', 'Settings', null], ['Help', '/support', 'LifeBuoy', null]] },
 ] as const;

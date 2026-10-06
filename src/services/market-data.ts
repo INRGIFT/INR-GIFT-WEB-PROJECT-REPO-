@@ -2,7 +2,7 @@ import { getProvider, ProviderError } from '@/providers';
 import { INR_PER } from '@/providers/demo/seed';
 import type { AssetQuery } from '@/providers/provider';
 import { validateCandles } from '@/lib/validation';
-import type { Asset, AssetClass, CalendarKind, ChartRange, DataMeta, Envelope, MarketView, Pagination, ResearchKind } from '@/lib/types';
+import type { Asset, AssetClass, CalendarKind, ChartRange, DataMeta, Envelope, MarketView, Pagination, ResearchDoc, ResearchKind } from '@/lib/types';
 
 /**
  * Data services. Pages and API routes call these; nothing else talks to a provider.
@@ -37,7 +37,31 @@ export async function getTheme(id: string) {
   if (!theme) return null;
   return { theme, assets: await getAssets({ ids: theme.assetIds }) };
 }
-export async function getResearch(kind?: ResearchKind) { const all = await p().getResearch(); return kind ? all.filter((d) => d.kind === kind) : all; }
+export async function getResearch(kind?: ResearchKind) { const all = (await p().getResearch()).map(structureDoc); return kind ? all.filter((d) => d.kind === kind) : all; }
+
+const DISCLOSURE = 'INRGIFT publishes research and information only. This note describes data and context; it is not investment advice, a recommendation, a rating or a price target, and it does not consider anyone’s circumstances. INRGIFT is not a broker or an investment adviser.';
+/**
+ * Gives every research note the full article structure. Explicit fields from the source win; otherwise defaults are
+ * derived from the note itself (takeaways = each section's first sentence) or stated plainly (author = the desk,
+ * reviewer = none). Nothing here invents a figure, a person or a source.
+ */
+export function structureDoc(d: ResearchDoc): ResearchDoc {
+  const first = (t: string) => (t.match(/^.*?[.!?](\s|$)/)?.[0] ?? t).trim();
+  const why = d.sections.find((s) => /why it matters/i.test(s.heading));
+  return {
+    ...d,
+    keyTakeaways: d.keyTakeaways?.length ? d.keyTakeaways : d.sections.filter((s) => s !== why).slice(0, 3).map((s) => first(s.body)),
+    whyItMatters: d.whyItMatters ?? why?.body,
+    sections: why && !d.whyItMatters ? d.sections.filter((s) => s !== why) : d.sections,
+    limitations: d.limitations?.length ? d.limitations : ['Figures are a snapshot at publication; the live table shows current values.', 'Coverage is a sample of listed instruments, not a complete market.'],
+    methodology: d.methodology ?? 'Figures come from the active market-data source at publication. Medians use every covered asset of the same class. Returns are in each listing’s own currency unless stated. Narrative sections describe the data; they do not forecast.',
+    sources: d.sources?.length ? d.sources : [{ label: 'Active market-data source (see each table’s status and timestamp)' }, { label: 'INRGIFT data and methodology', href: '/resources/data' }],
+    author: d.author ?? 'INRGIFT Research',
+    reviewer: d.reviewer ?? null,
+    disclosure: d.disclosure ?? DISCLOSURE,
+    charts: d.charts ?? [],
+  };
+}
 export async function getResearchDoc(kind: ResearchKind, slug: string) { return (await getResearch(kind)).find((d) => d.slug === slug) ?? null; }
 export async function getCalendar(kind?: CalendarKind | CalendarKind[]) { const all = await p().getCalendar(); const kinds = kind ? (Array.isArray(kind) ? kind : [kind]) : null; return kinds ? all.filter((e) => kinds.includes(e.kind)) : all; }
 

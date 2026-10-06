@@ -1,3 +1,4 @@
+import type { InstrumentIdentity } from '@/lib/types';
 import type { Allocations, Asset, AssetClass, CalendarEvent, Candle, ChartRange, CorporateAction, DataMeta, Dividend, Fundamentals, Holding, MarketView, MetricKey, NewsItem, ResearchDoc, Technicals, Theme } from '@/lib/types';
 
 export interface AssetQuery { cls?: AssetClass[]; marketId?: string; region?: string; sector?: string; ids?: string[] }
@@ -40,6 +41,8 @@ export interface MarketDataProvider {
   getResearch(): Promise<ResearchDoc[]>;
   getThemes(): Promise<Theme[]>;
   getCalendar(): Promise<CalendarEvent[]>;
+  /** Issuer → securities → listings for an instrument; null when the source has no reference data. */
+  getIdentity(idOrSlug: string): Promise<InstrumentIdentity | null>;
 }
 
 export class ProviderError extends Error {

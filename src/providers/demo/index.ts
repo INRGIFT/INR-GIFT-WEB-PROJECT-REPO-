@@ -1,9 +1,9 @@
 import { dataStatusFor, istHours, lastClose, localTime, sessionState, statusTimestamp } from '@/lib/calendar';
 import { hash, rng, walk } from '@/lib/rng';
-import type { Allocations, Asset, AssetClass, CalendarEvent, Candle, ChartRange, DataMeta, DataStatus, Dividend, Exchange, Fundamentals, Holding, Market, MarketView, MetricKey, NewsItem, ResearchDoc, Technicals, Theme } from '@/lib/types';
+import type { Allocations, Asset, AssetClass, CalendarEvent, Candle, ChartRange, DataMeta, DataStatus, Dividend, Exchange, Fundamentals, Holding, Market, MarketView, MetricKey, NewsItem, ResearchDoc, Technicals, Theme, InstrumentIdentity, Issuer, Listing, Security } from '@/lib/types';
 import type { AssetQuery, MarketDataProvider, NewsQuery, Quote } from '../provider';
 import { ProviderError } from '../provider';
-import { BONDS, COMMODITIES, ETFS, ETF_COUNTRIES, ETF_SECTORS, FX_PAIRS, INDICES, INR_PER, IPOS, MACRO, MARKETS, NEWS, NO_FUNDAMENTALS, NO_HOLDINGS, REITS, STOCKS, THEMES } from './seed';
+import { BONDS, COMMODITIES, ETFS, ETF_COUNTRIES, ETF_SECTORS, DR_RATIOS, FX_PAIRS, INDICES, INR_PER, IPOS, MACRO, MARKETS, NEWS, NO_FUNDAMENTALS, NO_HOLDINGS, REFERENCE_LISTINGS, REITS, SHARE_CLASS, STOCKS, THEMES } from './seed';
 
 const SOURCE = 'demo-provider';
 const M = new Map(MARKETS.map((m) => [m.id, m]));
@@ -255,7 +255,91 @@ export class DemoProvider implements MarketDataProvider {
           { heading: 'Constituents', body: list.map((a) => `${a.name} (${a.symbol})`).join(', ') + '.' },
         ] });
     }
+    // Sector research: every covered stock in the sector, across markets. All figures are computed from the dataset.
+    const median = (xs: number[]) => { const v = [...xs].sort((x, y) => x - y); return v.length ? v[v.length >> 1] : null; };
+    const fx = (v: number | null, dp = 1) => (v == null ? 'n/a' : v.toFixed(dp));
+    for (const [i, sector] of ['Technology', 'Financials', 'Energy', 'Healthcare'].entries()) {
+      const list = BASE.filter((a) => a.cls === 'stock' && a.sector === sector);
+      const byRegion = new Map<string, typeof list>();
+      list.forEach((a) => byRegion.set(a.region, [...(byRegion.get(a.region) ?? []), a]));
+      const pe = median(list.map((a) => a.m.pe).filter((v): v is number => v != null));
+      const y1 = median(list.map((a) => a.m.y1).filter((v): v is number => v != null));
+      const allPe = median(BASE.filter((a) => a.cls === 'stock' && a.m.pe != null).map((a) => a.m.pe as number));
+      const ranked = [...list].sort((x, y) => (y.m.y1 ?? -1e9) - (x.m.y1 ?? -1e9));
+      const slug = sector.toLowerCase().replace(/[^a-z]+/g, '-');
+      docs.push({ id: `res_sec${i}`, slug, kind: 'sectors', type: 'Data insight', title: `${sector} across markets: valuation, returns and where it is listed`, summary: `${list.length} covered ${sector.toLowerCase()} companies in ${byRegion.size} regions, compared on one basis.`, topic: sector, sector, publishedAt: day(i + 2),
+        keyTakeaways: [
+          `${list.length} covered companies across ${byRegion.size} regions; ${ranked.filter((a) => (a.m.y1 ?? 0) > 0).length} are higher over one year.`,
+          `Median trailing P/E is ${fx(pe)}× against ${fx(allPe)}× for all covered stocks.`,
+          `Median one-year return is ${fx(y1)}% in local currency.`,
+        ],
+        whyItMatters: 'Sector exposure often explains more of a stock’s move than the company itself. Seeing the same sector priced in several markets shows where valuations differ for similar businesses.',
+        sections: [
+          { heading: 'Where the sector is listed', body: [...byRegion].map(([r, xs]) => `${r}: ${xs.length} (${xs.map((a) => a.symbol).join(', ')})`).join('. ') + '.' },
+          { heading: 'Valuation', body: `The median trailing P/E of ${fx(pe)}× is ${pe != null && allPe != null && pe > allPe ? 'above' : 'below'} the all-stock median of ${fx(allPe)}×. Multiples are not adjusted for accounting differences between countries.` },
+          { heading: 'Returns', body: `Over one year the strongest covered name is ${ranked[0]?.name} at ${fx(ranked[0]?.m.y1 ?? null)}% and the weakest is ${ranked[ranked.length - 1]?.name} at ${fx(ranked[ranked.length - 1]?.m.y1 ?? null)}%, each in its own currency.` },
+        ],
+        charts: [
+          { title: 'One-year return by company (local currency)', unit: '%', kind: 'diverging', bars: ranked.slice(0, 10).map((a) => ({ label: a.symbol, value: a.m.y1 ?? 0, href: `/stocks/${a.slug}` })), note: 'Ten largest moves shown; returns are not converted to INR.' },
+          { title: 'Covered companies by region', unit: '%', kind: 'bar', bars: [...byRegion].map(([r, xs]) => ({ label: r, value: Math.round((xs.length / list.length) * 100) })) },
+        ],
+        interpretation: 'Differences in multiples across regions can reflect growth expectations, interest rates, currency and listing composition as much as company quality. Treat the comparison as a starting point for asset-level research.',
+        limitations: ['Coverage is a sample of large listed companies, not the full sector.', 'Medians ignore company size; one large company can dominate a region.', 'Returns are in each listing’s own currency.'],
+      });
+    }
+    // Country research: listings, sector mix, index and currency for one country.
+    for (const [i, id] of ['in', 'us', 'jp', 'uk'].entries()) {
+      const mk = M.get(id); if (!mk) continue;
+      const list = BASE.filter((a) => a.marketId === id && a.cls === 'stock');
+      const idx = BASE.find((a) => a.marketId === id && a.cls === 'index');
+      const cap = list.reduce((s, a) => s + (a.m.marketCap ?? 0), 0);
+      const bySector = new Map<string, number>();
+      list.forEach((a) => bySector.set(a.sector ?? 'Other', (bySector.get(a.sector ?? 'Other') ?? 0) + (a.m.marketCap ?? 0)));
+      const mix = [...bySector].sort((x, y) => y[1] - x[1]);
+      docs.push({ id: `res_c${i}`, slug: mk.slug.toLowerCase(), kind: 'countries', type: 'Data insight', title: `${mk.name}: what the covered market is made of`, summary: `Sector mix, largest listings, index trend and currency for ${mk.name}.`, topic: mk.name, country: mk.name, marketId: id, publishedAt: day(i + 3),
+        keyTakeaways: [
+          `${list.length} covered companies with a combined market value of $${(cap / 1e12).toFixed(2)} trillion.`,
+          mix[0] ? `${mix[0][0]} is the largest sector at ${Math.round((mix[0][1] / (cap || 1)) * 100)}% of covered market value.` : 'No sector data is available.',
+          idx ? `${idx.name} is ${(idx.m.ytd ?? 0) >= 0 ? 'up' : 'down'} ${Math.abs(idx.m.ytd ?? 0).toFixed(1)}% year to date.` : 'No index is covered for this market.',
+        ],
+        whyItMatters: 'A country index is a bet on its sector mix and currency as much as on its economy. Knowing the mix explains why two markets can move differently on the same day.',
+        sections: [
+          { heading: 'Largest covered listings', body: [...list].sort((x, y) => (y.m.marketCap ?? 0) - (x.m.marketCap ?? 0)).slice(0, 5).map((a) => `${a.name} (${a.symbol})`).join(', ') + '.' },
+          { heading: 'Trading hours for an Indian reader', body: `${mk.exchanges[0].name} trades ${mk.exchanges[0].open}–${mk.exchanges[0].close} local time (${mk.exchanges[0].timezone}). See the market page for the session converted to IST and today’s status.` },
+          { heading: 'Currency', body: mk.currency === 'INR' ? 'Prices are in rupees; there is no currency translation for an Indian reader.' : `Prices are in ${mk.currency}. Rupee returns also depend on ${mk.currency}/INR, at about ₹${INR_PER[mk.currency]} per ${mk.currency} at the demo reference rate.` },
+        ],
+        charts: [{ title: 'Covered market value by sector', unit: '%', kind: 'bar', bars: mix.map(([s, v]) => ({ label: s, value: Math.round((v / (cap || 1)) * 100) })) }],
+        interpretation: 'A concentrated sector mix means the index behaves like that sector. Compare with the sector research to separate country effects from sector effects.',
+        limitations: ['Covered companies are a sample, not the full exchange.', 'Market values use the demo reference exchange rates.'],
+      });
+    }
     return docs.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  }
+
+  async getIdentity(idOrSlug: string): Promise<InstrumentIdentity | null> {
+    const a = find(idOrSlug);
+    if (!a || !['stock', 'etf', 'reit', 'fund'].includes(a.cls)) return null;
+    const exName = (mic: string) => MARKETS.flatMap((m) => m.exchanges).find((e) => e.mic === mic)?.name ?? mic;
+    const listingOf = (b: typeof a, primary: boolean): Listing => ({ securityKey: b.id, instrumentId: b.id, mic: b.mic, exchange: b.exchange, ticker: b.symbol, currency: b.currency, primary, slug: b.slug, cls: b.cls, covered: true, providerSymbols: [{ source: SOURCE, symbol: `${b.symbol}:${b.mic}` }] });
+    if (!a.issuerId) {
+      // Funds and REITs: the fund (or trust) is the issuer of one class of units.
+      const issuer: Issuer = { id: `iss_${a.slug.toLowerCase()}`, name: a.etf?.issuer ?? a.name, country: a.country };
+      return { issuer, securities: [{ key: a.id, instrumentId: a.id, issuerId: issuer.id, name: a.name, shareClass: a.cls === 'reit' ? 'Units' : 'Fund units', kind: 'fund_unit', isin: null }], listings: [listingOf(a, true)], source: SOURCE };
+    }
+    const family = BASE.filter((b) => b.issuerId === a.issuerId);
+    const ordinary = family.find((b) => !DR_RATIOS[b.symbol]) ?? a;
+    const issuer: Issuer = { id: a.issuerId, name: ordinary.name.replace(/ \(ADR\)$/, ''), country: ordinary.country, sector: ordinary.sector, industry: ordinary.industry };
+    const securities: Security[] = family.map((b) => DR_RATIOS[b.symbol]
+      ? { key: b.id, instrumentId: b.id, issuerId: issuer.id, name: b.name, shareClass: 'ADR', kind: 'adr', underlyingKey: family.find((x) => x.symbol === DR_RATIOS[b.symbol][1])?.id, ratio: DR_RATIOS[b.symbol][0], isin: null }
+      : { key: b.id, instrumentId: b.id, issuerId: issuer.id, name: b.name, shareClass: SHARE_CLASS[b.symbol] ?? 'Ordinary', kind: 'ordinary', isin: null });
+    const listings: Listing[] = family.map((b) => listingOf(b, b === ordinary));
+    for (const [key, name, shareClass, kind, mic, ticker, currency, ratio, under] of REFERENCE_LISTINGS) {
+      if (`iss_${key}` !== a.issuerId) continue;
+      const skey = `ref_${ticker}_${mic}`;
+      securities.push({ key: skey, instrumentId: null, issuerId: issuer.id, name, shareClass, kind, ...(ratio ? { ratio } : {}), ...(under ? { underlyingKey: family.find((x) => x.symbol === under)?.id } : {}), isin: null });
+      listings.push({ securityKey: skey, instrumentId: null, mic, exchange: exName(mic), ticker, currency, primary: false, covered: false, providerSymbols: [] });
+    }
+    return { issuer, securities, listings, source: SOURCE };
   }
 
   async getCalendar(): Promise<CalendarEvent[]> {

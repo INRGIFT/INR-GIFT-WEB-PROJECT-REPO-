@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, CircleSlash, Inbox, RotateCcw, SearchX } from 'lucide-react';
 import { cn, pct } from '@/lib/format';
 
 export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
@@ -58,6 +58,18 @@ export function EmptyState({ title, children, action, icon }: { title: string; c
 }
 export function ErrorState({ title = 'This could not load', children, action }: { title?: string; children?: ReactNode; action?: ReactNode }) {
   return <EmptyState title={title} action={action} icon={<AlertTriangle size={22} strokeWidth={1.75} className="text-down" />}>{children}</EmptyState>;
+}
+/** A search or filter ran and matched nothing. Distinct from EmptyState (nothing exists yet). */
+export function NoResults({ query, children, action }: { query?: string; children?: ReactNode; action?: ReactNode }) {
+  return <EmptyState title={query ? `No results for “${query}”` : 'No results'} icon={<SearchX size={22} strokeWidth={1.75} />} action={action}>{children ?? 'Check the spelling, try a ticker or a broader term, or remove a filter.'}</EmptyState>;
+}
+/** The source has no data for this module (not an error, not loading). Pairs with the UNAVAILABLE data status. */
+export function UnavailableState({ title = 'Unavailable from source', children }: { title?: string; children?: ReactNode }) {
+  return <EmptyState title={title} icon={<CircleSlash size={22} strokeWidth={1.75} />}>{children ?? 'The current data source does not provide this. Nothing is estimated or filled in.'}</EmptyState>;
+}
+/** Standard retry control for failed requests. Server-safe markup; pass onRetry from a client component. */
+export function RetryButton({ onRetry, label = 'Retry' }: { onRetry: () => void; label?: string }) {
+  return <button type="button" onClick={onRetry} className="inline-flex h-ctl items-center gap-2 rounded-ctl border border-line2 bg-white px-4 text-body font-medium text-navy transition-colors duration-150 hover:border-faint hover:bg-soft"><RotateCcw size={15} aria-hidden />{label}</button>;
 }
 export function InlineError({ children }: { children: ReactNode }) { return <p role="alert" className="mt-1.5 text-[13px] text-down">{children}</p>; }
 /** Page- or module-level notice. Each tone has its own glyph, so the meaning survives without colour. */

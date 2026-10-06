@@ -3,7 +3,7 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DataStatus } from '@/components/ui/data-status';
-import { Change, EmptyState, ErrorState, Segmented, Skeleton } from '@/components/ui/primitives';
+import { Change, EmptyState, ErrorState, RetryButton, Segmented, Skeleton, UnavailableState } from '@/components/ui/primitives';
 import { cn } from '@/lib/format';
 import type { Candle, ChartRange, DataMeta } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
@@ -56,7 +56,7 @@ export function ChartShell({ assetId, label, currency, benchmark, defaultRange =
         <span className="flex-1" />{change != null && <span className="text-[13px] text-slate2">{range} <Change value={change} /></span>}
       </div>
       <div className="p-3 pt-2 sm:p-4 sm:pt-2">
-        {main.loading && !c ? <Skeleton className="h-[260px] w-full sm:h-[340px]" /> : main.error ? <ErrorState title="The chart could not load" action={<Button onClick={main.reload}>Retry</Button>}>{main.error} Other modules on this page are unaffected.</ErrorState> : !c || c.length < 2 ? <EmptyState title="No price history available">The current data source has no series for this period. Try a longer range.</EmptyState> : (
+        {main.loading && !c ? <Skeleton className="h-[260px] w-full sm:h-[340px]" /> : main.error ? <ErrorState title="The chart could not load" action={<RetryButton onRetry={main.reload} />}>{main.error} Other modules on this page are unaffected.</ErrorState> : c === null ? <UnavailableState title="Price history unavailable from source">The current data source does not provide a price series for this asset. Nothing is drawn rather than an estimate.</UnavailableState> : !c || c.length < 2 ? <EmptyState title="No price history available">The current data source has no series for this period. Try a longer range.</EmptyState> : (
           <div className={cn('transition-opacity duration-panel', (main.loading || (bench && bm.loading)) && 'opacity-50')}>
             {stale && <p className="mb-2 text-xs text-warn">◐ Served from the last good copy after a provider failure. Values may be out of date.</p>}
             <SvgChart candles={c} type={type} range={range} currency={currency} label={label} lower={lower} overlays={ov} height={full ? 460 : undefined} benchmark={bench && benchmark && bm.data && bm.data.length > 1 ? { label: benchmark.label, closes: bm.data.map((x) => x.c) } : null} />

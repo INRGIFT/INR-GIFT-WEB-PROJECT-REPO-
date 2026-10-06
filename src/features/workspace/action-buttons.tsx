@@ -1,5 +1,5 @@
 'use client';
-import { Bell, Bookmark, Check, Columns2, Star } from 'lucide-react';
+import { Bell, Bookmark, Check, Columns2, FileText, LineChart, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -68,7 +68,13 @@ export function SaveButton({ refType, refId, title, href }: { refType: 'document
   return <Button aria-pressed={Boolean(existing)} onClick={click} className={existing ? 'border-brand bg-brand-soft text-brand-ink' : ''}>{existing ? <Check size={17} /> : <Bookmark size={17} />}{existing ? 'Saved' : 'Save'}</Button>;
 }
 export function RowActions({ asset }: { asset: Lite }) {
-  return <span className="inline-flex"><CompareButton asset={asset} compact /><WatchButton asset={asset} compact /><AlertButton asset={asset} compact /></span>;
+  return (
+    <span className="inline-flex">
+      <Link href={`${assetHref(asset)}#chart`} aria-label={`Chart ${asset.symbol}`} title={`Chart ${asset.symbol}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors duration-150 hover:bg-hover hover:text-brand-ink"><LineChart size={16} /></Link>
+      <Link href={`${assetHref(asset)}#research`} aria-label={`Research ${asset.symbol}`} title={`Research ${asset.symbol}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors duration-150 hover:bg-hover hover:text-brand-ink"><FileText size={16} /></Link>
+      <CompareButton asset={asset} compact /><WatchButton asset={asset} compact /><AlertButton asset={asset} compact />
+    </span>
+  );
 }
 /** Records an asset or document view in the signed-in user's history. Renders nothing. */
 export function TrackView({ kind, title, href }: { kind: 'asset' | 'research'; title: string; href: string }) {

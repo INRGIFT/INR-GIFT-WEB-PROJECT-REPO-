@@ -11,8 +11,10 @@ const variants: Record<Variant, string> = {
   ghost: 'text-slate2 hover:bg-hover hover:text-navy',
   danger: 'border border-down/30 bg-white text-down hover:bg-down/5',
 };
-const sizes: Record<Size, string> = { sm: 'h-8 px-3 text-[13px]', md: 'h-10 px-4 text-sm', lg: 'h-11 px-5 text-sm' };
-export const buttonClass = (variant: Variant = 'secondary', size: Size = 'md', extra?: string) => cn(base, variants[variant], sizes[size], extra);
+/** Heights from the control tokens: compact 32, standard 40, primary/action 44 (docs/DESIGN-SYSTEM.md). */
+const sizes: Record<Size, string> = { sm: 'h-ctl-sm px-3 text-ui', md: 'h-ctl px-4 text-body', lg: 'h-ctl-lg px-5 text-body' };
+/** Primary buttons default to the 44 px action height; pass `size` to use a compact or standard one in toolbars. */
+export const buttonClass = (variant: Variant = 'secondary', size?: Size, extra?: string) => cn(base, variants[variant], sizes[size ?? (variant === 'primary' ? 'lg' : 'md')], extra);
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> { variant?: Variant; size?: Size }
 export function Button({ variant, size, className, type = 'button', ...rest }: Props) {

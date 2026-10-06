@@ -22,7 +22,7 @@ export function WorkspaceSidebar() {
       <nav className="flex-1">
         {WORKSPACE_NAV.map((g) => (
           <div key={g.group} className={g.group === 'System' ? 'mt-3 border-t border-line pt-2' : ''}>
-            <p className={cn('px-2.5 pb-1.5 pt-3 text-[11px] font-semibold text-faint max-lg:sr-only', collapsed && 'sr-only')}>{g.group}</p>
+            <p className={cn('px-2.5 pb-1.5 pt-3 text-micro font-semibold uppercase tracking-[.08em] text-faint max-lg:sr-only', collapsed && 'sr-only')}>{g.group}</p>
             {g.items.map(([label, href, icon, table]) => {
               const Icon = ICONS[icon];
               const on = href === '/app' ? pathname === '/app' : pathname.startsWith(href);

@@ -1,0 +1,21 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:04.831
+Every number on INRGIFT carries a status and an exact timestamp.
+
+2
+00:00:04.831 --> 00:00:11.644
+Live, delayed, end of day, closed, unavailable, stale and error each have their own badge and glyph.
+
+3
+00:00:11.644 --> 00:00:16.806
+The page names the current data source and how the data flows.
+
+4
+00:00:16.806 --> 00:00:24.609
+A dash means the source has no value; n/a means the metric does not apply. Nothing is filled with zeros.
+
+5
+00:00:24.609 --> 00:00:30.102
+Research describes data. It carries no ratings, no price targets and no advice.

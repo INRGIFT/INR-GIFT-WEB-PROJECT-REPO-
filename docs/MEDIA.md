@@ -1,24 +1,51 @@
 # Media and assets
 
-The visual language is image-free by decision: no stock photos, no finance illustrations, no 3D, no decorative
-gradients. Charts, heatmaps and data are the imagery.
+The visual language is mostly image-free: no stock photos, no finance illustrations, no decorative gradients.
+Charts, heatmaps, data and product footage carry the visuals.
 
-What exists
-- Logo: CSS-drawn mark + wordmark in `src/components/layout/site-header.tsx` (`Logo`). No logo file from the client yet.
-- Icons: `lucide-react` only, stroke 1.75–2.
-- Fonts: Inter and Manrope variable fonts self-hosted in `public/fonts` (latin and latin-ext, OFL licences alongside).
-- Asset "avatars": ticker text on a neutral tile. No company logos (licensing).
-- Tutorials in `public/media`: three screen recordings of the real product (WebM), each with a WebVTT caption file,
-  a JPEG poster, chapters and a transcript in `VIDEOS` (`src/services/content.ts`). `VideoModule`
-  (`src/features/media/video-module.tsx`) loads nothing until play, shows captions by default and falls back to the
-  transcript. Placements: learn articles, support, resources, heatmap and screener.
-- App icon `src/app/icon.svg` and a generated social card `src/app/opengraph-image.tsx`.
+## What exists
 
-Needed
-- Official INRGIFT logo (SVG), favicon, app icons, Open Graph image (or an OG image route).
-- Decision on company/fund logos: licensed source or keep ticker tiles.
+**Logo:** the official INRGIFT brand library v1.0, used unmodified. Files are in `public/brand`, plus the favicon,
+apple icon, PWA manifest and share images in `src/app`. They render through `src/components/brand/brand-logo.tsx`.
+Inventory and usage rules: `docs/BRAND_ASSET_INVENTORY.md`.
+
+**Icons:** `lucide-react` only, stroke 1.75–2.
+
+**Fonts:** Inter and Manrope variable fonts, self-hosted in `public/fonts` with their OFL licences. The brand
+guidelines' Montserrat is used only inside the supplied logo artwork, as outlines.
+
+**Company and fund logos:** Logo.dev, behind `src/lib/logos`, with a ticker tile fallback. Tiles show whenever no key
+is configured or a logo fails to load.
+
+**Tutorials in `public/media`:** seven screen recordings of the real product on demo data. They are recorded by
+`scripts/record-tutorials.mjs`.
+- Videos: product walkthrough, research an asset, heatmap, screener, ETF eight-step review, market hours on India
+  time, and data status and methodology.
+- Each video has VP9 WebM, a WebVTT caption file, a JPEG poster, chapters and a transcript (`VIDEOS` in
+  `src/services/content.ts`).
+- `VideoModule` loads nothing until play, shows captions by default and falls back to the transcript.
+  `TutorialDisclosure` places a video collapsed under a page's main tool.
+- Placements:
+  - learn articles
+  - support
+  - resources
+  - heatmap, screener and ETF review pages
+  - markets
+  - data and methodology
+
+## Re-recording
+
+After a UI change, start a demo-mode production build (`NEXT_PUBLIC_AUTH_MODE=demo npm run build && npx next start`)
+and run:
+
+```bash
+PW_CHROMIUM_PATH=/path/to/chromium node scripts/record-tutorials.mjs http://localhost:3000 [id …]
+```
+
+Captions only describe what is on screen, and each caption is held long enough to read. Check one frame per caption
+before committing, and update `VIDEOS` from the generated `<id>.json` (then delete the JSON files).
+
+## Still to do
+
+- MP4 copies for older Safari.
 - Social profile links for the footer.
-
-Reference material in `docs/reference/`: the two original briefs and `prototype-v1.html`, the single-file clickable
-prototype of the first eleven screens. The prototype is visual reference for the auth, onboarding, workspace and ETF
-review screens that are not yet rebuilt in Next.js. Do not import code from it.

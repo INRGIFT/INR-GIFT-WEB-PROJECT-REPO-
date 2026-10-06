@@ -54,6 +54,7 @@ const ROUTES: [RegExp, Handler][] = [
   [/^assets\/([^/]+)\/news$/, async ([id]) => { const a = await asset(id); return md.envelope(await md.getNews({ assetId: a.id })); }],
   [/^assets\/([^/]+)\/research$/, async ([id]) => { const a = await asset(id); return md.envelope((await md.getResearch()).filter((d) => d.assetSlug === a.slug)); }],
   [/^etfs$/, (_, q) => list(q, ['etf'])],
+  [/^assets\/([^/]+)\/identity$/, async ([id]) => { const a = await asset(id); return md.envelope(await p().getIdentity(a.id), a.meta); }],
   [/^etfs\/([^/]+)\/holdings$/, async ([id]) => { const a = await asset(id); return md.envelope(await p().getETFHoldings(a.id), a.meta); }],
   [/^etfs\/([^/]+)\/allocations$/, async ([id]) => { const a = await asset(id); return md.envelope(await p().getETFAllocations(a.id), a.meta); }],
   [/^indices$/, (_, q) => list(q, ['index'])],
