@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
+import { breadcrumbs, JsonLd, marketPlace } from '@/lib/structured-data';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ButtonLink } from '@/components/ui/button';
@@ -30,6 +31,7 @@ export default async function MarketPage({ params }: Props) {
   const foot = <ModuleFoot meta={m.meta} />;
   return (
     <PageContainer>
+      <JsonLd data={[marketPlace(m, marketHref(m.slug)), breadcrumbs([['Markets', '/markets'], [m.region, `/markets?region=${encodeURIComponent(m.region)}`], [m.name]])]} />
       <PageHeader crumbs={[['Markets', '/markets'], [m.region, `/markets?region=${encodeURIComponent(m.region)}`], [m.name]]} title={m.name}
         lead={<>{m.exchanges.map((e) => e.name).join(' · ')} · {m.currency} · {SESSION_LABEL[m.session]}{m.holidayName && ` (${m.holidayName})`} · {m.localTime} local</>}
         actions={<><ButtonLink href={`/discover/heatmap?group=country&path=${encodeURIComponent(m.name)}`}>Heatmap</ButtonLink><ButtonLink href={`/discover/screener?country=${encodeURIComponent(m.name)}`} variant="primary">Screen this market</ButtonLink></>} />

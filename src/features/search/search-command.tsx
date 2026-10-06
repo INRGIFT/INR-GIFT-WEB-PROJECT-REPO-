@@ -94,7 +94,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
                 </div>
               ))}
             </div>
-            <div className="flex gap-4 border-t border-line px-4 py-2 text-[11px] text-faint"><span>↑ ↓ to move</span><span>Enter to open</span><span>Esc to close</span></div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line px-4 py-2 text-[11px] text-faint"><span>↑ ↓ to move</span><span>Enter to open</span><span>Esc to close</span>{q.trim() && <button type="button" className="link ml-auto text-xs" onClick={() => go({ label: q, hint: '', href: `/search?q=${encodeURIComponent(q.trim())}` })}>All results for “{q.trim().slice(0, 30)}”</button>}</div>
           </div>
         </div>
       )}

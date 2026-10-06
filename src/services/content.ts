@@ -1,4 +1,8 @@
-/** Editorial and static content. Kept apart from market data so it can move to a CMS without touching providers. */
+/**
+ * Editorial and static content. Kept apart from market data so it can move to a CMS without touching providers.
+ * Pages read content only through the async getters at the bottom of this file; swapping the arrays for CMS
+ * queries changes nothing else. Shapes are the CMS content models.
+ */
 
 export const LEARN: { slug: string; section: string; title: string; summary: string; body: string[] }[] = [
   { slug: 'what-is-a-stock', section: 'Investing basics', title: 'What a share of stock is', summary: 'Ownership, price and why the two are different things.', body: ['A share is a fractional claim on a company: its assets, its earnings and a vote on how it is run. The share price is what the last buyer paid, which reflects expectations about the future more than a tally of what the company owns today.', 'Market capitalisation is price multiplied by shares outstanding. It lets you compare the size of companies that have very different share prices.'] },
@@ -54,9 +58,44 @@ export const PLANS = [
 const REVIEW = 'This text is a working draft included so the page is complete in development. It has not been reviewed by a lawyer and must be replaced with reviewed terms before launch.';
 export const LEGAL: Record<string, { title: string; sections: [string, string][] }> = {
   privacy: { title: 'Privacy Policy', sections: [['Status', REVIEW], ['What we collect', 'Account details you provide (name, email, phone), preferences you set, and the watchlists, alerts, screens, comparisons and notes you save.'], ['How we use it', 'To run your account, show your saved research, send the alerts you create and keep the service secure. We do not sell personal data.'], ['Where it is stored', 'Private data is stored in a managed database with row-level security, so each record is readable only by its owner.'], ['Your choices', 'You can edit your profile, delete saved items, and ask for your account and data to be deleted through the contact page.']] },
-  terms: { title: 'Terms of Use', sections: [['Status', REVIEW], ['The service', 'INRGIFT provides market information and research tools. It is not a broker, does not execute transactions and does not provide investment advice.'], ['Your account', 'You are responsible for keeping your credentials secure and for activity under your account.'], ['Acceptable use', 'Do not scrape, resell or redistribute data, attempt to bypass access controls, or interfere with the service.'], ['Data', 'Market data may be delayed, incomplete or unavailable. Status and timestamps are shown with each module.']] },
+  terms: { title: 'Terms of Use', sections: [['Status', REVIEW], ['The service', 'INRGIFT provides market information and research tools. It is not a broker and does not provide investment advice.'], ['Your account', 'You are responsible for keeping your credentials secure and for activity under your account.'], ['Acceptable use', 'Do not scrape, resell or redistribute data, attempt to bypass access controls, or interfere with the service.'], ['Data', 'Market data may be delayed, incomplete or unavailable. Status and timestamps are shown with each module.']] },
   cookies: { title: 'Cookie Policy', sections: [['Status', REVIEW], ['Essential cookies', 'Used to keep you signed in and to protect your session. The service does not work without them.'], ['Preferences', 'Your display currency and similar settings are kept in your browser so they persist between visits.'], ['Analytics', 'No third-party advertising cookies are set by this build.']] },
   'risk-disclosure': { title: 'Risk Disclosure', sections: [['Status', REVIEW], ['Information only', 'Content on INRGIFT is for information and research. It is not a recommendation to transact in any security and does not consider your circumstances.'], ['Market risk', 'The value of investments can fall as well as rise. Past performance does not indicate future results.'], ['Currency risk', 'Returns on foreign assets depend on exchange rates as well as asset prices. INR values shown are approximate.'], ['Data risk', 'Data can be delayed or wrong. Verify important figures with the issuer or exchange before relying on them.']] },
   refund: { title: 'Refund Policy', sections: [['Status', REVIEW], ['Current plans', 'INRGIFT is free today, so there are no charges to refund.'], ['Future paid plans', 'Refund terms for paid plans will be published here before those plans are sold.']] },
   grievance: { title: 'Grievance Redressal', sections: [['Status', REVIEW], ['Raising a concern', 'Use the contact page and choose the Support category. Include your account email and a description of the issue.'], ['What happens next', 'A named grievance officer, response timelines and an escalation path will be published here before launch.']] },
 };
+
+
+/**
+ * Product tutorials. Each is a real screen recording of INRGIFT (demo data, labelled on screen) with WebVTT captions,
+ * a transcript and chapters. `placements` decide where a video appears: `learn:<slug>` or `page:<key>`.
+ * A CMS can supply the same shape; `src` may be omitted for a transcript-only entry.
+ */
+export interface VideoItem { id: string; title: string; summary: string; durationSeconds: number; src?: string; type?: string; poster: string; captions?: string; transcript: string[]; chapters: [number, string][]; placements: string[]; recordedAt: string }
+export const VIDEOS: VideoItem[] = [
+  { id: 'research-an-asset', title: "Research any asset in a minute", summary: "Search, open the research page, read the chart and its data status, and compare against the home index.", durationSeconds: 32, src: '/media/research-an-asset.webm', type: 'video/webm', poster: '/media/research-an-asset.jpg', captions: '/media/research-an-asset.en.vtt', transcript: ["Start anywhere: press / to open universal search.", "Type a ticker or a name. Results are grouped by asset class.", "Enter opens the research page.", "Every module shows its data status and an exact time in IST.", "Change the period, and read any point with the crosshair.", "Compare it against its home index.", "Scroll for valuation, fundamentals, peers and India context."], chapters: [[2.5, 'Open search'], [4.2, 'Type a ticker'], [7.4, 'Open the page'], [10.7, 'Data status'], [14.7, 'Periods and crosshair'], [20.9, 'Benchmark'], [24.9, 'Deeper modules']], placements: ["learn:what-is-a-stock", "learn:reading-valuation", "page:support", "page:resources"], recordedAt: '2026-10-06' },
+  { id: 'heatmap-drill-down', title: "Read the global heatmap", summary: "Size, colour and drill-down: go from the whole world to one company in four clicks.", durationSeconds: 28, src: '/media/heatmap-drill-down.webm', type: 'video/webm', poster: '/media/heatmap-drill-down.jpg', captions: '/media/heatmap-drill-down.en.vtt', transcript: ["Tiles are sized by market value and coloured by the change you choose.", "Switch the colour to one month to see the trend instead of today.", "Select a region header to drill down a level.", "Then a country, then a sector.", "Select a tile for a quick view with price, returns and actions.", "The breadcrumb takes you back to the global view."], chapters: [[3.5, 'Size and colour'], [8.0, 'One-month view'], [12.1, 'Drill into a region'], [16.1, 'Country and sector'], [19.7, 'Quick view'], [24.5, 'Back to global']], placements: ["learn:global-markets-from-india", "page:heatmap", "page:support", "page:resources"], recordedAt: '2026-10-06' },
+  { id: 'build-a-screen', title: "Build and save a screen", summary: "Universe, filters, groups and a shareable link: the screener from first filter to saved screen.", durationSeconds: 28, src: '/media/build-a-screen.webm', type: 'video/webm', poster: '/media/build-a-screen.jpg', captions: '/media/build-a-screen.en.vtt', transcript: ["The screener starts with an example: large companies growing fast or paying a dividend.", "Choose the universe: stocks, ETFs, REITs or all.", "Add a filter. Each one has a field, a condition and a value.", "Results update as you type, with every metric explained.", "Groups combine filters with match all or match any.", "The address bar is always a shareable link. Name the screen and save it to your workspace."], chapters: [[3.5, 'The example screen'], [8.2, 'Choose a universe'], [11.6, 'Add a filter'], [14.4, 'Live results'], [18.6, 'Groups'], [22.2, 'Share and save']], placements: ["learn:reading-valuation", "learn:etf-basics", "page:screener", "page:support", "page:resources"], recordedAt: '2026-10-06' },
+];
+
+/* ------------------------------- Content access (CMS seam) ------------------------------- */
+export type LearnArticle = (typeof LEARN)[number];
+export type GlossaryTerm = (typeof GLOSSARY)[number] & { slug: string };
+export type FaqItem = (typeof FAQ)[number];
+export type LegalDoc = { slug: string; title: string; sections: [string, string][] };
+const slugOf = (s: string) => s.toLowerCase().normalize('NFKD').replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const TERMS: GlossaryTerm[] = GLOSSARY.map((t) => ({ ...t, slug: slugOf(t.term) }));
+
+export async function getLearnArticles(): Promise<LearnArticle[]> { return LEARN; }
+export async function getLearnArticle(slug: string): Promise<LearnArticle | null> { return LEARN.find((a) => a.slug === slug) ?? null; }
+export async function getGlossary(): Promise<GlossaryTerm[]> { return [...TERMS].sort((a, b) => a.term.localeCompare(b.term)); }
+export async function getTerm(slug: string): Promise<GlossaryTerm | null> { return TERMS.find((t) => t.slug === slug) ?? null; }
+/** Glossary terms whose name appears in a piece of text, for internal linking from articles and research. */
+export async function termsMentionedIn(text: string, limit = 6): Promise<GlossaryTerm[]> { const t = text.toLowerCase(); return TERMS.filter((x) => t.includes(x.term.toLowerCase().replace(/ \(.*\)/, ''))).slice(0, limit); }
+export const termSlug = (name: string) => TERMS.find((t) => t.term === name)?.slug ?? slugOf(name);
+export async function getFaq(): Promise<FaqItem[]> { return FAQ; }
+export async function getPlans() { return PLANS; }
+export async function getLegalDocs(): Promise<LegalDoc[]> { return Object.entries(LEGAL).map(([slug, d]) => ({ slug, ...d })); }
+export async function getLegalDoc(slug: string): Promise<LegalDoc | null> { const d = LEGAL[slug]; return d ? { slug, ...d } : null; }
+export async function getVideos(): Promise<VideoItem[]> { return VIDEOS; }
+export async function getVideoFor(placement: string): Promise<VideoItem | null> { return VIDEOS.find((v) => v.placements.includes(placement)) ?? null; }

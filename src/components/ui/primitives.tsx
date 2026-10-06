@@ -39,7 +39,8 @@ export function Metric({ label, value, hint }: { label: string; value: ReactNode
   );
 }
 export function MetricGrid({ children, className }: { children: ReactNode; className?: string }) {
-  return <dl className={cn('grid grid-cols-2 gap-px overflow-hidden rounded-ctl border border-line bg-line sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6', className)}>{children}</dl>;
+  // Cells draw their own hairlines (ring), so a short last row ends cleanly instead of showing filler.
+  return <dl className={cn('grid grid-cols-2 overflow-hidden rounded-ctl border border-line bg-white sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 [&>*]:ring-1 [&>*]:ring-line', className)}>{children}</dl>;
 }
 export function Skeleton({ className }: { className?: string }) { return <div className={cn('skeleton h-4', className)} aria-hidden />; }
 export function SkeletonRows({ rows = 5 }: { rows?: number }) {

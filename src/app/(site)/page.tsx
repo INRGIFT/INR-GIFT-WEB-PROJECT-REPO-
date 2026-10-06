@@ -8,6 +8,7 @@ import { dateShort, num } from '@/lib/format';
 import { CLASS_LABEL, DIRECTORY_CLASS } from '@/lib/routes';
 import type { Region } from '@/lib/types';
 import * as md from '@/services/market-data';
+import { JsonLd, organization, website } from '@/lib/structured-data';
 
 const REGIONS: Region[] = ['North America', 'Latin America', 'Europe', 'Asia-Pacific', 'Middle East', 'Africa'];
 const HEADLINE = ['SP-500', 'NASDAQ-COMPOSITE', 'NIFTY-50', 'GIFT-NIFTY', 'FTSE-100', 'DAX', 'NIKKEI-225', 'HANG-SENG', 'TAIEX', 'DOW-JONES'];
@@ -22,6 +23,7 @@ export default async function HomePage() {
   const upcoming = calendar.filter((e) => e.date >= today).slice(0, 6);
   return (
     <PageContainer>
+      <JsonLd data={[organization(), website()]} />
       <section className="grid items-end gap-6 pt-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div>
           <p className="text-[13px] font-semibold text-brand-ink">Global market intelligence from India</p>

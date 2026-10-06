@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
+import { breadcrumbs, instrument, JsonLd } from '@/lib/structured-data';
 import { isDemoData } from '@/lib/config';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -13,7 +14,7 @@ import { AssetNotes } from '@/features/workspace/asset-notes';
 import { SESSION_LABEL } from '@/lib/calendar';
 import { compact, dateShort, hhmm, money, num, priceDp } from '@/lib/format';
 import { fmtMetric, METRICS } from '@/lib/metrics';
-import { assetHref, CLASS_LABEL, CLASS_PATH, marketHref } from '@/lib/routes';
+import { assetHref, CLASS_LABEL, CLASS_PATH, directoryHref, marketHref } from '@/lib/routes';
 import type { Asset, AssetClass, MetricKey } from '@/lib/types';
 import { getProvider } from '@/providers';
 import * as md from '@/services/market-data';
@@ -62,6 +63,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
 
   return (
     <PageContainer>
+      <JsonLd data={[instrument(a, assetHref(a)), breadcrumbs([['Assets', '/assets'], [CLASS_LABEL[cls].many, directoryHref(cls)], [`${a.name} (${a.symbol})`]])]} />
       <TrackView kind="asset" title={`${a.name} (${a.symbol})`} href={assetHref(a)} />
       <header>
         <Breadcrumbs items={[['Assets', '/assets'], [CLASS_LABEL[cls].many, `/assets/${cls === 'stock' ? 'stocks' : CLASS_PATH[cls]}`], [a.symbol]]} />
@@ -76,7 +78,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
             )}
             <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"><DataStatus meta={a.meta} />{market && <span className="text-xs text-faint">Session: {SESSION_LABEL[market.session].toLowerCase()}{market.holidayName && ` (${market.holidayName})`}</span>}{inr != null && cls !== 'index' && cls !== 'fx' && <span className="num text-xs text-faint">≈ {money(inr, 'INR')}</span>}</p>
           </div>
-          <div className="flex flex-wrap gap-2"><WatchButton asset={lite} /><AlertButton asset={lite} /><CompareButton asset={lite} /><Link href="#research" className="inline-flex h-10 items-center rounded-ctl bg-brand px-4 font-medium text-white transition-colors hover:bg-brand-ink">Research</Link></div>
+          <div className="flex flex-wrap gap-2"><WatchButton asset={lite} /><AlertButton asset={lite} /><CompareButton asset={lite} />{cls === 'etf' ? <Link href={`${assetHref(a)}/review`} className="inline-flex h-10 items-center rounded-ctl bg-brand px-4 font-medium text-white transition-colors hover:bg-brand-ink">Eight-step review</Link> : <Link href="#research" className="inline-flex h-10 items-center rounded-ctl bg-brand px-4 font-medium text-white transition-colors hover:bg-brand-ink">Research</Link>}</div>
         </div>
       </header>
 

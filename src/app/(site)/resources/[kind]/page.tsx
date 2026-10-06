@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { StatusBadge, STATUS_LABEL } from '@/components/ui/data-status';
-import { Badge, EmptyState, PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
+import { Badge, EmptyState, PageContainer, PageHeader, Panel, Section } from '@/components/ui/primitives';
 import { GlossaryList } from '@/features/site/glossary';
 import { cn, dateShort } from '@/lib/format';
 import { assetHref, marketHref } from '@/lib/routes';
 import type { CalendarEvent, DataStatus } from '@/lib/types';
-import { GLOSSARY, LEARN } from '@/services/content';
+import { VideoModule } from '@/features/media/video-module';
+import { learnHref } from '@/lib/routes';
+import { definedTermSet, JsonLd } from '@/lib/structured-data';
+import { getGlossary, getLearnArticles, getVideos } from '@/services/content';
 import * as md from '@/services/market-data';
 
 const TITLES: Record<string, [string, string]> = {
@@ -52,17 +55,22 @@ export default async function ResourcePage({ params, searchParams }: Props) {
     const tone = { earnings: 'brand', dividend: 'up', ipo: 'warn', holiday: 'neutral', macro: 'down' } as const;
     body = group(events.filter((e) => e.date >= new Date().toISOString().slice(0, 10))).map(([label, l]) => <Panel key={label} title={label} sub={`${l.length} events`} flush>{l.map((e) => <div key={e.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0"><span className="num w-[86px] shrink-0 text-xs font-semibold text-slate2">{dateShort(e.date)}</span><Badge tone={tone[e.kind]} className="w-[68px] justify-center">{e.kind}</Badge><span className="min-w-0 flex-1">{e.assetSlug && e.assetCls ? <Link className="font-medium hover:text-brand-ink" href={assetHref({ cls: e.assetCls, slug: e.assetSlug })}>{e.title}</Link> : <span className="font-medium">{e.title}</span>}<span className="block truncate text-xs text-faint">{e.detail}</span></span></div>)}</Panel>);
   } else if (kind === 'learn') {
-    const sections = [...new Set(LEARN.map((l) => l.section))];
-    body = sections.map((s) => <section key={s}><h2 className="mb-3 text-lg font-bold">{s}</h2><div className="grid gap-3 lg:grid-cols-2">{LEARN.filter((l) => l.section === s).map((l) => <article key={l.slug} id={l.slug} className="prose-doc rounded-card border border-line bg-white p-5"><h3 className="text-base font-bold">{l.title}</h3><p className="!mb-2 !text-sm font-medium !text-navy">{l.summary}</p>{l.body.map((p, i) => <p key={i} className="!text-sm">{p}</p>)}</article>)}</div></section>);
+    const [learn, videos] = await Promise.all([getLearnArticles(), getVideos()]);
+    const sections = [...new Set(learn.map((l) => l.section))];
+    body = (<>
+      <Section title="Tutorials"><div className="grid gap-4 md:grid-cols-3">{videos.map((v) => <VideoModule key={v.id} video={v} compact />)}</div></Section>
+      {sections.map((s) => <section key={s}><h2 className="mb-3 text-lg font-bold">{s}</h2><div className="grid gap-3 md:grid-cols-2">{learn.filter((l) => l.section === s).map((l) => <Link key={l.slug} href={learnHref(l.slug)} className="card-link p-4"><h3 className="text-base font-bold">{l.title}</h3><p className="mt-1 text-[13px] text-slate2">{l.summary}</p><p className="mt-2 text-xs font-semibold text-brand-ink">Read the explainer</p></Link>)}</div></section>)}
+    </>);
   } else if (kind === 'glossary') {
-    body = <GlossaryList terms={GLOSSARY} />;
+    const terms = await getGlossary();
+    body = <><JsonLd data={definedTermSet(terms)} /><GlossaryList terms={terms} /></>;
   } else {
     const markets = await md.getMarkets();
     body = (<>
       <Panel title="Data status" flush footer="Every market-data module carries one of these, with an exact timestamp. Hover or focus a status to see its source."><Table head={['Status', 'Meaning', 'What you see']}>{STATUS_HELP.map(([s, m, w]) => <tr key={s}><td className="border-b border-line px-4 py-2.5"><StatusBadge status={s} /><span className="sr-only">{STATUS_LABEL[s]}</span></td><td className="border-b border-line px-4 py-2.5 text-right text-slate2 sm:text-left">{m}</td><td className="border-b border-line px-4 py-2.5 text-right text-slate2">{w}</td></tr>)}</Table></Panel>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <article className="prose-doc rounded-card border border-line bg-white px-5 py-4">
-          <h2 className="!mt-0">Current data source</h2><p>This environment runs on <b>{markets[0].meta.source}</b>. Demo values are realistic in shape and scale and do not reflect current market prices. A “Demo data” label appears in the header while the demo provider is active.</p>
+          <h2 className="!mt-0" id="data-source">Current data source</h2><p>This environment runs on <b>{markets[0].meta.source}</b>. Demo values are realistic in shape and scale and do not reflect current market prices. A “Demo data” label appears in the header while the demo provider is active.</p>
           <h2>Architecture</h2><p>The interface reads normalized assets and markets from the INRGIFT API. Behind the API, a data service calls a provider through one interface, with a fallback chain of primary, secondary and last-known-good. No screen depends on a vendor’s field names.</p>
           <h2>Identity</h2><p>Every instrument has an immutable internal identifier. Tickers belong to listings, so a company listed on two exchanges, or as a depositary receipt, is linked through one issuer.</p>
           <h2>Quality checks</h2><p>Price series are checked for consistent open, high, low and close values, non-negative volume, valid and ordered timestamps, duplicates and unadjusted jumps. Rows that fail are quarantined and never shown.</p>
@@ -77,5 +85,5 @@ export default async function ResourcePage({ params, searchParams }: Props) {
       <Panel title="Coverage" sub={`${markets.length} markets`} flush><Table head={['Market', 'Exchanges (MIC)', 'Time zone', 'Entitlement', 'Status now']}>{markets.map((m) => <tr key={m.id}><td className="border-b border-line px-4 py-2"><Link className="link font-semibold" href={marketHref(m.slug)}>{m.name}</Link></td><td className={cell}>{m.exchanges.map((e) => e.mic).join(' · ')}</td><td className={cell}>{m.exchanges[0].timezone}</td><td className={cell}>{m.feed === 'LIVE' ? 'Real time' : '15 min delayed'}</td><td className={cell}><StatusBadge status={m.dataStatus} /></td></tr>)}</Table></Panel>
     </>);
   }
-  return (<PageContainer><PageHeader crumbs={[['Resources', '/resources/news'], [title]]} title={title} lead={lead} />{body}</PageContainer>);
+  return (<PageContainer><PageHeader crumbs={[['Resources', '/resources'], [title]]} title={title} lead={lead} />{body}</PageContainer>);
 }
