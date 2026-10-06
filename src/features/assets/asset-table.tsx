@@ -2,6 +2,7 @@
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
+import { AssetLogo } from '@/components/ui/asset-logo';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/data-status';
 import { Change, EmptyState } from '@/components/ui/primitives';
@@ -15,7 +16,7 @@ import type { Asset, MetricKey } from '@/lib/types';
 export function AssetIdentity({ asset, sub }: { asset: Asset; sub?: ReactNode }) {
   return (
     <Link href={assetHref(asset)} className="group flex min-w-[170px] items-center gap-2.5 text-navy">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-hover font-display text-[10px] font-bold text-slate2">{asset.symbol.replace(/[^A-Z0-9]/gi, '').slice(0, 5)}</span>
+      <AssetLogo asset={asset} size={36} className="rounded-lg text-[10px]" />
       <span className="min-w-0">
         <span className="block max-w-[220px] truncate font-semibold transition-colors group-hover:text-brand-ink">{asset.name}</span>
         <span className="block truncate text-[11px] text-faint">{sub ?? `${asset.symbol} · ${asset.exchange} · ${asset.cls === 'stock' ? asset.sector : CLASS_LABEL[asset.cls].one}`}</span>

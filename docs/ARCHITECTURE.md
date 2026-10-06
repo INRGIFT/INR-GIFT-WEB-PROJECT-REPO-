@@ -18,7 +18,7 @@ Private data: Client → `useWorkspace()` → `WorkspaceRepo` → Supabase (RLS)
 src/app/(site)        public routes            src/app/(workspace)  workspace, account, notifications
 src/app/(auth)        auth and onboarding      src/app/api/contact  contact form endpoint
 src/app/api/v1        read API router          src/app/api/internal protected ingestion
-src/app/auth/callback Supabase code exchange   src/middleware.ts    session refresh + route guard
+src/app/auth/{callback,confirm} code / token-hash   src/middleware.ts    session refresh + route guard
 src/components/ui     primitives               src/components/layout shells
 src/features/*        assets, auth, charts, compare, heatmap, markets, screener, search, site, workspace
 src/lib               types, format, metrics, routes, config, calendar, validation, treemap, rng, rate-limit, use-api

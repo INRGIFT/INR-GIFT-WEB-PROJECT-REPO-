@@ -122,3 +122,17 @@ test('error and unavailable states render without breaking the page', async ({ p
   expect(res.status()).toBe(404);
   expect((await res.json()).error.code).toBe('NOT_FOUND');
 });
+
+test('stock and ETF logos fall back to ticker tiles and never show a broken image', async ({ page }) => {
+  // The logo CDN is stubbed: one logo loads, every other request fails. Runs whether or not a logo provider is configured.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://img.logo.dev/**', (r) => (r.request().url().includes('/ticker/AAPL?') ? r.fulfill({ status: 200, contentType: 'image/png', body: png }) : r.fulfill({ status: 404, body: '' })));
+  await page.goto('/assets/stocks');
+  await expect(page.getByRole('link', { name: /Apple/ }).first()).toBeVisible();
+  await page.mouse.wheel(0, 4000);
+  await page.waitForLoadState('networkidle');
+  const broken = await page.$$eval('img', (imgs) => imgs.filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src));
+  expect(broken).toEqual([]);
+  // Every row keeps a readable ticker tile under (or instead of) the logo.
+  await expect(page.getByRole('link', { name: /Microsoft/ }).first()).toContainText('MSFT');
+});

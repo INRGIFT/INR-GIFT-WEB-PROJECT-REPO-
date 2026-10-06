@@ -11,14 +11,22 @@ export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
   let authed = false;
   if (isSupabaseConfigured) {
-    const supabase = createServerClient(app.supabaseUrl, app.supabaseAnonKey, {
+    const supabase = createServerClient(app.supabaseUrl, app.supabaseKey, {
       cookies: {
         getAll: () => req.cookies.getAll(),
-        setAll: (list: { name: string; value: string; options: CookieOptions }[]) => { res = NextResponse.next({ request: req }); list.forEach(({ name, value, options }) => res.cookies.set(name, value, options)); },
+        setAll: (list: { name: string; value: string; options: CookieOptions }[], headers?: Record<string, string>) => {
+          list.forEach(({ name, value }) => req.cookies.set(name, value));
+          res = NextResponse.next({ request: req });
+          list.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+          // Cache-Control / Expires / Pragma that stop a CDN from caching a response carrying a refreshed session.
+          Object.entries(headers ?? {}).forEach(([k, v]) => res.headers.set(k, v));
+        },
       },
     });
-    // getUser() validates the token with Supabase; never trust getSession() alone on the server.
-    authed = Boolean((await supabase.auth.getUser()).data.user);
+    // getClaims() verifies the JWT (locally with asymmetric signing keys, otherwise against Auth).
+    // Never trust getSession() on the server. Nothing may run between client creation and this call.
+    const { data } = await supabase.auth.getClaims();
+    authed = Boolean(data?.claims?.sub);
   } else {
     authed = req.cookies.get(DEMO_SESSION_COOKIE)?.value === '1';
   }
@@ -27,7 +35,11 @@ export async function middleware(req: NextRequest) {
       const url = req.nextUrl.clone();
       url.pathname = '/login';
       url.search = `?next=${encodeURIComponent(req.nextUrl.pathname)}`;
-      return NextResponse.redirect(url);
+      // Carry any cookies the refresh wrote (for example a cleared session) and their cache headers onto the redirect.
+      const redirect = NextResponse.redirect(url);
+      res.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+      ['cache-control', 'expires', 'pragma'].forEach((h) => { const v = res.headers.get(h); if (v) redirect.headers.set(h, v); });
+      return redirect;
     }
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
     res.headers.set('Cache-Control', 'private, no-store');

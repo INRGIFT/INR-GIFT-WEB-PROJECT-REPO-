@@ -1,10 +1,12 @@
-import { config } from '@/lib/config';
+import { config, type ProviderKind } from '@/lib/config';
 import { DemoProvider } from './demo';
 import type { MarketDataProvider } from './provider';
 import { ProviderError } from './provider';
+import { NSEMarketDataProvider } from './nse';
+import { createNseSource } from './nse/source';
 import { RealProvider } from './real';
 
-const make = (kind: 'demo' | 'real'): MarketDataProvider => (kind === 'real' ? new RealProvider() : new DemoProvider());
+const make = (kind: ProviderKind): MarketDataProvider => (kind === 'nse' ? new NSEMarketDataProvider(createNseSource()) : kind === 'real' ? new RealProvider() : new DemoProvider());
 
 /** Last-known-good cache, keyed by method + arguments. Records provenance so the UI can label the result STALE. */
 const lastGood = new Map<string, { value: unknown; at: number; source: string }>();

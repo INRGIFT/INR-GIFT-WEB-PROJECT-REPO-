@@ -1,0 +1,9 @@
+<!-- Supabase Auth → Email Templates → "Reset password". Subject: Reset your INRGIFT password -->
+<!-- Text wordmark only: no logo image until official INRGIFT brand assets are supplied. -->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#071A33">
+  <p style="font-size:20px;font-weight:800;letter-spacing:-0.02em;margin:0 0 24px">INRGIFT</p>
+  <h1 style="font-size:20px;margin:0 0 12px">Reset your password</h1>
+  <p style="font-size:15px;line-height:1.5;color:#4A5770;margin:0 0 20px">We received a request to reset the password for {{ .Email }}. The link works once and expires soon.</p>
+  <p style="margin:0 0 20px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password" style="display:inline-block;background:#245BFE;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:10px 18px;border-radius:8px">Choose a new password</a></p>
+  <p style="font-size:13px;line-height:1.5;color:#6F7C93;margin:0">If you did not ask for this, ignore this email; your password stays the same.</p>
+</div>

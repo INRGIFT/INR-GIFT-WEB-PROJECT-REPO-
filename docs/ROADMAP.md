@@ -2,7 +2,7 @@
 
 Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md`.
 
-## Done (typecheck, 31 unit/API tests, 5 Playwright journeys on desktop and Pixel 7, build)
+## Done (typecheck, 37 unit/API tests, 6 Playwright journeys on desktop and Pixel 7, local RLS tests, build)
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -28,14 +28,19 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
   demo-data indexing guard.
 - **Media:** three captioned tutorial recordings of the product with chapters, transcripts and posters.
 - **Migrations:** 0001 workspace, 0002 market data, 0003 collections/alert notes/notification refs,
-  0004 support requests (insert-only).
+  0004 support requests (insert-only), 0005 server-owned phone verification. `npm run test:db` applies all of them to
+  a local Postgres and runs the RLS suite.
+- **Connectors (docs/CONNECTORS.md):** Supabase on `@supabase/ssr` 0.12 with publishable key, `getClaims()`
+  middleware, `/auth/confirm` token-hash route and email templates; NSE source adapter + `NSEMarketDataProvider`
+  (not connected); LogoProvider (Logo.dev or none) with ticker-tile fallback and attribution.
 
 ## Not done — next, in order
-1. **Supabase for real:** create the project, run 0001–0004, enable phone (SMS provider) and TOTP, configure email
-   templates and redirect URLs, set env, and run `e2e/journey.spec.ts` against it. None of this has been executed.
+1. **Supabase for real:** create the project, run 0001–0005, enable phone (SMS provider) and TOTP, paste the email
+   templates, set custom SMTP (Resend), redirect URLs, env, and run `e2e/journey.spec.ts` against it. None of this has been executed.
 2. **Server-side alert job:** run `evaluateAlert` (src/lib/alerts.ts) on a schedule with the service role, write
    notifications and send email for `channel = 'email'`. Today alerts are evaluated in the browser while INRGIFT is open.
-3. **Real provider** (`docs/PROVIDERS.md`) and ingestion persistence for `/api/internal/ingest`; entitlement checks.
+3. **NSE** (`docs/CONNECTORS.md`): implement `NseSource` against the licensed spec, load the security master,
+   implement `NseInstrumentMap`; move editorial research/themes/calendar out of DemoProvider; ingestion persistence for `/api/internal/ingest`; entitlement checks.
 4. **Caching:** `(site)` routes are dynamic; add revalidated provider reads and Suspense streaming per module.
 5. **Depth:** index constituents from the provider; MACD/ATR/VWAP; chart drawing tools, zoom and pan;
    saved-screen history; table virtualization once the universe is large.
@@ -54,5 +59,5 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
 - Social card uses the default sans font (Satori cannot read woff2).
 
 ## Blockers needing the owner
-Supabase project and keys · SMS provider for phone OTP · email provider for alert email · market-data vendor and
-licence · official logo · lawyer-reviewed legal text and grievance officer.
+Supabase project and keys · SMS provider for phone OTP · Resend key and verified domain · NSE product, licence and
+credentials · official INRGIFT logo files · Logo.dev key · production domain and hosting choice · lawyer-reviewed legal text and grievance officer.

@@ -5,7 +5,7 @@ import { ProviderError } from '../provider';
  * Connection point for a licensed market-data vendor. See docs/PROVIDERS.md.
  *
  * To connect a vendor:
- *  1. Read credentials from process.env.MARKET_DATA_API_KEY / MARKET_DATA_BASE_URL (server only).
+ *  1. Read the vendor's credentials from server-only environment variables (never NEXT_PUBLIC_*) and add them to .env.example.
  *  2. Implement each method below by calling the vendor and mapping its payload to the
  *     normalized types in src/lib/types.ts. Map vendor symbols to internal instrument ids
  *     through the `listings.provider_symbol` column (supabase/migrations/0002_market_data.sql).

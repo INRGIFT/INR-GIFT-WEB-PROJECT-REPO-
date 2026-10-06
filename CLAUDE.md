@@ -19,6 +19,7 @@ cash balances. No such table, type, component, nav item, CTA or copy. Alerts not
 | Tokens, type, components | `docs/DESIGN-SYSTEM.md` |
 | IA, routes, flows, states, responsive | `docs/UX-SYSTEM.md` |
 | Layers, folders, provider swap | `docs/ARCHITECTURE.md`, `docs/PROVIDERS.md` |
+| External services (NSE, Supabase, logos, email, domain) | `docs/CONNECTORS.md` |
 | Types and SQL schema | `docs/DATA-MODEL.md` |
 | `/api/v1` contract | `docs/API-CONTRACT.md` |
 | Supabase auth, RLS, security | `docs/AUTH-SECURITY.md` |
@@ -32,6 +33,7 @@ npm install
 npm run dev          # http://localhost:3000, runs with no env vars (demo data + demo auth)
 npm run typecheck    # must pass before every commit
 npm test             # vitest
+npm run test:db      # all migrations + RLS tests on a throwaway local Postgres
 npm run build        # must pass before every commit
 npm run test:e2e     # Playwright journeys in e2e/ (E2E_BASE_URL to reuse a server, PW_CHROMIUM_PATH for a local Chromium)
 ```
@@ -71,10 +73,7 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 
 ## Current state in one paragraph
 
-The documented product scope is built and runs with no configuration: every public route, the auth flow
-(`(auth)`), account pages, the full workspace (watchlists, alerts with an evaluator, notifications, screens,
-comparisons, research, notes, collections, history), resources with learn and glossary detail pages, the eight-step
-ETF review, SEO (robots, sitemaps, JSON-LD, OG) and captioned product tutorials. It has been audited in a browser at
-desktop, tablet and phone widths (`docs/AUDIT.md`). What is **not** done is anything needing an external account:
-Supabase has never been connected, SMS and email are not configured, and there is no live market-data vendor.
-Start with `docs/ROADMAP.md`.
+Public product, auth pages, account and workspace pages, static pages, SEO and media are built and tested (vitest,
+Playwright on desktop and mobile, local RLS suite). The app still runs on DemoProvider and demo auth: no Supabase
+project, NSE product, Logo.dev key, SMTP or production domain has been connected, and official INRGIFT brand files
+have not been supplied (the current mark is an interim placeholder). Details: `docs/ROADMAP.md`, `docs/CONNECTORS.md`.

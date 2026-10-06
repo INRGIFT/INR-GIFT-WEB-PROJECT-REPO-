@@ -5,6 +5,7 @@ import { isDemoData } from '@/lib/config';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { AssetLogo } from '@/components/ui/asset-logo';
 import { DataStatus, statusLine } from '@/components/ui/data-status';
 import { Badge, Bar, Breadcrumbs, Change, EmptyState, Metric, MetricGrid, PageContainer, Panel } from '@/components/ui/primitives';
 import { ChartShell } from '@/features/charts/chart-shell';
@@ -70,7 +71,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-ctl bg-hover font-display text-[11px] font-bold text-slate2">{a.symbol.replace(/[^A-Z0-9]/gi, '').slice(0, 5)}</span>
+              <AssetLogo asset={{ symbol: a.symbol, name: a.name, mic: a.mic, cls: a.cls }} size={44} className="rounded-ctl text-[11px]" />
               <div className="min-w-0"><h1 className="text-2xl font-extrabold md:text-[28px]">{a.name}</h1><p className="text-slate2">{a.symbol} · {a.exchange}{market && <> · <Link className="link" href={marketHref(market.slug)}>{market.name}</Link></>} · {a.currency} · {cls === 'stock' ? a.industry : cls === 'etf' ? `${a.etf!.strategy} ETF` : CLASS_LABEL[cls].one}</p></div>
             </div>
             {a.price == null ? <p className="mt-4 font-display text-xl font-bold text-slate2">Price unavailable</p> : (

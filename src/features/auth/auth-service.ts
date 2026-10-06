@@ -70,7 +70,7 @@ const supabaseAdapter = (): AuthAdapter => {
     async verifyPhoneOtp(phone, code, purpose) {
       const { error } = await sb.auth.verifyOtp({ phone, token: code, type: purpose === 'login' ? 'sms' : 'phone_change' });
       if (error) throw friendly(error);
-      if (purpose === 'verify') { const { data } = await sb.auth.getUser(); if (data.user) await sb.from('profiles').update({ phone_verified: true }).eq('user_id', data.user.id); }
+      // profiles.phone_verified mirrors auth.users.phone_confirmed_at via a database trigger (migration 0005); the client never writes it.
       return { mfaRequired: await needsMfa() };
     },
     async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${origin()}/auth/callback?next=/reset-password` }); if (error) throw friendly(error); },
