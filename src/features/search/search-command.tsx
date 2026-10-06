@@ -78,7 +78,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
                 }} />
               {state === 'loading' && <span className="text-xs text-faint" role="status">Searching</span>}
             </div>
-            <div id="search-results" role="listbox" className="overflow-auto p-1.5">
+            <div id="search-results" role="listbox" aria-label="Search results" className="overflow-auto p-1.5">
               {state === 'error' && <p role="alert" className="px-3 py-6 text-center text-slate2">Search is not responding. Check your connection and type again.</p>}
               {state !== 'error' && q.trim() && res && !flat.length && (
                 <div className="px-3 py-6 text-center"><p className="font-display font-bold">No results for “{q}”</p><p className="mt-1 text-slate2">Try a ticker such as AAPL, a company name, a market such as Japan, or browse instead.</p><div className="mt-3 flex justify-center gap-2 text-[13px]">{[['Screener', '/discover/screener'], ['All markets', '/markets/all'], ['Collections', '/discover/collections']].map(([l, h]) => <button key={h} type="button" className="link" onClick={() => go({ label: l, hint: '', href: h })}>{l}</button>)}</div></div>

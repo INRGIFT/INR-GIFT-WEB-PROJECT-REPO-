@@ -141,4 +141,4 @@ export interface WorkspaceTables {
   collections: { id: string; name: string; description: string; instrument_ids: string[]; created_at: string };
 }
 export type TableName = keyof WorkspaceTables;
-export interface UserPrefs { currency: 'LOCAL' | 'INR'; timezone: string; locale: string; regions: string[]; assetClasses: string[]; themes: string[]; notifyEmail: boolean; notifyInApp: boolean }
+export interface UserPrefs { currency: 'LOCAL' | 'INR'; timezone: string; locale: string; regions: string[]; assetClasses: string[]; themes: string[]; notifyEmail: boolean; notifyInApp: boolean; onboardedAt?: string | null }

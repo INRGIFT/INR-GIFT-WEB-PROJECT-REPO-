@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { config as app, DEMO_SESSION_COOKIE, isSupabaseConfigured } from '@/lib/config';
 
 const PRIVATE = /^\/(app|account|notifications|onboarding)(\/|$)/;
+/** Auth screens are public but never indexed. */
+const NOINDEX = /^\/(login|signup|verify|verify-phone|mfa|forgot-password|reset-password)(\/|$)/;
 
 /** Refreshes the Supabase session cookie on every request and guards private routes. */
 export async function middleware(req: NextRequest) {
@@ -30,6 +32,7 @@ export async function middleware(req: NextRequest) {
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
     res.headers.set('Cache-Control', 'private, no-store');
   }
+  if (NOINDEX.test(req.nextUrl.pathname)) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return res;
 }
 export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|api/).*)'] };

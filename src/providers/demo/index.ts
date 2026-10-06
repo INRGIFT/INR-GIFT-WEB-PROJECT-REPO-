@@ -226,9 +226,9 @@ export class DemoProvider implements MarketDataProvider {
       const a = find(slug)!;
       docs.push({ id: `res_e${i}`, slug: slug.toLowerCase(), kind: 'etfs', type: 'Structured research', title: `${a.symbol}: an eight-step review of cost, liquidity and holdings`, summary: `${a.name} examined against the INRGIFT ETF framework.`, topic: a.etf!.strategy, publishedAt: day(i + 2), assetSlug: a.slug, assetCls: 'etf', assetSymbol: a.symbol, marketId: a.marketId,
         sections: [
-          { heading: 'Objective and cost', body: `The fund tracks the ${a.etf!.benchmark} index. Its expense ratio is ${a.m.expenseRatio}%, which is about ₹${Math.round((a.m.expenseRatio ?? 0) * 1000)} a year for every ₹10,00,000 held, before brokerage and currency costs.` },
+          { heading: 'Objective and cost', body: `The fund tracks the ${a.etf!.benchmark} index. Its expense ratio is ${a.m.expenseRatio}%, which is about ₹${Math.round((a.m.expenseRatio ?? 0) * 1000)} a year for every ₹10,00,000 held, before transaction and currency costs.` },
           { heading: 'Size and liquidity', body: `Assets of $${((a.m.aum ?? 0) / 1e9).toFixed(0)} billion and average volume of ${((a.m.volume ?? 0) / 1e6).toFixed(1)} million shares a day. Larger funds are less likely to close and usually trade with tighter spreads.` },
-          { heading: 'Holdings and allocation', body: `${a.m.holdingsCount} positions. ${ETF_SECTORS[slug] ? `The largest sector weight is ${ETF_SECTORS[slug][0][0]} at ${ETF_SECTORS[slug][0][1]}%.` : ''} Concentration above 30% in one sector deserves a closer look.` },
+          { heading: 'Holdings and allocation', body: `${a.m.holdingsCount} holdings. ${ETF_SECTORS[slug] ? `The largest sector weight is ${ETF_SECTORS[slug][0][0]} at ${ETF_SECTORS[slug][0][1]}%.` : ''} Concentration above 30% in one sector deserves a closer look.` },
           { heading: 'Performance and risk', body: `One-year return of ${a.m.y1}% with 30-day volatility of ${a.m.volatility}% and a three-year maximum drawdown of ${a.m.maxDrawdown}%.` },
         ] });
     }

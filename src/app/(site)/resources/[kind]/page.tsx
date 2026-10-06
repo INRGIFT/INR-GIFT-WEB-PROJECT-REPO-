@@ -71,7 +71,7 @@ export default async function ResourcePage({ params, searchParams }: Props) {
           <h2 className="!mt-0">Unavailable and not applicable</h2><p>A dash means the source has no value for a metric. “n/a” means the metric does not apply to that asset class. INRGIFT does not substitute zeros.</p>
           <h2>Market hours</h2><p>Session status comes from each exchange’s own calendar: time zone, regular hours, breaks, holidays and early closes. Hours are converted to IST for display.</p>
           <h2>India context</h2><p>INR values use a reference rate per currency and are approximate. Market cap can be shown in lakh crore.</p>
-          <h2>Research</h2><p>Research notes describe data. They contain no buy or sell ratings and no price targets, and are not investment advice.</p>
+          <h2>Research</h2><p>Research notes describe data. They contain no ratings and no price targets, and are not investment advice.</p>
         </article>
       </div>
       <Panel title="Coverage" sub={`${markets.length} markets`} flush><Table head={['Market', 'Exchanges (MIC)', 'Time zone', 'Entitlement', 'Status now']}>{markets.map((m) => <tr key={m.id}><td className="border-b border-line px-4 py-2"><Link className="link font-semibold" href={marketHref(m.slug)}>{m.name}</Link></td><td className={cell}>{m.exchanges.map((e) => e.mic).join(' · ')}</td><td className={cell}>{m.exchanges[0].timezone}</td><td className={cell}>{m.feed === 'LIVE' ? 'Real time' : '15 min delayed'}</td><td className={cell}><StatusBadge status={m.dataStatus} /></td></tr>)}</Table></Panel>

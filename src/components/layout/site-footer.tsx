@@ -14,7 +14,7 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-slate2">Global markets, understood from India.</p>
-          <p className="mt-4 max-w-sm text-xs leading-relaxed text-faint">INRGIFT is a research and information platform. It is not a broker or an investment adviser, does not execute transactions and does not hold client funds. Nothing here is a recommendation.</p>
+          <p className="mt-4 max-w-sm text-xs leading-relaxed text-faint">INRGIFT is a research and information platform. It is not a broker or an investment adviser and does not hold client funds. Nothing here is a recommendation.</p>
         </div>
         {COLS.map(([title, links]) => (
           <nav key={title} aria-label={title}>

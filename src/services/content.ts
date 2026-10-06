@@ -39,8 +39,8 @@ export const FAQ: { category: string; q: string; a: string }[] = [
   { category: 'Data', q: 'What do Live, Delayed and End of day mean?', a: 'They describe freshness. Live is within seconds of the exchange, Delayed is typically 15 minutes behind, End of day is the official close. The full list is on the Data and methodology page.' },
   { category: 'Markets', q: 'Which markets are covered?', a: 'The markets directory lists every covered market with its exchanges, currency, hours in IST and data status. Coverage comes from configuration, so the list grows as data sources are added.' },
   { category: 'Assets', q: 'Why do some metrics show a dash or n/a?', a: 'A dash means the source has no value for that metric. n/a means the metric does not apply to that kind of asset, such as a P/E ratio for a gold fund. INRGIFT does not fill gaps with zeros.' },
-  { category: 'Research', q: 'Does INRGIFT tell me what to buy?', a: 'No. Research describes data and context. There are no buy or sell ratings and no price targets.' },
-  { category: 'Research', q: 'Can I trade through INRGIFT?', a: 'No. INRGIFT is a research and information platform. It is not a broker and it does not place orders or hold funds.' },
+  { category: 'Research', q: 'Does INRGIFT make recommendations?', a: 'No. Research describes data and context. There are no ratings, no price targets and no personal recommendations.' },
+  { category: 'Research', q: 'Is INRGIFT a broker?', a: 'No. INRGIFT is a research and information platform. It does not hold funds or act on your behalf, and it is not an investment adviser.' },
   { category: 'Security', q: 'Who can see my watchlists and notes?', a: 'Only you. Private data is stored with row-level security so each row is readable only by the account that owns it.' },
   { category: 'Pricing', q: 'What does INRGIFT cost?', a: 'It is free today. Paid plans for deeper data and research are planned and will be listed on the pricing page before they launch.' },
 ];

@@ -12,7 +12,7 @@ export default async function ResearchHub() {
   const [docs, news] = await Promise.all([md.getResearch(), md.getNews({ limit: 5 })]);
   return (
     <PageContainer>
-      <PageHeader title="Research" lead="Structured notes that describe data and context. INRGIFT publishes no buy or sell ratings and no price targets." />
+      <PageHeader title="Research" lead="Structured notes that describe data and context. INRGIFT publishes no ratings and no price targets." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{KINDS.map(([k, t, d]) => <Link key={k} href={`/research/${k}`} className="rounded-card border border-line bg-white p-4 transition-[border-color,box-shadow] duration-150 hover:border-brand hover:shadow-card"><h2 className="text-base font-bold">{t}</h2><p className="mt-0.5 text-[13px] text-slate2">{d}</p><p className="mt-2.5 text-xs text-faint">{docs.filter((x) => x.kind === k).length} notes</p></Link>)}</div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel title="Latest" flush><ResearchList docs={docs.slice(0, 10)} /></Panel>

@@ -21,7 +21,7 @@ const Query = z.object({
   range: z.enum(['1D', '5D', '1M', '3M', '6M', 'YTD', '1Y', '3Y', '5Y', 'MAX']).default('1Y'),
   kind: z.string().max(20).optional(),
   universe: z.enum(['all', 'stock', 'etf', 'reit']).default('all'),
-  ids: z.string().max(400).optional(),
+  ids: z.string().max(4000).optional(),
 });
 type Q = z.infer<typeof Query>;
 const ID = /^[A-Za-z0-9._%-]{1,40}$/;

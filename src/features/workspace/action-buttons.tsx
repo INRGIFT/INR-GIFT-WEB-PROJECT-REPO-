@@ -4,17 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button, IconButton, buttonClass } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
-import { InlineError } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
-import { cn, money } from '@/lib/format';
+import { cn } from '@/lib/format';
 import { assetHref } from '@/lib/routes';
 import type { Asset } from '@/lib/types';
+import { AlertDialog } from './alert-dialog';
 import { useWorkspace } from './workspace-context';
 
 type Lite = Pick<Asset, 'id' | 'symbol' | 'name' | 'slug' | 'cls' | 'price' | 'currency'>;
-export const ALERT_KINDS = [['price_above', 'Price rises above', true], ['price_below', 'Price falls below', true], ['pct_move', 'Daily move exceeds (%)', true], ['high_52w', 'Reaches a 52-week high', false], ['low_52w', 'Reaches a 52-week low', false], ['valuation', 'P/E falls below', true], ['earnings', 'Earnings date is announced', false], ['dividend', 'Dividend is declared', false], ['news', 'News is published', false], ['research', 'Research is updated', false]] as const;
-export const alertLabel = (kind: string, threshold: number | null) => { const k = ALERT_KINDS.find((x) => x[0] === kind); return k ? `${k[1]}${threshold != null ? ` ${threshold}` : ''}` : kind; };
+export { ALERT_KINDS, alertLabel } from '@/lib/alerts';
 
 export function WatchButton({ asset, compact }: { asset: Lite; compact?: boolean }) {
   const ws = useWorkspace();
@@ -45,31 +43,14 @@ export function CompareButton({ asset, compact }: { asset: Lite; compact?: boole
   return <Button onClick={() => add(true)}><Columns2 size={17} />Compare</Button>;
 }
 
-export function AlertButton({ asset, compact, primary }: { asset: Lite; compact?: boolean; primary?: boolean }) {
+export function AlertButton({ asset, compact, primary }: { asset: Lite & { m?: Asset['m'] }; compact?: boolean; primary?: boolean }) {
   const ws = useWorkspace();
-  const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<string>('price_above');
-  const [value, setValue] = useState('');
-  const [error, setError] = useState('');
-  const needs = ALERT_KINDS.find((k) => k[0] === kind)?.[2] ?? false;
-  const start = () => { if (ws.requireAuth()) { setError(''); setOpen(true); } };
-  const save = async () => {
-    const n = Number(value);
-    if (needs && (!value.trim() || Number.isNaN(n) || n <= 0)) return setError('Enter a number greater than zero.');
-    const saved = await ws.add('alerts', { instrument_id: asset.id, kind, threshold: needs ? n : null, status: 'active', channel: 'in_app', last_triggered_at: null });
-    if (saved) { setOpen(false); setValue(''); toast('Alert created'); }
-  };
+  const start = () => { if (ws.requireAuth()) setOpen(true); };
   return (
     <>
       {compact ? <IconButton label={`Create alert for ${asset.name}`} onClick={start}><Bell size={16} /></IconButton> : <Button variant={primary ? 'primary' : 'secondary'} onClick={start}><Bell size={17} />Add alert</Button>}
-      <Dialog open={open} onClose={() => setOpen(false)} title={`Alert for ${asset.symbol}`} footer={<><Button onClick={() => setOpen(false)}>Cancel</Button><Button variant="primary" onClick={save}>Create alert</Button></>}>
-        <p className="text-slate2">{asset.name}{asset.price != null && <> · last {money(asset.price, asset.currency)}</>}</p>
-        <label className="label mt-4" htmlFor="alert-kind">Notify me when</label>
-        <select id="alert-kind" className="field" value={kind} onChange={(e) => { setKind(e.target.value); setError(''); }}>{ALERT_KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</select>
-        {needs && (<><label className="label mt-4" htmlFor="alert-value">Value</label><input id="alert-value" className="field" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={kind.startsWith('price') && asset.price != null ? String(Math.round(asset.price * 1.05 * 100) / 100) : '5'} aria-invalid={Boolean(error)} />{error && <InlineError>{error}</InlineError>}</>)}
-        <p className="mt-3 text-xs text-faint">Alerts notify you inside INRGIFT. They never place an order.</p>
-      </Dialog>
+      <AlertDialog open={open} onClose={() => setOpen(false)} asset={asset} />
     </>
   );
 }

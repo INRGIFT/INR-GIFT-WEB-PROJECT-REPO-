@@ -58,13 +58,15 @@ export function supabaseRepo(): WorkspaceRepo {
     async update(table, id, patch) { const { user_id: _ignored, ...safe } = patch as Record<string, unknown>; fail((await sb.from(table).update(safe).eq('id', id)).error); },
     async remove(table, id) { fail((await sb.from(table).delete().eq('id', id)).error); },
     async getPrefs() {
-      const { data } = await sb.from('user_preferences').select('*').maybeSingle();
-      return data ? { currency: data.currency, timezone: data.timezone, locale: data.locale, regions: data.regions, assetClasses: data.asset_classes, themes: data.themes, notifyEmail: data.notify_email, notifyInApp: data.notify_in_app } : DEFAULT_PREFS;
+      const [{ data }, { data: profile }] = await Promise.all([sb.from('user_preferences').select('*').maybeSingle(), sb.from('profiles').select('onboarded_at').maybeSingle()]);
+      const onboardedAt = (profile?.onboarded_at as string | null) ?? null;
+      return data ? { currency: data.currency, timezone: data.timezone, locale: data.locale, regions: data.regions, assetClasses: data.asset_classes, themes: data.themes, notifyEmail: data.notify_email, notifyInApp: data.notify_in_app, onboardedAt } : { ...DEFAULT_PREFS, onboardedAt };
     },
     async setPrefs(p) {
       const { data } = await sb.auth.getUser();
       if (!data.user) return;
       fail((await sb.from('user_preferences').upsert({ user_id: data.user.id, currency: p.currency, timezone: p.timezone, locale: p.locale, regions: p.regions, asset_classes: p.assetClasses, themes: p.themes, notify_email: p.notifyEmail, notify_in_app: p.notifyInApp, updated_at: new Date().toISOString() })).error);
+      if (p.onboardedAt) fail((await sb.from('profiles').update({ onboarded_at: p.onboardedAt }).eq('user_id', data.user.id)).error);
     },
   };
 }

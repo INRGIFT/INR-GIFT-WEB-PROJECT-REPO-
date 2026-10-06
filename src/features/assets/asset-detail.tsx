@@ -188,7 +188,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
         {inr != null && cls !== 'fx' && cls !== 'index' && <p className="num mt-1.5 text-[13px]">Approximate INR value: <b>{money(inr, 'INR')}</b> <span className="text-faint">(display: <Price asset={a} />)</span></p>}
       </section>
 
-      <AssetNotes instrumentId={a.id} symbol={a.symbol} />
+      <AssetNotes instrumentId={a.id} symbol={a.symbol} name={a.name} />
       <p className="text-xs text-faint">Source: {a.meta.source}. Instrument {a.id}. {statusLine(a.meta)}. <Link href="/resources/data" className="link">Data and methodology</Link>. INRGIFT research describes data and is not a recommendation.</p>
     </PageContainer>
   );
