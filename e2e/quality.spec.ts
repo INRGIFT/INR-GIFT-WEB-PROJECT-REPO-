@@ -78,12 +78,14 @@ test.describe('access: homepage and compliance pages are public', () => {
     expect(JSON.stringify(j)).not.toMatch(/re_|sk_|whsec|secret_key|apikey/i);
     expect((await request.get('/')).headers()['content-security-policy']).toContain("frame-ancestors 'none'");
   });
-  test('homepage shows no market data and leads to sign up and sign in', async ({ page }) => {
+  test('homepage: demo values labelled DEMO and kept out of search snippets; leads to sign up and sign in', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('link', { name: 'Create your account' }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
-    for (const t of ['Global heatmap', 'Market news', 'Upcoming', 'Reference rate']) await expect(page.getByText(t, { exact: true })).toHaveCount(0);
-    await page.getByRole('link', { name: /^Markets/ }).first().click();
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Get Started' })).toHaveAttribute('href', '/signup');
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Sign In' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Global market snapshot' }).getByText(/^◇?Demo data$/).first()).toBeVisible();
+    expect(await page.locator('[data-nosnippet]').count()).toBeGreaterThan(2);
+    for (const t of ['Market news', 'Upcoming', 'Reference rate']) await expect(page.getByText(t, { exact: true })).toHaveCount(0);
+    await page.getByRole('main').getByRole('link', { name: 'Explore Markets' }).first().click();
     await expect(page).toHaveURL(/\/login\?next=%2Fmarkets/);
     await expect(page.getByRole('link', { name: 'Create your account' })).toHaveAttribute('href', '/signup?next=%2Fmarkets');
   });

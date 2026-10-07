@@ -18,15 +18,19 @@ import { ChartToolbar, type ChartKind, type ChartScale } from './chart-toolbar';
 import { useChartSeries, useChartSeriesList } from './use-chart-series';
 
 export interface ChartInstrument { idOrSlug: string; symbol: string; name?: string }
+/** Space between the latest bar and the price axis, px. */
+const RIGHT_GAP = 16;
 export interface FinancialChartProps {
   instrument: ChartInstrument;
   /** A series the server already loaded (public pages pass this and set `fetchable` false). */
   initialSeries?: ChartSeries | null;
+  /** Series the server prepared for several ranges (public homepage): the range switch uses them, with no request. */
+  preloaded?: ChartSeries[];
   /** Load other ranges and comparisons from /api/v1 (signed-in pages). */
   fetchable?: boolean;
   defaultRange?: ChartRange;
   ranges?: ChartRange[];
-  /** full: every control · compact: ranges, type, zoom · hero: chart, header and legend only. */
+  /** full: every control · compact: ranges, type, zoom · hero: chart, header, legend and the prepared periods only. */
   variant?: 'full' | 'compact' | 'hero';
   height?: number;
   /** Offered as a "vs" toggle: switches the chart to change-from-start lines. */
@@ -46,11 +50,14 @@ export interface FinancialChartProps {
  * so nothing ticks. Loading, empty, unavailable, stale, closed-market, unsupported-interval and error states are all
  * explicit, and none of them spins for ever.
  */
-export function FinancialChart({ instrument, initialSeries = null, fetchable = true, defaultRange = '1Y', ranges = RANGES, variant = 'full', height, benchmark = null, compareWith, defaultIndicators, header = 'full', className }: FinancialChartProps) {
+export function FinancialChart({ instrument, initialSeries = null, preloaded, fetchable = true, defaultRange = '1Y', ranges = RANGES, variant = 'full', height, benchmark = null, compareWith, defaultIndicators, header = 'full', className }: FinancialChartProps) {
   const summaryId = useId();
   const [range, setRange] = useState<ChartRange>(initialSeries?.range ?? defaultRange);
+  // Without the API (signed out), only the ranges the server prepared can be offered.
+  const offered = fetchable ? ranges : (preloaded ?? []).map((s) => s.range);
+  const canRange = fetchable || offered.length > 1;
   const [resolution, setResolution] = useState<ChartResolution | null>(null);
-  const [kind, setKind] = useState<ChartKind>(variant === 'hero' ? 'area' : 'candle_solid');
+  const [kind, setKind] = useState<ChartKind>('candle_solid');
   const [scale, setScale] = useState<ChartScale>('normal');
   const [indicators, setIndicators] = useState<IndicatorDef['id'][]>(defaultIndicators ?? (variant === 'full' ? ['VOL'] : []));
   const [benchOn, setBenchOn] = useState(false);
@@ -61,7 +68,7 @@ export function FinancialChart({ instrument, initialSeries = null, fetchable = t
   const [libError, setLibError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  const main = useChartSeries(instrument.idOrSlug, range, resolution, { initial: initialSeries, enabled: fetchable });
+  const main = useChartSeries(instrument.idOrSlug, range, resolution, { initial: preloaded?.find((s) => s.range === range) ?? initialSeries, enabled: fetchable });
   const series = main.series;
   const comparisons = useMemo(() => (compareWith?.length ? compareWith : benchOn && benchmark ? [benchmark] : []), [compareWith, benchOn, benchmark]);
   const relative = comparisons.length > 0;
@@ -130,8 +137,10 @@ export function FinancialChart({ instrument, initialSeries = null, fetchable = t
     chart.setPeriod(periodFor(series.resolution));
     chart.resetData();
     // Show the whole selected period: bar width from the pane width (within KLineChart's limits), latest bar at right.
+    // The right margin is set explicitly: KLineChart's default (80 px) would push the period's first bars off the left.
     const width = chart.getSize('candle_pane', 'main')?.width ?? hostRef.current?.clientWidth ?? 800;
-    chart.setBarSpace(Math.max(1.5, Math.min(24, (width - 24) / (series.bars.length + 1))));
+    chart.setOffsetRightDistance(RIGHT_GAP);
+    chart.setBarSpace(Math.max(1.5, Math.min(24, (width - RIGHT_GAP - 8) / series.bars.length)));
     chart.scrollToRealTime();
     kbdIndex.current = null;
     setHover(null);
@@ -254,7 +263,7 @@ export function FinancialChart({ instrument, initialSeries = null, fetchable = t
         {series && <ChartStatusChips series={series} />}
       </header>
       <ChartToolbar
-        variant={variant} ranges={ranges} range={range} onRange={fetchable ? (r) => { setRange(r); setResolution(null); ev('range', r); } : undefined}
+        variant={variant} ranges={offered} range={range} onRange={canRange ? (r) => { setRange(r); setResolution(null); ev('range', r); } : undefined}
         resolution={series?.resolution ?? '1D'} supported={series?.supported ?? []} onResolution={fetchable ? (r) => { setResolution(r); ev('range', `${range}:${r}`); } : undefined}
         kind={kind} onKind={(k) => { setKind(k); ev('type', k); }} relative={relative} scale={scale} onScale={(s) => { setScale(s); ev('type', `scale:${s}`); }}
         indicators={indicators} onIndicators={(ids) => { setIndicators(ids); ev('overlay', ids.join('+') || 'none'); }} hasVolume={hasVolume}
@@ -285,6 +294,8 @@ export function FinancialChart({ instrument, initialSeries = null, fetchable = t
           <>
             <div ref={hostRef} tabIndex={0} role="group" aria-roledescription="chart" aria-label={`${name}, ${RESOLUTION_LABEL[series.resolution].toLowerCase()} bars. Arrow keys move between bars, plus and minus zoom, Home and End jump.`} aria-describedby={summaryId} onKeyDown={onKey}
               className="w-full rounded-lg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" style={{ height: full ? 'calc(100vh - 220px)' : canvasH, minHeight: 220 }} />
+            {/* Until the chart library has loaded and drawn (slow networks), a skeleton holds the space. */}
+            {!ready && <div aria-hidden className="skeleton pointer-events-none absolute inset-x-2 bottom-2 top-1 rounded-lg sm:inset-x-3" />}
             {(main.loading || others.loading) && <span role="status" className="absolute right-4 top-3 rounded-md bg-white/90 px-2 py-0.5 text-xs font-medium text-slate2 shadow-card">Loading…</span>}
             {main.error && series && <p role="alert" className="px-3 pt-1 text-xs text-down">{main.error.message} Showing the previous view. <button type="button" className="link" onClick={main.reload}>Try again</button></p>}
           </>
@@ -292,7 +303,7 @@ export function FinancialChart({ instrument, initialSeries = null, fetchable = t
         <p id={summaryId} className="sr-only">{series && lastBar ? `${name} ${series.range}: ${series.bars.length} ${RESOLUTION_LABEL[series.resolution].toLowerCase()} bars from ${formatBarTime(series.bars[0].t, series.resolution, series.timezone, 'tooltip')} to ${formatBarTime(lastBar.t, series.resolution, series.timezone, 'tooltip')}. Last close ${num(lastBar.c, series.pricePrecision)} ${series.unit === 'points' ? 'points' : series.currency}. Status: ${series.status}.` : ''}</p>
         <p aria-live="polite" className="sr-only">{announce}</p>
       </div>
-      {series && hasBars && <ChartDataInfo series={series} relative={relative} />}
+      {series && hasBars && <ChartDataInfo series={series} relative={relative} methodology={fetchable} />}
     </section>
   );
 }

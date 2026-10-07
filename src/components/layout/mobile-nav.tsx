@@ -2,14 +2,24 @@
 import { Compass, FileText, Globe2, Home, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from '@/features/auth/session-context';
 import { cn } from '@/lib/format';
 
 const ITEMS = [['Home', '/', Home, /^\/$/], ['Markets', '/markets', Globe2, /^\/(markets|assets|stocks|etfs|indices|fx|commodities|bonds|reits)/], ['Discover', '/discover', Compass, /^\/discover/], ['Research', '/research', FileText, /^\/(research|resources)/], ['Workspace', '/app', User, /^\/(app|account|notifications)/]] as const;
+/**
+ * Bottom tab bar on phones, for signed-in members only: every destination but Home is a product page, so signed out the
+ * header's Sign In and Get Started carry the page instead. A spacer keeps the footer clear of the fixed bar.
+ */
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { user, loading } = useSession();
+  if (loading || !user) return null;
   return (
-    <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-      {ITEMS.map(([label, href, Icon, re]) => { const on = re.test(pathname); return <Link key={href} href={href} aria-current={on ? 'page' : undefined} className={cn('flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors', on ? 'text-brand-ink' : 'text-slate2')}><Icon size={19} strokeWidth={on ? 2.2 : 1.75} />{label}</Link>; })}
-    </nav>
+    <>
+      <div aria-hidden className="h-16 md:hidden" />
+      <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+        {ITEMS.map(([label, href, Icon, re]) => { const on = re.test(pathname); return <Link key={href} href={href} aria-current={on ? 'page' : undefined} className={cn('flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors', on ? 'text-brand-ink' : 'text-slate2')}><Icon size={19} strokeWidth={on ? 2.2 : 1.75} />{label}</Link>; })}
+      </nav>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
 import { cn } from '@/lib/format';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'inverse';
 type Size = 'sm' | 'md' | 'lg';
 const base = 'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-medium transition-[background-color,border-color,transform,box-shadow] duration-150 ease-out active:scale-[.98] disabled:pointer-events-none disabled:opacity-50';
 const variants: Record<Variant, string> = {
@@ -10,6 +10,8 @@ const variants: Record<Variant, string> = {
   secondary: 'border border-line2 bg-white text-navy hover:border-faint hover:bg-soft',
   ghost: 'text-slate2 hover:bg-hover hover:text-navy',
   danger: 'border border-down/30 bg-white text-down hover:bg-down/5',
+  /** Secondary action on navy surfaces (homepage hero and bands). */
+  inverse: 'border border-white/30 bg-white/[.04] text-white hover:border-white/70 hover:bg-white/10',
 };
 /** Heights from the control tokens: compact 32, standard 40, primary/action 44 (docs/DESIGN-SYSTEM.md). */
 const sizes: Record<Size, string> = { sm: 'h-ctl-sm px-3 text-ui', md: 'h-ctl px-4 text-body', lg: 'h-ctl-lg px-5 text-body' };

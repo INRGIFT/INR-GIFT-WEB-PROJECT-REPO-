@@ -9,6 +9,9 @@ buy/sell, "you should".
 
 Rules
 - Sentence case. Plain verbs. A button says what happens ("Save screen" → toast "…saved").
+  Exception (owner's homepage brief, 7 Oct 2026): the public header and homepage calls to action use the owner's
+  Title Case labels — Explore Markets, Get Started, Sign In, Explore the Platform, Explore Screeners, Sign In to Screen,
+  Create Your Workspace — and the hero tagline is set in capitals: INVEST BEYOND BORDERS.
 - Errors say what failed and how to fix it; no apologies, no vagueness. Empty states say what to do next.
 - Never "Updating…". Always a status and an exact time ("As of 14:32 IST").
 - Research: describes data, separates measurement from commentary, names asset / market / topic / date. No ratings,

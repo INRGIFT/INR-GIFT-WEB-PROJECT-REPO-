@@ -70,7 +70,8 @@ export interface ToolbarProps {
 export function ChartToolbar(p: ToolbarProps) {
   const offered = INDICATORS.filter((d) => (!d.needsVolume || p.hasVolume) && (!p.relative || d.pane === 'sub'));
   const toggleInd = (id: IndicatorDef['id']) => p.onIndicators(p.indicators.includes(id) ? p.indicators.filter((x) => x !== id) : [...p.indicators, id]);
-  if (p.variant === 'hero') return null;
+  // Hero (public homepage): the period switch only, when the server prepared more than one period.
+  if (p.variant === 'hero') return p.onRange && p.ranges.length > 1 ? <div className="px-3 pt-2 sm:px-4"><Segmented nowrap size="sm" label="Time range" value={p.range} onChange={p.onRange} options={p.ranges.map((r) => [r, r] as const)} /></div> : null;
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
       {p.onRange && p.ranges.length > 1 && <div className="scrollbar-none -mx-1 max-w-full overflow-x-auto px-1"><Segmented nowrap size="sm" label="Time range" value={p.range} onChange={p.onRange} options={p.ranges.map((r) => [r, r] as const)} /></div>}

@@ -54,6 +54,8 @@ Small charts (sparklines, heatmap, bars) are hand-written SVG. No other runtime 
   `/grievance-redressal`, `/legal/*`; URLs fixed by the NSEIXGA document) plus auth infrastructure. Every other page and `/api`
   route requires a fully verified session; the default-deny classifier is `src/lib/route-registry.ts`, enforced in
   `src/middleware.ts`. New routes are protected automatically. Return paths go through `safeReturnPath` only.
+  The homepage shows only a server-prepared snapshot (`src/features/home/snapshot.ts`): demo values labelled DEMO in
+  `data-nosnippet` regions; licensed prices publicly only with `PUBLIC_MARKET_DATA=on`; it never calls `/api/v1`.
 - **Accounts:** email + phone + password; sign-up step 2 verifies the email with Supabase's six-digit code
   (`verifyOtp`, type `email`; never stored by INRGIFT). Every account has a permanent **GIFT ID** (migration 0008):
   shown and copied, never used to authenticate or authorise. Sign-in = email + password or Google (Supabase OAuth; a first Google sign-in completes
@@ -100,7 +102,8 @@ The documented product scope is built and runs with no configuration (demo data,
 account, the full workspace, research (stocks, ETFs, markets, themes, sectors, countries) with a structured article
 format, heatmap, screener, compare, identity model, SEO, a route registry, CSP, consent-gated analytics, a CMS-shaped
 content library (44 guides, 36 terms), eight recorded tutorials, 2Factor.in SMS second factor, Resend email,
-NewsData.io news, Google sign-in, public compliance pages with support/grievance/closure forms, and authenticated product access. It is not production-ready: see
+NewsData.io news, Google sign-in, public compliance pages with support/grievance/closure forms, KLineChart financial
+charts, a public homepage that previews the product (demo snapshot, three product tours), and authenticated product access. It is not production-ready: see
 `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`. Official brand files are
 integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006 applied; 0007 in the repo, applied only with the SMS switch; 0008 GIFT ID to be applied on its own by the owner; `.env.local`); production domain https://inrgift.com; GoDaddy
 deployment is a validated source zip that GoDaddy installs and builds (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use

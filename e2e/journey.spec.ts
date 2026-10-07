@@ -28,7 +28,7 @@ async function signUp(page: Page) {
 test('signed-in research flow: search, asset, chart, compare, heatmap, screener', async ({ page }) => {
   await signInDemo(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Every market');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/invest\s*beyond\s*borders/i);
   await page.keyboard.press('/');
   await page.getByRole('combobox', { name: /Search assets/ }).fill('AAPL');
   await expect(page.getByRole('listbox', { name: 'Search results' }).getByRole('option').first()).toBeVisible();

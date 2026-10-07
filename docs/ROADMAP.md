@@ -3,7 +3,22 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 197 unit/API tests, Playwright 128 + 6 skipped with SMS off, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, build, GoDaddy source zip)
+## Done (typecheck, 217 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+- **Homepage redesign (7 Oct 2026, owner's "premium financial intelligence brand" brief):** hero "INVEST BEYOND
+  BORDERS." with Explore Markets / Get Started and a KLineChart NIFTY 50 chart (1M, 1Y, 5Y prepared on the server)
+  plus six facts (market status, exchange, currency, data source, session, research snapshot); global market snapshot
+  (indices, equities, FX, commodities, bonds, ETFs); the trading day on India time by region with every covered
+  market; the research workflow in three phases; "See how INRGIFT works." with the three existing tours in a
+  click-to-load player and playlist (WebP posters, captions, transcripts; no new video files); screener preview (the
+  screener's own starting example, run on the server), compare preview, research-note anatomy; NewsData.io headlines
+  or an honest state; data infrastructure with the status legend; private workspace preview (real labels and empty
+  states); "Built in India"; trust and every support/legal route; closing call to action. New public header (Markets,
+  Discover, Screeners, Compare, Research, News; Search, Sign In, Get Started) and footer (Product, Account, Support,
+  Legal, Company). Public display policy in `src/features/home/snapshot.ts`: demo values labelled DEMO inside
+  `data-nosnippet`; a licensed provider shows nothing priced until `PUBLIC_MARKET_DATA=on`; the homepage calls no
+  `/api/v1` route. Fixed on the way: charts draw the whole period (KLineChart's 80 px right margin hid the first ~30
+  bars); a "/" pressed while the session loads no longer sends a member through sign-in; a skeleton holds the chart
+  while the library loads; India chart times read IST.
 - **KLineChart financial charts (7 Oct 2026):** `klinecharts` 10.0.3 (Apache-2.0) behind one `FinancialChart` and an
   INRGIFT adapter (`docs/CHARTS.md`): candles, bars, line, area, linear/log/percent scales, MA, EMA, Bollinger, Volume,
   OBV, RSI, standard MACD, drawing tools, zoom and pan, keyboard crosshair, full screen, comparison lines. Chart
@@ -110,6 +125,8 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
     `next` return path with query; noindex, robots and sitemap limited to public pages; marketing-only homepage.
 
 ## Not done — next, in order
+0. **Owner, before a licensed market-data source:** decide public display (`PUBLIC_MARKET_DATA`, off by default) once
+   the licence is known; have the NewsData.io terms checked for public headline display on the homepage.
 0. **Owner, for this release:** apply migration **0008 alone** (`docs/DEPLOY.md`, "Database migration 0008"; never
    `supabase db push`, which would also apply 0007); set Supabase Email OTP length 6 and expiry 3600 s
    (`docs/DEPLOY.md`, "Six-digit email verification code"); redeploy the new zip.
@@ -147,6 +164,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - Supabase returns one error for wrong and expired email codes; the UI tells them apart by the code's lifetime
   (`NEXT_PUBLIC_EMAIL_OTP_MINUTES`), which must match the Supabase setting.
 - News cannot be saved: `saved_research` accepts documents and assets only, and no server-side news storage exists.
+- The overview tour's title is "INRGIFT in 60 seconds" but the recording runs 0:42 (the card shows the real duration).
+- WebM only: browsers without WebM playback (older iOS Safari) get the poster, a message and the transcript.
+- Homepage times are the request's: the hero, strip and session map are rendered per request; only the IST clock ticks.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
   that match the type scale steps.
 

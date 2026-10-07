@@ -85,7 +85,13 @@ FinancialChart (src/features/charts/financial-chart.tsx, client)
 
 Asset pages (all classes, with "vs" the market's headline index), market pages (headline index), research notes about
 one asset, and the Compare page (comparison lines). The screener's "Chart" action opens the asset page chart.
-Public pages may show a chart only from a series the server prepared under the public-data rule (homepage).
+Public pages may show a chart only from series the server prepared under the public display policy
+(`src/features/home/snapshot.ts`): the homepage hero passes NIFTY 50 for 1M, 1Y and 5Y as `preloaded`, and its period
+switch uses those without any request (the chart API stays protected). The hero variant shows no toolbar beyond the
+period switch and no link to the protected methodology page.
+
+Fit: each series is drawn whole. The right margin is set to 16 px (`setOffsetRightDistance`); KLineChart's 80 px
+default had pushed a period's first bars off the left edge.
 
 ## Replacing DemoProvider with a licensed provider
 

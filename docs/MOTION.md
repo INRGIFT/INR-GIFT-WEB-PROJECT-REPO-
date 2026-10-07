@@ -23,4 +23,8 @@ Also implemented: duration tokens (`duration-micro` 150 ms, `duration-panel` 220
 `animate-fade-in` route transition via `(site)/template.tsx`; tab content fade and indicator; drawer slide-in;
 chart crosshair tooltip fade; video play-button press; onboarding step fade-up.
 
-Not built (optional): section reveals on editorial pages.
+Homepage (7 Oct 2026): blocks marked `data-reveal` fade up 12 px over 600 ms the first time they scroll into view
+(`src/features/home/reveal.tsx`, one IntersectionObserver). Only blocks that start below the fold are ever hidden, and
+only after the script runs, so there is no flash, nothing is hidden without JavaScript, and with reduced motion
+nothing is hidden at all. Rows tint and show an accent line on hover, posters scale by 1 %, CTA arrows nudge 2 px. The hero chart
+switches period without animation. Nothing moves on its own: no ticker marquee, no autoplay, no parallax.

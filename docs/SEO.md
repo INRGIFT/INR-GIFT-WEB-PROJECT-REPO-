@@ -1,7 +1,11 @@
 # SEO
 
 ## Access-driven indexing (7 Oct 2026)
-Only the public pages (homepage and compliance pages) can be indexed; they show no market data, so they are indexable even while the product serves demo data (`SITE_INDEXABLE=false` closes them). Every product page requires sign-in:
+Only the public pages (homepage and compliance pages) can be indexed, even while the product serves demo data
+(`SITE_INDEXABLE=false` closes them). The compliance pages show no market data. The homepage (7 Oct 2026 redesign)
+shows a server-prepared snapshot: with the demo provider every value carries the DEMO status ("Demo data, simulated,
+not market prices") and sits inside `data-nosnippet` so search engines do not quote simulated values as prices; no
+structured data describes them; with a licensed provider no price is shown publicly unless `PUBLIC_MARKET_DATA=on`. Every product page requires sign-in:
 middleware sends `X-Robots-Tag: noindex, nofollow` and `Cache-Control: private, no-store`, `pageMetadata()` emits
 `noindex` for any non-public path, robots.txt allows only those pages (`Allow: /$`, `/terms-and-conditions$`, … `/legal/`; `Disallow: /`; with SITE_INDEXABLE=false it disallows
 everything while the site serves demo data), and the sitemap (`/sitemap.xml` → `/sitemap/core.xml`) lists only the
@@ -41,6 +45,15 @@ users, but no product URL is published to crawlers. Sections below describe the 
 - `/sitemap.xml` is a sitemap index over the section files; both are empty while the site is not indexable.
 - Indexing rules per route live in `src/lib/route-registry.ts`.
 - Deferred: Event and Dataset JSON-LD (would describe demo data as real; see `docs/DECISIONS.md`).
+
+## Homepage (7 Oct 2026)
+- Title `INRGIFT | Global Market Intelligence From India` (absolute), description "Global market intelligence from
+  India. Research stocks, ETFs, indices, currencies, commodities and bonds; screen, compare and follow market news in
+  one view.", canonical `/`, indexable, Organization JSON-LD.
+- One `h1` (INVEST BEYOND BORDERS.), an `h2` per section, `h3` inside sections; every product link points at its real
+  URL (signed out it redirects to sign-in; those URLs stay noindex and out of the sitemap).
+- News headlines link to their publishers with `rel="noopener noreferrer nofollow"`; INRGIFT republishes no summary,
+  body or image.
 
 ## Still to do
 Per-page OG images for assets and research · hreflang if regional editions appear · static generation or ISR once

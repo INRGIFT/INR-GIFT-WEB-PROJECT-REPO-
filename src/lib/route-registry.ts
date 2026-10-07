@@ -17,8 +17,10 @@ export interface RouteSpec { pattern: string; layout: Layout; access: Access; in
 /**
  * Public pages: the homepage and the compliance pages that must be readable without an account (owner decision,
  * 7 Oct 2026, docs/DECISIONS.md): Terms and Conditions, Privacy Policy, About, Support, Account Closure (required by the
- * NSEIXGA white-label documentation), Grievance Redressal and the legal index with its documents. They show no market
- * data. Every product, data, workspace and account route stays protected.
+ * NSEIXGA white-label documentation), Grievance Redressal and the legal index with its documents. The compliance pages
+ * show no market data; the homepage shows only a server-prepared snapshot under the public display policy in
+ * src/features/home/snapshot.ts (demo values labelled DEMO), and calls no /api route. Every product, data, workspace
+ * and account route stays protected.
  */
 export const PUBLIC_PAGES = ['/', '/terms-and-conditions', '/privacy-policy', '/about', '/support', '/account-closure', '/grievance-redressal', '/legal'];
 export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/complete-profile', '/mfa', '/forgot-password', '/reset-password', '/auth/callback', '/auth/confirm'];

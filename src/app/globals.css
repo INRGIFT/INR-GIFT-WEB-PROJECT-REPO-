@@ -46,6 +46,13 @@
   .prose-doc h3 { @apply mb-1 mt-4 text-base font-bold; }
   .prose-doc ul { @apply mb-3 max-w-[72ch] list-disc space-y-1 pl-5 text-[15px] text-slate2; }
 }
+@layer components {
+  /* Homepage section reveal (src/features/home/reveal.tsx): only blocks that start below the fold are ever hidden. */
+  [data-reveal] { transition: opacity .6s cubic-bezier(0.22, 1, 0.36, 1), transform .6s cubic-bezier(0.22, 1, 0.36, 1); }
+  [data-reveal='pending'] { opacity: 0; transform: translateY(12px); }
+  @media print { [data-reveal='pending'] { opacity: 1; transform: none; } }
+  .eyebrow { @apply text-[12px] font-semibold uppercase tracking-[.2em]; }
+}
 @layer utilities {
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }

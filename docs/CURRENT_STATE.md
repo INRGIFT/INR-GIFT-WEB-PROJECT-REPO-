@@ -5,6 +5,14 @@ It is **not production-ready**. Live market data, production email and SMS, lega
 not connected. `docs/RELEASE_READINESS.md` lists the gates.
 
 
+**Update (7 Oct 2026, homepage and charts):** financial charts are KLineChart 10.0.3 (Apache-2.0) behind one
+`FinancialChart`; demo values are `DEMO` everywhere. The public homepage was rebuilt to the owner's brand brief: a
+KLineChart hero on a server-prepared NIFTY 50 snapshot, a global market snapshot, the trading day on India time, the
+research workflow, the three existing product tours, screener/compare/research previews, NewsData.io headlines (or an
+honest state), data infrastructure, a workspace preview, trust and support routes. It shows demo values only labelled
+DEMO and never calls the protected API; with a licensed provider it shows no prices until the owner sets
+`PUBLIC_MARKET_DATA=on`. Verification is listed under "Verification on this commit".
+
 **Update (7 Oct 2026, master rebuild):** sign-up verifies the email with a six-digit code (Supabase `verifyOtp`) in
 step 2; every account gets a permanent **GIFT ID** once migration 0008 is applied (owner action; code works before
 and after); all product pages share one authenticated app shell with a grouped sidebar; `/app` greets "Hola AMIGO"
@@ -64,16 +72,15 @@ exercised with real keys yet, and migration 0007 is not yet applied to the live 
 
 ## Verification on this commit
 - `npm run typecheck`: passes.
-- `npm test`: 119 tests pass. `npm run test:db`: migrations 0001–0007 and RLS pass on local Postgres.
-- `npm run build`: passes (no env; and with Supabase + `NEXT_PUBLIC_SITE_URL=https://inrgift.com`).
-- Playwright on demo builds: 88 pass + 6 SMS-only skipped (SMS off), 92 pass + 2 skipped (SMS on). They cover:
-  - journeys
-  - route statuses
-  - 404s
-  - noindex
-  - axe on 12 pages
-  - no overflow at 375, 390, 768, 1024, 1280 and 1440 px
-  - reduced motion
-  - failure cases
+- `npm test`: 217 tests in 18 files pass. `npm run test:db`: migrations 0001–0008 with RLS and the GIFT ID checks
+  (and 0001–0006 + 0008 without 0007, with backfill) pass on a throwaway local Postgres.
+- `npm run build`: passes with no env, as a demo build, and as a demo build with the SMS second factor on.
+- Playwright on demo builds, desktop Chrome and Pixel 7: SMS off 144 pass + 6 SMS-only skipped; SMS on 148 + 2 skipped.
+  They cover:
+  - the homepage: hero chart periods with no API call, DEMO labels and nothing "live", tours that load nothing until
+    play, previews, footer, signed-in calls to action, section reveal and reduced motion, every link resolving (public
+    page or sign-in), no secret in the page
+  - charts, journeys, access and route statuses, 404s, noindex
+  - axe on 18 pages, no overflow at 375, 390, 768, 1024, 1280 and 1440 px, reduced motion, failure cases
+  - auth cases, compliance pages and forms, workspace, sessions
 - GoDaddy source zip: built from HEAD and validated (no node_modules, .next or .env; package.json at root).
-  A clean extract installed, built and started on `PORT`, and pages, a 404, the API and health were checked over HTTP.

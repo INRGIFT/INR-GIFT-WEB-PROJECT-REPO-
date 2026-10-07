@@ -7,13 +7,16 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (169), build | Pass | — |
+| Typecheck, unit/API tests (217), builds (no env, demo, demo with SMS on) | Pass | — |
 | Migration 0008 (GIFT ID) applied alone to the live project; Supabase Email OTP length 6, expiry 3600 s | Open (`docs/DEPLOY.md`) | Owner |
 | Real sign-up with the six-digit email code on the deployed site | Open; needs Resend + hook | Owner + engineering |
 | Live `/login` uses Supabase (runtime settings fix) | Fixed in code; live site needs a redeploy of the new zip | Owner |
 | Google provider in Google Cloud + Supabase | Open | Owner |
 | Legal documents reviewed by counsel (registered entity, governing law) | Open | Owner |
-| Playwright (access gate, compliance pages and forms, Google flow, session lifecycle, journeys, auth cases 1–15, axe, six widths, failure cases) | Pass on demo builds: SMS off 118 + 6 skipped, SMS on 122 + 2 skipped | — |
+| Public homepage market values: demo values labelled DEMO today; a licensed source shows prices to signed-out visitors only after `PUBLIC_MARKET_DATA=on` | Decide when the licence is known | Owner |
+| NewsData.io terms for showing headlines (with publisher links) on the public homepage | Legal review open | Owner + counsel |
+| Third-party notices: KLineChart LICENSE/NOTICE (its NOTICE credits TradingView Lightweight Charts, reproduced as text) on `/legal/open-source`; full licence scan of production dependencies | Notices in place; scan and legal review open | Engineering + counsel |
+| Playwright (homepage, charts, access gate, compliance pages and forms, Google flow, session lifecycle, journeys, auth cases 1–15, axe, six widths, failure cases) | Pass on demo builds: SMS off 144 + 6 skipped, SMS on 148 + 2 skipped | — |
 | Migrations + RLS (`npm run test:db`, incl. 0007 and 0008; and 0008 without 0007 with backfill) | Pass on local Postgres; live project on 0001–0006; **0007 deliberately not applied** until SMS is switched on; 0008 to be applied alone | Owner |
 | GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
 | `NEXT_PUBLIC_SITE_URL=https://inrgift.com` in GoDaddy before the build (canonical, email links, redirects; a production build also defaults to it) | Open | Owner |
@@ -34,5 +37,6 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 ## What a soft launch on demo data would mean
 It would be possible to show the site to invited people with the "Demo data" label visible. robots.txt, the
-sitemap index and page metadata keep it out of search engines. Demo auth must be off, and sign-up should stay
+sitemap index and page metadata keep every product page out of search engines; the homepage and compliance pages are
+indexable, and the homepage's demo values carry the DEMO status inside `data-nosnippet` regions. Demo auth must be off, and sign-up should stay
 closed until production email is verified.

@@ -35,7 +35,7 @@ export function pageMetadata({ title, description, path, index = 'index', type =
     description,
     keywords,
     alternates: { canonical: path },
-    // Only the public pages may be indexed (they show no market data); SITE_INDEXABLE=false closes them too.
+    // Homepage demo values sit in data-nosnippet regions (src/features/home); SITE_INDEXABLE=false closes public pages too.
     // Only public pages may be indexed (src/lib/route-registry.ts); product pages require sign-in and are noindex.
     robots: !publicPagesIndexable || index === 'private' || !isIndexablePath(path.split('?')[0]) ? { index: false, follow: false } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: { type, title: ogTitle, description, url: path, siteName: SITE.name, locale: 'en_IN', ...(type === 'article' ? { publishedTime, modifiedTime } : {}) },

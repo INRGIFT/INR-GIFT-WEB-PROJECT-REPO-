@@ -6,11 +6,14 @@
 code in this session once the SMS second factor is switched on), including markets, assets, discover, research, resources, search, about, pricing and FAQ.
 Signed out, any product link or URL goes to `/login?next=<path+query>`; "Create your account" keeps `next`; after
 verification the person lands on the original page. The header keeps its navigation and search for discovery; they lead
-to sign-in when signed out. The homepage is a conversion page: no market tables, prices, research or news feeds.
+to sign-in when signed out. The homepage (redesigned 7 Oct 2026, owner brief) previews the product with a server-prepared
+snapshot: labelled DEMO values while the demo provider is active, no prices with a licensed provider unless
+`PUBLIC_MARKET_DATA=on` (`src/features/home/snapshot.ts`); it never calls `/api/v1`, and every product link still
+leads to sign-in.
 Route list below describes what exists; access is decided only by `src/lib/route-registry.ts`.
 
 ## Shells
-- **Public `(site)`**: header + main + footer + mobile bottom nav. No sidebar.
+- **Public `(site)`**: header + main + footer; the mobile bottom tab bar only for signed-in members. No sidebar.
 - **Authenticated `(workspace)`** (every product page: markets, assets, discover, research, resources, search, `/app`,
   account): `AppShell` (`src/components/layout/app-shell.tsx`). Fixed sidebar 264px, collapsible to 76px (remembered
   per browser), groups **Workspace** (Home, Discover, Markets, Screeners, Compare, Research, News, Watchlists, Alerts,
@@ -23,9 +26,11 @@ Route list below describes what exists; access is decided only by `src/lib/route
 - **Auth `(auth)`**: two-column, navy brand panel left, form right. Built; brand panel shows a live IST session read-out.
 
 ## Navigation (`src/lib/routes.ts`)
-Top: Markets · Assets · Discover · Research · Resources (dropdowns). Utilities: search, display currency, open-market
-count, Demo data label, notifications + avatar when signed in, Sign in / Sign up otherwise.
-Public pages (homepage and compliance pages) keep the site header, footer and mobile bottom nav.
+Public header (`src/components/layout/site-header.tsx`, `SITE_NAV`): logo · Markets · Discover · Screeners · Compare ·
+Research · News · Search · **Sign In** · **Get Started** (signed in: Open Workspace, notifications, account menu).
+Below `lg` the six destinations, search and support/legal links move into the menu drawer; the header keeps the logo,
+Sign In, Get Started and the menu button. Footer (`FOOTER_COLUMNS`): Product, Account, Support, Legal (with
+Open-source notices), Company, the research-only statement and the published contact details.
 Signed in, product pages use the app shell sidebar (`APP_NAV`, above). Counters only when the data loaded. Never Portfolio.
 
 ## Route map and status
@@ -50,8 +55,17 @@ notes, history) · ✅ `/account/[section]` (profile, settings = Preferences, se
 The 23-step journey in `docs/QA.md` is the e2e target.
 
 ## Page patterns
-- Home is product, not marketing: compact hero with search, session rail, region status, index strip, heatmap
-  preview, movers, sectors, themes, asset classes, calendar/research/news, India context. Hero must not dominate.
+- Home (`src/app/(site)/page.tsx`, sections in `src/features/home/`), in order: hero ("INVEST BEYOND BORDERS.",
+  Explore Markets / Get Started, KLineChart NIFTY 50 with 1M/1Y/5Y prepared on the server, six facts: market status,
+  exchange, currency, data source, session, research snapshot) · global market snapshot (indices, equities, FX,
+  commodities, bonds, ETFs; status and time) · "Every market. Every asset. One research view." (the trading day on
+  India time by region, every covered market, asset classes) · research workflow (Search → … → Alert in three phases)
+  · "See how INRGIFT works." (the three existing tours as a player and playlist) · screener preview (the screener's own
+  starting example, run on the server) · compare preview (registered metrics) · research note anatomy · news
+  (NewsData.io headlines or an honest state) · data infrastructure and the status legend · private workspace (real
+  labels and empty states) · "Built in India. Designed for global markets." · trust (security, data, privacy, support
+  and legal routes) · "See the world differently." · footer. Demo values carry the DEMO status and sit in
+  `data-nosnippet` regions.
 - One asset template (`features/assets/asset-detail.tsx`) for all classes: identity → quote/status → chart → overview
   → performance → class modules → peers/related → research + news → India context → notes → source line.
   Header actions: Watch, Add alert, Compare, Research. Never Buy/Sell.
@@ -66,6 +80,8 @@ EMAAR no fundamentals, INDA no holdings, TSM/2330 cross-listing, funds no covera
 
 ## Responsive
 Desktop first, designed per breakpoint. Tables: sticky header and first column, horizontal scroll, never squeezed.
+Homepage: the market snapshot is a 6-column strip from 1280 px, 3 × 2 from 1024 px and a swipeable row below; the
+covered-market list folds into one disclosure on phones; the preview tables fit a 375 px screen without scrolling.
 Heatmap aspect changes on phones. Compare table scrolls with a sticky metric column. Below `lg` a menu drawer carries the full navigation, account links and currency.
 
 ## Search

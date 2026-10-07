@@ -95,9 +95,10 @@ export const isDemoData = config.provider === 'demo' || config.fallbackProvider 
  */
 export const isIndexable = process.env.SITE_INDEXABLE === 'true' || (!isDemoData && process.env.SITE_INDEXABLE !== 'false');
 /**
- * The public pages (homepage and compliance pages, src/lib/route-registry.ts) show no market data, so they may be
- * indexed even while the product serves demo data. SITE_INDEXABLE=false (for example on a preview) closes everything.
- * Product pages are protected and always noindex.
+ * The public pages (homepage and compliance pages, src/lib/route-registry.ts) may be indexed even while the product
+ * serves demo data: the compliance pages show no market data, and the homepage shows demo values only labelled DEMO
+ * inside `data-nosnippet` regions (public display policy: src/features/home/snapshot.ts). SITE_INDEXABLE=false (for
+ * example on a preview) closes everything. Product pages are protected and always noindex.
  */
 export const publicPagesIndexable = process.env.SITE_INDEXABLE !== 'false';
 export const DEMO_SESSION_COOKIE = 'inrgift_demo_session';

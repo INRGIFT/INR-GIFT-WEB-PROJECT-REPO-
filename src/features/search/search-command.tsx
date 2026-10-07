@@ -19,8 +19,10 @@ const EXAMPLES: Item[] = [{ label: 'Apple', hint: 'AAPL · Stock', href: '/stock
 export function SearchProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useSession();
+  const { user, loading } = useSession();
   const [open, setOpen] = useState(false);
+  // A shortcut pressed while the session is still being read waits for it, instead of treating a member as signed out.
+  const pending = useRef(false);
   const [q, setQ] = useState('');
   const [res, setRes] = useState<SearchResults | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -30,7 +32,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const opener = useRef<Element | null>(null);
 
   // Search reads protected data: a signed-out visitor is sent to sign in (and back here afterwards).
-  const show = useCallback(() => { if (!user) { router.push(loginHref(pathname === '/' ? '/search' : pathname)); return; } opener.current = document.activeElement; setQ(''); setRes(null); setActive(0); try { setRecent(JSON.parse(localStorage.getItem(RECENT) ?? '[]')); } catch { setRecent([]); } setOpen(true); }, [user, router, pathname]);
+  const show = useCallback(() => { if (loading) { pending.current = true; return; } if (!user) { router.push(loginHref(pathname === '/' ? '/search' : pathname)); return; } opener.current = document.activeElement; setQ(''); setRes(null); setActive(0); try { setRecent(JSON.parse(localStorage.getItem(RECENT) ?? '[]')); } catch { setRecent([]); } setOpen(true); }, [user, loading, router, pathname]);
+  useEffect(() => { if (!loading && pending.current) { pending.current = false; show(); } }, [loading, show]);
   const close = useCallback(() => { setOpen(false); (opener.current as HTMLElement | null)?.focus?.(); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

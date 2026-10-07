@@ -109,7 +109,7 @@ workspace table and the app only writes step-ups when the switch is on.
 `src/lib/route-registry.ts` classifies every path; `src/middleware.ts` enforces it for pages **and** `/api`:
 | Class | Paths | Rule |
 | --- | --- | --- |
-| public | `/`, `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal`, `/legal`, `/legal/*` | open (compliance pages required by the NSEIXGA white-label documentation; no market data) |
+| public | `/`, `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal`, `/legal`, `/legal/*` | open (compliance pages required by the NSEIXGA white-label documentation, no market data; the homepage shows only a server-prepared snapshot under `src/features/home/snapshot.ts` and calls no `/api` route) |
 | auth | `/login` `/signup` `/verify` `/verify-phone` `/complete-profile` `/mfa` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | open |
 | public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/internal/*` (secret), `/api/forms/*` (support, grievance, closure: validated, rate-limited) | each protects itself |
 | file | robots, sitemap, icons, share image, `/brand` `/fonts` `/media` files | open, no product data |

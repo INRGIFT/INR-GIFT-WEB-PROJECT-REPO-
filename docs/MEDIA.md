@@ -33,6 +33,18 @@ is configured or a logo fails to load.
   - markets
   - data and methodology
 
+**Homepage tours ("See how INRGIFT works."):** the three recordings the homepage already used — "INRGIFT in 60
+seconds" (`product-walkthrough`, 0:42, 1.0 MB), "Universal search" (0:27, 0.6 MB) and "Read the global heatmap"
+(`heatmap-drill-down`, 0:28, 0.4 MB) — in a player with a playlist (`src/features/home/video-showcase.tsx`). No new
+video files. Before play there is no `<video>` element at all, only a lazy WebP poster, so no video byte is requested;
+play mounts the player with captions on and native controls and plays with sound because the visitor asked; it pauses
+when scrolled out of view; choosing another tour swaps it in (one video at a time). Browsers that cannot play WebM, or
+a failed file, get a message and the transcript. Each tour shows its poster, title, summary, duration, size
+(`bytes` in `VIDEOS`, checked against the file by `tests/home.test.ts`), captions and transcript.
+Posters: `public/media/posters/<id>-640.webp` and `-1280.webp`, made from the JPEG posters:
+`ffmpeg -i public/media/<id>.jpg -vf scale=640:-2 -c:v libwebp -quality 80 public/media/posters/<id>-640.webp`
+(and 1280). The JPEG stays as the fallback.
+
 ## Re-recording
 
 After a UI change, start a demo-mode production build (`NEXT_PUBLIC_AUTH_MODE=demo npm run build && npx next start`)

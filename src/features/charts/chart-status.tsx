@@ -3,10 +3,14 @@ import { SESSION_LABEL } from '@/lib/calendar';
 import type { ChartSeries } from '@/lib/charts/types';
 import { cn } from '@/lib/format';
 
-/** "07 Oct 2026, 15:30 IST" in the venue's own time zone, with the zone's short name. */
+/**
+ * "07 Oct 2026, 15:30 IST" in the venue's own time zone, with the zone's short name. en-GB has no abbreviation for
+ * India ("GMT+5:30"), so India Standard Time is written as IST, as everywhere else in INRGIFT.
+ */
 export function asOfText(iso: string, timezone: string): string {
   try {
-    return new Intl.DateTimeFormat('en-GB', { timeZone: timezone, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' }).format(new Date(iso));
+    const text = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' }).format(new Date(iso));
+    return timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta' ? text.replace(/GMT\+5:30$/, 'IST') : text;
   } catch { return iso; }
 }
 
