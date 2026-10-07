@@ -21,25 +21,45 @@ On any machine with Node 20:
 
 ```bash
 npm ci
-npm run package:godaddy   # → deploy/inrgift-standalone.zip (server.js, .next/, public/, minimal node_modules)
+npm run package:godaddy
 ```
 
-The zip contains no environment values; they are set on the host (step 4).
+This writes two files to `deploy/`:
+
+| File | For | Contents |
+| --- | --- | --- |
+| `inrgift-godaddy.zip` (~8 MB) | cPanel **Setup Node.js App** | `server.js`, `.next/`, `public/`, a runtime-only `package.json` (7 dependencies pinned to the build's versions). **No `node_modules`.** |
+| `inrgift-standalone.zip` (~33 MB) | VPS / dedicated | The same plus the traced `node_modules`; run `node server.js`, no install step. |
+
+Neither zip contains environment values; they are set on the host (step 4).
 
 ## 3. cPanel → Setup Node.js App
 
+cPanel keeps an app's packages in its own virtual environment and links `node_modules` into the application root.
+Never upload a `node_modules` folder there. A bundled one collides with cPanel's and makes **Run NPM Install** fail
+with `npm error code ENOTEMPTY ... rmdir '.../node_modules/...'`.
+
 1. **Create application:**
-   - Node.js version: the newest available, at least 18.18.
+   - Node.js version: the newest available, at least 18.18 (20 or 22 recommended).
    - Application mode: Production.
    - Application root: for example `inrgift`.
    - Application URL: the domain.
    - Application startup file: `server.js`.
-2. Upload `deploy/inrgift-standalone.zip` to the application root with File Manager and extract it there.
-   `server.js` must sit directly in the application root.
-3. Add the environment variables from step 4 in the app's **Environment variables** section.
-4. Click **Restart**, then open the domain.
+2. With File Manager, upload `deploy/inrgift-godaddy.zip` to the application root and **Extract** it there.
+   `server.js` and `package.json` must sit directly in the application root.
+3. Add the environment variables from step 4 in the app's **Environment variables** section and **Save**.
+4. Click **Run NPM Install**. It installs `next`, `react` and the other runtime packages (about 35 packages, under a
+   minute).
+5. Click **Restart**, then open the domain.
 
-`npm install` is not needed: the standalone bundle already contains the production dependencies.
+### If Run NPM Install failed with ENOTEMPTY
+This happens when an earlier upload put a `node_modules` folder in the application root (the older bundle did).
+1. In **Setup Node.js App**, click **Stop App**.
+2. In File Manager, open the application root, turn on **Show Hidden Files** (Settings), and delete everything
+   there, including `node_modules`, `.next`, `server.js`, `package.json` and `public`.
+3. If the error persists, delete the application in **Setup Node.js App** and create it again with the same
+   settings. This also clears cPanel's virtual environment (its npm cache sits outside the root).
+4. Follow steps 2–5 above with `inrgift-godaddy.zip`.
 
 ## 4. Environment variables (production)
 

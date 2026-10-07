@@ -39,7 +39,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
   images, emails); `docs/BRAND_ASSET_INVENTORY.md`.
 - **Supabase live:** project `odiflbsoitgktylaksng` (ap-south-1) with migrations 0001–0006; security advisors clean;
   live RLS check passed. App reads it when `NEXT_PUBLIC_SUPABASE_*` are set (`.env.local` locally).
-- **GoDaddy deployment:** `npm run package:godaddy` builds a standalone `server.js` bundle (verified to boot);
+- **GoDaddy deployment:** `npm run package:godaddy` builds `inrgift-godaddy.zip` (cPanel: no node_modules, pinned
+  runtime package.json, then Run NPM Install; fixes the ENOTEMPTY install failure) and `inrgift-standalone.zip` (VPS).
+  Both verified to install/boot from a clean folder;
   `docs/DEPLOY.md`.
 - **Product gaps closed:** design tokens (status, focus, type scale, control heights, breakpoints); sidebar groups per
   spec; heatmap Colour metric + Period + "How to read this heatmap"; screener strict and field-to-field comparisons,
