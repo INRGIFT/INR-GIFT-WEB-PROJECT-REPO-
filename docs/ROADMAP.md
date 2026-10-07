@@ -1,8 +1,9 @@
 # Roadmap and status
 
-Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md`.
+Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
+see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 47 unit/API tests, 7 Playwright journeys on desktop and Pixel 7, local and live RLS checks, build, standalone bundle)
+## Done (typecheck, 51 unit/API tests, 64 Playwright tests on desktop and Pixel 7, local and live RLS checks, build, standalone bundle)
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -46,6 +47,19 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
   why it matters, charts, interpretation, limitations, methodology, sources, author/reviewer, disclosure); typed
   identity model (issuer → security → listing) with ADR/GDR ratios and share classes, `/assets/:id/identity` and an
   asset-page panel; NoResults / UnavailableState / RetryButton; chart Unavailable state; seven recorded tutorials.
+- **Full-web pass (7 Oct 2026):**
+  - Route registry driving the guard, X-Robots-Tag and robots.
+  - Universal search across every entity kind.
+  - Useful 404 pages with genuine 404 status.
+  - Home and discover hub.
+  - 28 markets with auctions and calendars; bonds and REITs.
+  - News kinds with summaries; calendar time zone and source.
+  - Compare section toggles and identity rows; asset connections panel.
+  - Entity quality gate for indexing; sitemap index.
+  - CSP; consent-gated analytics (16 events); JSON logs and `/api/health`.
+  - CMS-shaped content: 44 learn guides and 36 detailed glossary terms.
+  - "INRGIFT in 60 seconds" and "Universal search" tutorials.
+  - Quality e2e suite: axe, six widths, reduced motion, failure cases.
 
 ## Not done — next, in order
 1. **Supabase dashboard settings (owner):** Site URL and redirect URLs once the domain is known, the two email
@@ -54,7 +68,8 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
    notifications and send email for `channel = 'email'`. Today alerts are evaluated in the browser while INRGIFT is open.
 3. **NSE** (`docs/CONNECTORS.md`): implement `NseSource` against the licensed spec, load the security master,
    implement `NseInstrumentMap`; move editorial research/themes/calendar out of DemoProvider; ingestion persistence for `/api/internal/ingest`; entitlement checks.
-4. **Caching:** `(site)` routes are dynamic; add revalidated provider reads and Suspense streaming per module.
+4. **Caching:** `(site)` routes are dynamic; add revalidated provider reads and Suspense streaming per module
+   (boundaries inside pages, below `notFound()`, so 404 status is kept; see `docs/DECISIONS.md`).
 5. **Depth:** index constituents from the provider; MACD/ATR/VWAP; chart drawing tools, zoom and pan;
    saved-screen history; table virtualization once the universe is large.
 6. **Dependency maintenance (deferred by the owner):** ESLint and the Next.js upgrade that clears the PostCSS
@@ -66,7 +81,9 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
 - NSE IX hours cross midnight; `sessionState` does not model overnight sessions (only the first exchange of a market
   drives status, so there is no visible effect yet).
 - ETF tracking difference is estimated from the expense ratio in demo mode.
-- Rate limiter is in-memory per instance. No CSP header yet.
+- Rate limiter is in-memory per instance. CSP needs `'unsafe-inline'` (no nonce).
+- No route-level loading skeleton in `(site)` (removed to keep genuine 404 status).
+- Analytics and error reporting have no vendor sink; Event/Dataset JSON-LD deferred.
 - Demo auth accepts any password; it must never be enabled on a public deployment.
 - Supabase cannot list other sessions from the browser; the security page says so.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
@@ -74,4 +91,5 @@ Keep this file current. It is the handover record. Runtime audit: `docs/AUDIT.md
 
 ## Blockers needing the owner
 Domain name and GoDaddy plan type (cPanel Node.js or VPS) · SMS provider for phone OTP · Resend key and verified
-domain · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer.
+domain · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
+analytics and error-reporting vendors.

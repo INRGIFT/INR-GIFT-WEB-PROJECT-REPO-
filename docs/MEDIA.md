@@ -17,9 +17,9 @@ guidelines' Montserrat is used only inside the supplied logo artwork, as outline
 **Company and fund logos:** Logo.dev, behind `src/lib/logos`, with a ticker tile fallback. Tiles show whenever no key
 is configured or a logo fails to load.
 
-**Tutorials in `public/media`:** seven screen recordings of the real product on demo data. They are recorded by
+**Tutorials in `public/media`:** eight screen recordings of the real product on demo data. They are recorded by
 `scripts/record-tutorials.mjs`.
-- Videos: product walkthrough, research an asset, heatmap, screener, ETF eight-step review, market hours on India
+- Videos: "INRGIFT in 60 seconds" (product walkthrough), "Universal search", research an asset, heatmap, screener, ETF eight-step review, market hours on India
   time, and data status and methodology.
 - Each video has VP9 WebM, a WebVTT caption file, a JPEG poster, chapters and a transcript (`VIDEOS` in
   `src/services/content.ts`).

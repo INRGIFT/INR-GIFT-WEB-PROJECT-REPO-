@@ -1,7 +1,7 @@
 # SEO
 
 ## Implemented
-- Root metadata in `src/app/layout.tsx`: `metadataBase`, title template `%s · INRGIFT`, description, Open Graph basics, canonical.
+- Root metadata in `src/app/layout.tsx`: `metadataBase`, title template `%s | INRGIFT`, description, Open Graph basics, canonical.
 - Per-route `metadata` / `generateMetadata` with canonical on markets, assets, discover, research, resources.
 - Asset pages: `assetMetadata()` builds title/description/canonical/OG from the instrument.
 - Research documents: article Open Graph with `publishedTime`.
@@ -23,6 +23,16 @@
 - Entity and internal linking: glossary terms link to live metric rankings and the screener; research notes link
   terms, peers, markets and collections; learn articles link terms and tutorials.
 - `app/icon.svg`, `app/opengraph-image.tsx`.
+
+## Also implemented (7 Oct 2026)
+- Entity titles per class, e.g. "AAPL Stock: Price, Performance, Valuation & Research | INRGIFT" (`src/lib/indexability.ts`).
+- Entity quality gate: an asset is indexable only with an id, price, status, source, at least four metrics and a
+  description of at least 40 characters; a market needs covered listings. Failing pages are noindex and left out of
+  the sitemap.
+- Unknown entities return a genuine 404 status (`notFound()` in `generateMetadata`; no route-level loading boundary).
+- `/sitemap.xml` is a sitemap index over the section files; both are empty while the site is not indexable.
+- Indexing rules per route live in `src/lib/route-registry.ts`.
+- Deferred: Event and Dataset JSON-LD (would describe demo data as real; see `docs/DECISIONS.md`).
 
 ## Still to do
 Per-page OG images for assets and research · hreflang if regional editions appear · static generation or ISR once

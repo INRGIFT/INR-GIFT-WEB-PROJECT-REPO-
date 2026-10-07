@@ -1,0 +1,44 @@
+{
+  "id": "product-walkthrough",
+  "title": "INRGIFT in 60 seconds",
+  "durationSeconds": 42,
+  "transcript": [
+    "INRGIFT is a research view of global markets, built from India.",
+    "Trading sessions are shown on India time, with each market’s status.",
+    "Markets lists every covered exchange with its session and index.",
+    "The global heatmap sizes assets by value and colours them by change.",
+    "The screener filters stocks, ETFs and REITs on more than thirty metrics.",
+    "Compare puts up to four assets side by side on one rebased chart.",
+    "Research notes describe the data, with sources, limitations and method."
+  ],
+  "chapters": [
+    [
+      0,
+      "INRGIFT is a research view of global markets"
+    ],
+    [
+      4.8,
+      "Trading sessions are shown on India time"
+    ],
+    [
+      9.7,
+      "Markets lists every covered exchange with its se"
+    ],
+    [
+      14.2,
+      "The global heatmap sizes assets by value and col"
+    ],
+    [
+      19.3,
+      "The screener filters stocks"
+    ],
+    [
+      31.5,
+      "Compare puts up to four assets side by side on o"
+    ],
+    [
+      37,
+      "Research notes describe the data"
+    ]
+  ]
+}

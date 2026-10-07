@@ -76,7 +76,9 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 
 The documented product scope is built and runs with no configuration (demo data, demo auth): public routes, auth,
 account, the full workspace, research (stocks, ETFs, markets, themes, sectors, countries) with a structured article
-format, heatmap, screener, compare, identity model, SEO and seven recorded tutorials. Official brand files are
+format, heatmap, screener, compare, identity model, SEO, a route registry, CSP, consent-gated analytics, a CMS-shaped
+content library (44 guides, 36 terms) and eight recorded tutorials. It is not production-ready: see
+`docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`. Official brand files are
 integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006, `.env.local`); GoDaddy
 deployment is packaged (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
 `NEXT_PUBLIC_AUTH_MODE=demo`. Start with `docs/ROADMAP.md`.

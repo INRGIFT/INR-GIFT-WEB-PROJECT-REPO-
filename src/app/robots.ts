@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
   if (!isIndexable) return { rules: [{ userAgent: '*', disallow: '/' }] };
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: DISALLOWED_PREFIXES }],
-    sitemap: ['core', 'markets', 'assets', 'research', 'resources'].map((s) => absoluteUrl(`/sitemap/${s}.xml`)),
+    sitemap: absoluteUrl('/sitemap.xml'),
     host: absoluteUrl('/'),
   };
 }

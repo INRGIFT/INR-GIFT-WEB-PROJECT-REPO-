@@ -17,7 +17,7 @@ const REGIONS: Region[] = ['North America', 'Latin America', 'Europe', 'Asia-Pac
 const HEADLINE = ['SP-500', 'NASDAQ-COMPOSITE', 'NIFTY-50', 'GIFT-NIFTY', 'FTSE-100', 'DAX', 'NIKKEI-225', 'HANG-SENG', 'TAIEX', 'DOW-JONES'];
 
 export default async function HomePage() {
-  const [videos, markets, all, themes, research, news, calendar, rates] = await Promise.all([getVideos().then((v) => ['product-walkthrough', 'heatmap-drill-down', 'build-a-screen'].map((id) => v.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x))), md.getMarkets(), md.getAssets(), md.getThemes(), md.getResearch(), md.getNews({ limit: 5 }), md.getCalendar(), md.fxRates()]);
+  const [videos, markets, all, themes, research, news, calendar, rates] = await Promise.all([getVideos().then((v) => ['product-walkthrough', 'universal-search', 'heatmap-drill-down'].map((id) => v.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x))), md.getMarkets(), md.getAssets(), md.getThemes(), md.getResearch(), md.getNews({ limit: 5 }), md.getCalendar(), md.fxRates()]);
   const equities = all.filter((a) => md.EQUITY_LIKE.includes(a.cls));
   const stocks = all.filter((a) => a.cls === 'stock');
   const indices = HEADLINE.map((s) => all.find((a) => a.slug === s)!).filter(Boolean);

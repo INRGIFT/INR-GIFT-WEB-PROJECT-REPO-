@@ -1,0 +1,39 @@
+{
+  "id": "universal-search",
+  "title": "Universal search",
+  "durationSeconds": 27,
+  "transcript": [
+    "Press / or Ctrl+K on any page to open universal search.",
+    "Recent searches and suggestions appear before you type.",
+    "Type a market, exchange, sector or company. Results are grouped by kind.",
+    "Arrow keys move through results; Enter opens one.",
+    "A ticker works too: here is Reliance on NSE.",
+    "No match? Search suggests the screener, markets and collections instead."
+  ],
+  "chapters": [
+    [
+      0,
+      "Press / or Ctrl+K on any page to open universal "
+    ],
+    [
+      4.8,
+      "Recent searches and suggestions appear before yo"
+    ],
+    [
+      8.7,
+      "Type a market"
+    ],
+    [
+      13.8,
+      "Arrow keys move through results"
+    ],
+    [
+      17.7,
+      "A ticker works too"
+    ],
+    [
+      21.8,
+      "No match? Search suggests the screener"
+    ]
+  ]
+}

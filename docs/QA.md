@@ -1,6 +1,19 @@
 # QA
 
-## Verified (6 Oct 2026)
+## Verified (7 Oct 2026)
+- `npm test`: 51 tests. Playwright: 64 tests (32 desktop, 32 Pixel 7) in `e2e/journey.spec.ts` and `e2e/quality.spec.ts`.
+  The quality suite covers:
+  - every registered public route answers 200, and private routes redirect to sign-in with `next`
+  - unknown stock, market, research and paths return 404 with recovery links
+  - search and auth pages are noindex; health is ok; CSP is present
+  - axe (WCAG 2 A/AA, serious and critical) on 12 key pages
+  - no horizontal overflow at 375, 390, 768, 1024, 1280 and 1440 px
+  - reduced motion
+  - failure cases: chart failure, unavailable market, stale market, missing holdings, no search results, compare
+    with a missing asset, unauthorised ingest, invalid page size and a bad auth link
+- GoDaddy bundle unpacked and booted; pages, 404, API, health, media and headers probed.
+
+## Verified earlier (6 Oct 2026)
 - `npm run typecheck`, `npm run build` pass.
 - `npm test`: 31 tests. `smoke.test.ts` (provider, statuses, nulls, cross-listing, quality gate, calendar, screener,
   treemap), `units.test.ts` (format, missing metrics, calendar incl. DST and half days, quality gate failures,
@@ -16,7 +29,7 @@ Run e2e against a running server: `E2E_BASE_URL=http://localhost:3000 PW_CHROMIU
 
 ## Not verified
 - Anything against a real Supabase project (auth emails, SMS, TOTP, RLS) or a live data vendor.
-- Screen-reader walkthrough, Lighthouse, Safari and Firefox. ESLint is deferred by the owner.
+- Screen-reader walkthrough, Lighthouse, Safari and Firefox. Axe is automated only. ESLint is deferred by the owner.
 
 ## Acceptance journey
 1 land on home · 2 search AAPL · 3 open stock page · 4 switch chart period · 5 open research · 6 add to watchlist ·

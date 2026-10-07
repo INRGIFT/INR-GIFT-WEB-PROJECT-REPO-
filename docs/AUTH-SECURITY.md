@@ -44,9 +44,9 @@ Supabase cannot list all sessions from the client; show the current session and 
 - All API query input is zod-validated; screener share links are sanitised on decode (`decodeTree`).
 - `next` redirect targets are restricted to same-origin paths (`safeNext`, unit-tested).
 - Auth routes send `X-Robots-Tag: noindex`; contact form is rate limited and has a honeypot.
-- Security headers in `next.config.mjs` (nosniff, frame deny, referrer policy, permissions policy, HSTS).
+- Security headers in `next.config.mjs` (nosniff, frame deny, referrer policy, permissions policy, HSTS, Content-Security-Policy with `frame-ancestors 'none'` and an allow-list for Supabase and Logo.dev).
 
 ## Not done
-CSP header · distributed rate limiting (current limiter is per-instance memory) · rate limiting on auth forms beyond
+CSP nonce (CSP is set but allows `'unsafe-inline'`) · distributed rate limiting (current limiter is per-instance memory) · rate limiting on auth forms beyond
 Supabase's own · Supabase project configuration (SMS provider, email templates, custom SMTP, MFA enabled, CAPTCHA) · any test
 against a real Supabase project (RLS is verified on local Postgres only) · legal review of auth copy.

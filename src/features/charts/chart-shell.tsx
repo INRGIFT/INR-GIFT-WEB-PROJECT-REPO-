@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DataStatus } from '@/components/ui/data-status';
 import { Change, EmptyState, ErrorState, RetryButton, Segmented, Skeleton, UnavailableState } from '@/components/ui/primitives';
 import { cn } from '@/lib/format';
+import { track } from '@/lib/telemetry/analytics';
 import type { Candle, ChartRange, DataMeta } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 import { SvgChart, type ChartOverlays, type ChartType, type LowerPane } from './svg-chart';
@@ -23,6 +24,7 @@ export function ChartShell({ assetId, label, currency, benchmark, defaultRange =
   const [lower, setLower] = useState<LowerPane>(volume ? 'volume' : 'none');
   const [bench, setBench] = useState(false);
   const [full, setFull] = useState(false);
+  const ev = (action: 'range' | 'type' | 'overlay' | 'benchmark' | 'fullscreen', value: string) => track('chart_interaction', { instrumentId: assetId, action, value });
   const main = useApi<Candle[]>(`/api/v1/assets/${encodeURIComponent(assetId)}/ohlcv?range=${range}`);
   const bm = useApi<Candle[]>(bench && benchmark ? `/api/v1/assets/${encodeURIComponent(benchmark.id)}/ohlcv?range=${range}` : null);
   useEffect(() => {
@@ -39,20 +41,20 @@ export function ChartShell({ assetId, label, currency, benchmark, defaultRange =
   return (
     <section aria-label={`${label} price chart`} className={cn('min-w-0 rounded-card border border-line bg-white shadow-card', full && 'fixed inset-0 z-[60] overflow-auto rounded-none')}>
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 sm:px-4">
-        <div className="scrollbar-none -mx-1 max-w-full overflow-x-auto px-1"><Segmented nowrap label="Time range" value={range} onChange={setRange} options={RANGES.map((r) => [r, r] as const)} /></div>
+        <div className="scrollbar-none -mx-1 max-w-full overflow-x-auto px-1"><Segmented nowrap label="Time range" value={range} onChange={(r) => { setRange(r); ev('range', r); }} options={RANGES.map((r) => [r, r] as const)} /></div>
         <span className="flex-1" />
-        <Segmented label="Chart type" value={type} onChange={setType} options={TYPES} />
-        <Button size="sm" variant="ghost" onClick={() => setFull((f) => !f)} aria-label={full ? 'Exit full screen' : 'Full screen'} aria-pressed={full}>{full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
+        <Segmented label="Chart type" value={type} onChange={(t) => { setType(t); ev('type', t); }} options={TYPES} />
+        <Button size="sm" variant="ghost" onClick={() => { setFull((f) => !f); ev('fullscreen', full ? 'off' : 'on'); }} aria-label={full ? 'Exit full screen' : 'Full screen'} aria-pressed={full}>{full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</Button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2.5 sm:px-4">
         <span className="mr-0.5 text-xs text-faint">Overlays</span>
-        {toggle(Boolean(ov.sma20), () => setOv((o) => ({ ...o, sma20: !o.sma20 })), 'SMA 20', bench)}
-        {toggle(Boolean(ov.ema50), () => setOv((o) => ({ ...o, ema50: !o.ema50 })), 'EMA 50', bench)}
-        {toggle(Boolean(ov.bollinger), () => setOv((o) => ({ ...o, bollinger: !o.bollinger })), 'Bollinger', bench)}
+        {toggle(Boolean(ov.sma20), () => { setOv((o) => ({ ...o, sma20: !o.sma20 })); ev('overlay', 'sma20'); }, 'SMA 20', bench)}
+        {toggle(Boolean(ov.ema50), () => { setOv((o) => ({ ...o, ema50: !o.ema50 })); ev('overlay', 'ema50'); }, 'EMA 50', bench)}
+        {toggle(Boolean(ov.bollinger), () => { setOv((o) => ({ ...o, bollinger: !o.bollinger })); ev('overlay', 'bollinger'); }, 'Bollinger', bench)}
         <span className="mx-1 hidden h-5 w-px bg-line sm:block" aria-hidden />
         <span className="mr-0.5 text-xs text-faint">Lower</span>
         <Segmented size="sm" label="Lower pane" value={lower} onChange={setLower} options={[['volume', 'Volume'], ['rsi', 'RSI'], ['none', 'Off']] as const} />
-        {benchmark && <>{toggle(bench, () => setBench((b) => !b), `vs ${benchmark.label}`)}</>}
+        {benchmark && <>{toggle(bench, () => { setBench((b) => !b); ev('benchmark', benchmark.id); }, `vs ${benchmark.label}`)}</>}
         <span className="flex-1" />{change != null && <span className="text-[13px] text-slate2">{range} <Change value={change} /></span>}
       </div>
       <div className="p-3 pt-2 sm:p-4 sm:pt-2">
