@@ -1,14 +1,24 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { config as app, DEMO_SESSION_COOKIE, isSupabaseConfigured } from '@/lib/config';
+import { GATE_PATH, type Gate } from '@/features/auth/policy';
+import { readServerSession } from '@/features/auth/server-facts';
+import { authMode, config as app, DEMO_SESSION_COOKIE } from '@/lib/config';
+import { classifyPath, isNoindexPath } from '@/lib/route-registry';
+import { safeReturnPath } from '@/lib/return-url';
 
-import { isNoindexPath, isPrivatePath } from '@/lib/route-registry';
-
-/** Refreshes the Supabase session cookie on every request and guards private routes. */
+/**
+ * The site's access gate (src/lib/route-registry.ts): only "/" and the listed public pages are open; every other page
+ * and API needs a fully verified session (src/features/auth/policy.ts: password session, confirmed email, verified
+ * phone, SMS code in this session). Pages redirect to the missing step with ?next=<path+query>; APIs answer 401/403
+ * JSON. Protected responses are private and uncacheable, and everything except the public pages is noindex.
+ */
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
-  let authed = false;
-  if (isSupabaseConfigured) {
+  const { pathname, search } = req.nextUrl;
+  const access = classifyPath(pathname);
+  if (access === 'file') return res;
+  let gate: Gate = 'login';
+  if (authMode === 'supabase') {
     const supabase = createServerClient(app.supabaseUrl, app.supabaseKey, {
       cookies: {
         getAll: () => req.cookies.getAll(),
@@ -21,28 +31,35 @@ export async function middleware(req: NextRequest) {
         },
       },
     });
-    // getClaims() verifies the JWT (locally with asymmetric signing keys, otherwise against Auth).
-    // Never trust getSession() on the server. Nothing may run between client creation and this call.
-    const { data } = await supabase.auth.getClaims();
-    authed = Boolean(data?.claims?.sub);
-  } else {
-    authed = req.cookies.get(DEMO_SESSION_COOKIE)?.value === '1';
+    // getClaims() verifies the JWT (locally with asymmetric signing keys, otherwise against Auth); it is the first call
+    // after creating the client. Protected paths also read the user record and this session's SMS step-up.
+    if (access === 'protected') gate = (await readServerSession(supabase))?.gate ?? 'login';
+    else await supabase.auth.getClaims();
+  } else if (authMode === 'demo') {
+    // Development and test builds only (src/lib/config.ts). The demo sets this cookie only when the same gate passes.
+    gate = req.cookies.get(DEMO_SESSION_COOKIE)?.value === '1' ? 'ok' : 'login';
   }
-  if (isPrivatePath(req.nextUrl.pathname)) {
-    if (!authed) {
+  const carry = (out: NextResponse) => {
+    // Cookies the refresh wrote (for example a cleared session) and their cache headers travel with a redirect too.
+    res.cookies.getAll().forEach((c) => out.cookies.set(c));
+    ['cache-control', 'expires', 'pragma'].forEach((h) => { const v = res.headers.get(h); if (v) out.headers.set(h, v); });
+    return out;
+  };
+  if (access === 'protected') {
+    if (gate !== 'ok') {
+      if (pathname.startsWith('/api/')) {
+        const code = gate === 'login' ? 'UNAUTHENTICATED' : 'VERIFICATION_REQUIRED';
+        return carry(NextResponse.json({ error: { code, step: gate, message: gate === 'login' ? 'Sign in to use INRGIFT.' : 'Finish verifying your account to use INRGIFT.' } }, { status: gate === 'login' ? 401 : 403, headers: { 'Cache-Control': 'no-store' } }));
+      }
       const url = req.nextUrl.clone();
-      url.pathname = '/login';
-      url.search = `?next=${encodeURIComponent(req.nextUrl.pathname)}`;
-      // Carry any cookies the refresh wrote (for example a cleared session) and their cache headers onto the redirect.
-      const redirect = NextResponse.redirect(url);
-      res.cookies.getAll().forEach((c) => redirect.cookies.set(c));
-      ['cache-control', 'expires', 'pragma'].forEach((h) => { const v = res.headers.get(h); if (v) redirect.headers.set(h, v); });
-      return redirect;
+      url.pathname = GATE_PATH[gate];
+      url.search = `?next=${encodeURIComponent(safeReturnPath(`${pathname}${search}`))}`;
+      return carry(NextResponse.redirect(url));
     }
-    res.headers.set('X-Robots-Tag', 'noindex, nofollow');
     res.headers.set('Cache-Control', 'private, no-store');
   }
-  if (isNoindexPath(req.nextUrl.pathname)) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  if (isNoindexPath(pathname) || search) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return res;
 }
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|api/).*)'] };
+// Everything except Next's own static assets; public files are classified (and let through) above.
+export const config = { matcher: ['/((?!_next/static|_next/image).*)'] };

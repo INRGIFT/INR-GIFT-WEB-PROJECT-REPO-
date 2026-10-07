@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { isIndexablePath } from './route-registry';
 import { config, isIndexable } from './config';
 
 /**
@@ -35,7 +36,8 @@ export function pageMetadata({ title, description, path, index = 'index', type =
     keywords,
     alternates: { canonical: path },
     // While the site serves demo data (or SITE_INDEXABLE=false), nothing is indexable; see config.isIndexable.
-    robots: !isIndexable || index === 'private' ? { index: false, follow: index !== 'private' } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
+    // Only public pages may be indexed (src/lib/route-registry.ts); product pages require sign-in and are noindex.
+    robots: !isIndexable || index === 'private' || !isIndexablePath(path.split('?')[0]) ? { index: false, follow: false } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: { type, title: ogTitle, description, url: path, siteName: SITE.name, locale: 'en_IN', ...(type === 'article' ? { publishedTime, modifiedTime } : {}) },
     twitter: { card: 'summary_large_image', title: ogTitle, description },
   };

@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChoiceChips, SelectField } from '@/components/ui/field';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/format';
 import { CLASS_LABEL } from '@/lib/routes';
 import type { Asset, AssetClass, Region, Theme } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
+import { safeReturnPath } from '@/lib/return-url';
 import { AuthCard } from './auth-ui';
 
 const REGIONS: Region[] = ['Asia-Pacific', 'North America', 'Europe', 'Middle East', 'Latin America', 'Africa'];
@@ -21,6 +22,7 @@ const STEPS = ['Display', 'Markets', 'Asset classes', 'Themes', 'Watchlist'] as 
 export function Onboarding() {
   const ws = useWorkspace();
   const router = useRouter();
+  const params = useSearchParams();
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [currency, setCurrency] = useState<'LOCAL' | 'INR'>(ws.prefs.currency);
@@ -49,7 +51,7 @@ export function Onboarding() {
       if (chosen.length) toast(`${chosen.length} assets added to your watchlist`);
     }
     await ws.add('notifications', { category: 'account', title: 'Your workspace is ready', body: 'Preferences saved. Change them any time in Settings.', href: '/account/settings', read: false });
-    router.replace('/app');
+    router.replace(safeReturnPath(params.get('next')));
   };
   if (!ws.ready) return <div className="w-full max-w-[520px] space-y-3"><Skeleton className="h-7 w-1/2" /><Skeleton className="h-40 w-full" /></div>;
   return (

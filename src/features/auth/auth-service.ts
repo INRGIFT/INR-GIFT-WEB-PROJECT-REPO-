@@ -1,152 +1,264 @@
 'use client';
-import { DEMO_SESSION_COOKIE, isSupabaseConfigured } from '@/lib/config';
+import { authMode, DEMO_SESSION_COOKIE } from '@/lib/config';
 import { supabaseBrowser } from '@/supabase/client';
+import { amrMethods, isPhone, normalizePhone, passwordProblem, workspaceGate, type AuthFacts, type Gate } from './policy';
 
-export interface AuthUser { id: string; email: string | null; phone: string | null; name: string; emailVerified: boolean; phoneVerified: boolean; mfaEnrolled: boolean }
-export class AuthError extends Error { constructor(public code: 'INVALID' | 'RATE_LIMITED' | 'EXPIRED' | 'WEAK_PASSWORD' | 'UNKNOWN', message: string) { super(message); } }
-export interface MfaEnrollment { factorId: string; secret: string; qr?: string }
+export { isEmail, isPhone, normalizePhone, passwordProblem } from './policy';
+
+/**
+ * A signed-in account, at any stage. `gate` is the next step it must complete; only `gate === 'ok'` opens the
+ * workspace. In production every field comes from Supabase (user record, verified JWT, the server-written SMS step-up
+ * for this session); the browser never decides that anything is verified.
+ */
+export interface AuthUser {
+  id: string; email: string | null; name: string;
+  /** The verified number, else the number given at sign-up (not yet verified). */
+  phone: string | null;
+  emailVerified: boolean;
+  /** The mobile number is verified (by an SMS code through 2Factor.in). */
+  phoneVerified: boolean;
+  /** This session passed an SMS code. */
+  smsVerified: boolean;
+  gate: Gate;
+}
+export type AuthErrorCode = 'INVALID' | 'RATE_LIMITED' | 'EXPIRED' | 'WEAK_PASSWORD' | 'DUPLICATE_EMAIL' | 'DUPLICATE_PHONE' | 'EMAIL_UNCONFIRMED' | 'SMS_REQUIRED' | 'NOT_CONFIGURED' | 'UNKNOWN';
+export class AuthError extends Error { constructor(public code: AuthErrorCode, message: string, public retryAfter?: number) { super(message); } }
+export type SmsPurpose = 'signup' | 'login' | 'reset' | 'change';
+/** An SMS code sent through 2Factor.in. Only an opaque id and the masked number reach the browser. */
+export interface PhoneChallenge { challengeId: string; phone: string; purpose: SmsPurpose }
 export interface SecurityEvent { at: string; label: string }
 
-/** Auth contract used by every form. Two implementations: Supabase (production) and a local demo. */
+/** Auth contract used by every form. Implementations: Supabase (production), demo (local simulation), off. */
 export interface AuthAdapter {
-  readonly mode: 'supabase' | 'demo';
+  readonly mode: 'supabase' | 'demo' | 'off';
+  /** The current session's account at any stage, or null when signed out. */
   getUser(): Promise<AuthUser | null>;
   onChange(cb: () => void): () => void;
-  signUp(input: { email: string; password: string; name: string; country: string }): Promise<void>;
-  signIn(email: string, password: string): Promise<{ mfaRequired: boolean }>;
+  /** Creates the account (email + password, phone reserved). No session until the email is verified. */
+  signUp(input: { name: string; email: string; phone: string; password: string; country: string; next?: string }): Promise<void>;
+  /** Email + password, the only primary sign-in. Returns the next step. */
+  signIn(email: string, password: string): Promise<Gate>;
   /** Demo only: stands in for clicking the emailed link. */
-  confirmEmail?(): Promise<void>;
-  resendEmail(email: string): Promise<void>;
-  sendPhoneOtp(phone: string, purpose: 'login' | 'verify'): Promise<void>;
-  verifyPhoneOtp(phone: string, code: string, purpose: 'login' | 'verify'): Promise<{ mfaRequired: boolean }>;
+  confirmEmail?(email: string): Promise<void>;
+  resendEmail(email: string, next?: string): Promise<void>;
+  /** Sends an SMS code (2Factor.in, through INRGIFT's server). `phone` only for signup (edited number) and change. */
+  sendSms(purpose: SmsPurpose, phone?: string): Promise<PhoneChallenge>;
+  /** Checks a code. On success the server records the verified number (signup/change) and this session's step-up. */
+  verifySms(c: PhoneChallenge, code: string): Promise<void>;
   resetPassword(email: string): Promise<void>;
+  /** Demo only: stands in for opening the emailed reset link (a recovery session, not a password session). */
+  openRecoveryLink?(): Promise<boolean>;
+  /** Server-checked: needs this session's SMS code when the account has a verified phone. Signs out other sessions. */
   updatePassword(password: string): Promise<void>;
-  mfaEnroll(): Promise<MfaEnrollment>;
-  mfaVerify(factorId: string, code: string): Promise<void>;
-  mfaFactorId(): Promise<string | null>;
-  mfaUnenroll(factorId: string): Promise<void>;
   updateName(name: string): Promise<void>;
   activity(): Promise<SecurityEvent[]>;
-  signOut(): Promise<void>;
+  signOut(scope?: 'local' | 'global'): Promise<void>;
 }
 
-export function passwordProblem(pw: string): string | null {
-  if (pw.length < 10) return 'Use at least 10 characters.';
-  if (!/\d/.test(pw)) return 'Add at least one number.';
-  if (!/[^\w\s]/.test(pw)) return 'Add at least one symbol.';
-  return null;
-}
-export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
-export const isPhone = (v: string) => /^\+[1-9]\d{7,14}$/.test(v.replace(/[\s-]/g, ''));
-export const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
+const build = (base: Omit<AuthUser, 'gate'>, passwordSession: boolean): AuthUser => {
+  const f: AuthFacts = { signedIn: true, emailConfirmed: base.emailVerified, phoneVerified: base.phoneVerified, passwordSession, smsVerified: base.smsVerified };
+  return { ...base, gate: workspaceGate(f) };
+};
 
 /* ------------------------------ Supabase ------------------------------ */
 function friendly(e: { message?: string; status?: number; code?: string } | null): AuthError {
   const m = (e?.message ?? '').toLowerCase();
   if (e?.status === 429 || m.includes('rate limit') || m.includes('too many')) return new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.');
-  if (m.includes('expired') || e?.code === 'otp_expired') return new AuthError('EXPIRED', 'That code or link has expired. Request a new one.');
-  if (m.includes('invalid login') || m.includes('invalid') || m.includes('token')) return new AuthError('INVALID', 'Those details do not match. Check them and try again.');
-  if (m.includes('password')) return new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
+  if (e?.code === 'email_not_confirmed' || m.includes('email not confirmed')) return new AuthError('EMAIL_UNCONFIRMED', 'Verify your email address first. We can send the link again.');
+  if (e?.code === 'user_already_exists' || m.includes('already registered')) return new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
+  if (m.includes('expired') || e?.code === 'otp_expired') return new AuthError('EXPIRED', 'That link has expired. Request a new one.');
+  if (e?.code === 'weak_password' || (m.includes('password') && !m.includes('invalid'))) return new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
+  if (m.includes('invalid login') || m.includes('invalid')) return new AuthError('INVALID', 'Those details do not match. Check them and try again.');
+  if (m.includes('database error')) return new AuthError('DUPLICATE_PHONE', 'That mobile number cannot be used. It may already belong to another account.');
   return new AuthError('UNKNOWN', 'That did not work. Try again in a moment.');
 }
+const SERVER_CODES: Record<string, AuthErrorCode> = { COOLDOWN: 'RATE_LIMITED', TOO_MANY: 'RATE_LIMITED', LOCKED: 'RATE_LIMITED', EXPIRED: 'EXPIRED', NOT_FOUND: 'EXPIRED', INVALID_CODE: 'INVALID', INVALID_PHONE: 'INVALID', PHONE_TAKEN: 'DUPLICATE_PHONE', SMS_REQUIRED: 'SMS_REQUIRED', WEAK_PASSWORD: 'WEAK_PASSWORD', REJECTED: 'WEAK_PASSWORD', NOT_CONFIGURED: 'NOT_CONFIGURED' };
+/** Calls an INRGIFT auth route; errors arrive as safe { code, message } from the server. */
+async function api<T>(path: string, body: unknown): Promise<T> {
+  let r: Response;
+  try { r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' }); }
+  catch { throw new AuthError('UNKNOWN', 'That did not work. Check your connection and try again.'); }
+  const j = (await r.json().catch(() => ({}))) as { data?: T; error?: { code?: string; message?: string; retryAfter?: number } };
+  if (!r.ok || j.error) throw new AuthError(SERVER_CODES[j.error?.code ?? ''] ?? 'UNKNOWN', j.error?.message ?? 'That did not work. Try again in a moment.', j.error?.retryAfter);
+  return j.data as T;
+}
 const origin = () => window.location.origin;
+/** Forget the tab's pending SMS challenge (see forms.tsx) when the session ends. */
+const clearPending = () => { try { sessionStorage.removeItem('inrgift.sms.pending'); } catch { /* storage unavailable */ } };
+/** Carries the return path through the emailed link (the email hook and /auth/confirm validate it again). */
+const confirmRedirect = (next?: string) => `${origin()}/auth/callback?flow=signup${next && next !== '/app' ? `&next=${encodeURIComponent(next)}` : ''}`;
+async function phoneAvailable(phone: string): Promise<boolean> {
+  const r = await fetch('/api/auth/phone-available', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+  if (r.status === 429) throw new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.');
+  if (!r.ok) throw new AuthError('UNKNOWN', 'That did not work. Try again in a moment.');
+  return Boolean((await r.json()).available);
+}
 const supabaseAdapter = (): AuthAdapter => {
   const sb = supabaseBrowser();
-  const needsMfa = async () => { const { data } = await sb.auth.mfa.getAuthenticatorAssuranceLevel(); return data?.nextLevel === 'aal2' && data.currentLevel !== 'aal2'; };
-  const totp = async () => (await sb.auth.mfa.listFactors()).data?.totp.find((f) => f.status === 'verified') ?? null;
   return {
     mode: 'supabase',
     async getUser() {
       const { data } = await sb.auth.getUser();
       const u = data.user;
       if (!u) return null;
-      return { id: u.id, email: u.email ?? null, phone: u.phone ?? null, name: (u.user_metadata?.full_name as string) || u.email?.split('@')[0] || 'Account', emailVerified: Boolean(u.email_confirmed_at), phoneVerified: Boolean(u.phone_confirmed_at), mfaEnrolled: Boolean(await totp()) };
+      const { data: c } = await sb.auth.getClaims();
+      const claims = c?.claims as { session_id?: string; amr?: unknown } | undefined;
+      const { data: step } = claims?.session_id ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
+      const phoneVerified = Boolean(u.phone_confirmed_at && u.phone);
+      return build({
+        id: u.id, email: u.email ?? null, name: (u.user_metadata?.full_name as string) || u.email?.split('@')[0] || 'Account',
+        phone: phoneVerified ? `+${u.phone!.replace(/\D/g, '')}` : ((u.user_metadata?.phone as string) ?? null),
+        emailVerified: Boolean(u.email_confirmed_at), phoneVerified, smsVerified: Boolean(step),
+      }, amrMethods(claims?.amr).includes('password'));
     },
     onChange(cb) { const { data } = sb.auth.onAuthStateChange(() => cb()); return () => data.subscription.unsubscribe(); },
-    async signUp({ email, password, name, country }) { const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name, country }, emailRedirectTo: `${origin()}/auth/callback?next=/verify-phone` } }); if (error) throw friendly(error); },
-    async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw friendly(error); return { mfaRequired: await needsMfa() }; },
-    async resendEmail(email) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${origin()}/auth/callback?next=/verify-phone` } }); if (error) throw friendly(error); },
-    async sendPhoneOtp(phone, purpose) { const { error } = purpose === 'login' ? await sb.auth.signInWithOtp({ phone, options: { shouldCreateUser: false } }) : await sb.auth.updateUser({ phone }); if (error) throw friendly(error); },
-    async verifyPhoneOtp(phone, code, purpose) {
-      const { error } = await sb.auth.verifyOtp({ phone, token: code, type: purpose === 'login' ? 'sms' : 'phone_change' });
+    async signUp({ name, email, phone, password, country, next }) {
+      const p = normalizePhone(phone);
+      if (!isPhone(p)) throw new AuthError('INVALID', 'Enter the number with its country code.');
+      if (!(await phoneAvailable(p))) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
+      // The number goes in the sign-up metadata; a database trigger reserves it (unique) when the user is created.
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name, country, phone: p }, emailRedirectTo: confirmRedirect(next) } });
       if (error) throw friendly(error);
-      // profiles.phone_verified mirrors auth.users.phone_confirmed_at via a database trigger (migration 0005); the client never writes it.
-      return { mfaRequired: await needsMfa() };
+      // With email confirmation on, Supabase answers an existing address with a user that has no identities.
+      if (data.user && (data.user.identities?.length ?? 0) === 0) throw new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
     },
-    async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${origin()}/auth/callback?next=/reset-password` }); if (error) throw friendly(error); },
-    async updatePassword(password) { const { error } = await sb.auth.updateUser({ password }); if (error) throw friendly(error); },
-    async mfaEnroll() { const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: `INRGIFT ${Date.now()}` }); if (error || !data) throw friendly(error); return { factorId: data.id, secret: data.totp.secret, qr: data.totp.qr_code }; },
-    async mfaVerify(factorId, code) { const { error } = await sb.auth.mfa.challengeAndVerify({ factorId, code }); if (error) throw friendly(error); },
-    async mfaFactorId() { return (await totp())?.id ?? null; },
-    async mfaUnenroll(factorId) { const { error } = await sb.auth.mfa.unenroll({ factorId }); if (error) throw friendly(error); },
+    async signIn(email, password) {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw friendly(error);
+      return (await this.getUser())?.gate ?? 'login';
+    },
+    async resendEmail(email, next) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect(next) } }); if (error) throw friendly(error); },
+    async sendSms(purpose, phone) {
+      const d = await api<{ challengeId: string; phone: string; purpose: SmsPurpose }>('/api/auth/sms/start', { purpose, ...(phone ? { phone: normalizePhone(phone) } : {}) });
+      return { challengeId: d.challengeId, phone: d.phone, purpose: d.purpose };
+    },
+    async verifySms(c, code) { await api('/api/auth/sms/verify', { challengeId: c.challengeId, code }); },
+    async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${origin()}/auth/callback?flow=recovery` }); if (error) throw friendly(error); },
+    async updatePassword(password) { await api('/api/auth/password', { password }); },
     async updateName(name) { const { data, error } = await sb.auth.updateUser({ data: { full_name: name } }); if (error) throw friendly(error); if (data.user) await sb.from('profiles').update({ full_name: name }).eq('user_id', data.user.id); },
     async activity() { const { data } = await sb.auth.getUser(); const u = data.user; return u ? [{ at: u.last_sign_in_at ?? u.created_at, label: 'Signed in on this device' }, { at: u.created_at, label: 'Account created' }] : []; },
-    async signOut() { await sb.auth.signOut(); },
+    async signOut(scope = 'local') { clearPending(); await sb.auth.signOut({ scope }); },
   };
 };
 
-/* -------------------------------- Demo -------------------------------- */
-const KEY = 'inrgift.demo.auth';
+/* --------------------------------------------------------------------------------------------------------------
+ * Demo: a browser-only simulation for development and automated tests (never a public deployment, see config.ts).
+ * It follows the production rules so the journeys can be tested end to end: hashed password check, unique email and
+ * phone, email confirmation, phone verification, an SMS code per session, code expiry, attempt limits and a resend
+ * cooldown. The workspace cookie is set only when the shared workspaceGate() passes. It is not a security boundary.
+ * ------------------------------------------------------------------------------------------------------------ */
+const KEY = 'inrgift.demo.auth.v3';
 export const DEMO_CODE = '123456';
-interface DemoState { user: AuthUser | null; remembered?: AuthUser | null; pendingMfa: boolean; attempts: number; lockedUntil: number; events: SecurityEvent[] }
+interface DemoAccount { id: string; email: string; signupPhone: string; phone: string | null; name: string; pw: string; emailVerified: boolean }
+interface DemoChallenge extends PhoneChallenge { phoneE164: string; issuedAt: number; attempts: number }
+interface DemoState {
+  accounts: DemoAccount[];
+  session: { accountId: string; amr: string[]; smsVerified: boolean; lastSmsAt: number } | null;
+  challenge: DemoChallenge | null;
+  recoveryFor: string | null; lastSignup: string | null; events: SecurityEvent[];
+}
+const EMPTY: DemoState = { accounts: [], session: null, challenge: null, recoveryFor: null, lastSignup: null, events: [] };
 const listeners = new Set<() => void>();
-const read = (): DemoState => { try { return { user: null, pendingMfa: false, attempts: 0, lockedUntil: 0, events: [], ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return { user: null, pendingMfa: false, attempts: 0, lockedUntil: 0, events: [] }; } };
+const read = (): DemoState => { try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return { ...EMPTY }; } };
+const current = (s: DemoState) => (s.session ? s.accounts.find((a) => a.id === s.session!.accountId) ?? null : null);
+const toUser = (s: DemoState): AuthUser | null => {
+  const a = current(s);
+  if (!a || !s.session) return null;
+  return build({ id: a.id, email: a.email, name: a.name, phone: a.phone ?? a.signupPhone, emailVerified: a.emailVerified, phoneVerified: Boolean(a.phone), smsVerified: s.session.smsVerified }, s.session.amr.includes('password'));
+};
 const write = (s: DemoState) => {
   localStorage.setItem(KEY, JSON.stringify(s));
-  const signedIn = Boolean(s.user) && !s.pendingMfa;
-  document.cookie = `${DEMO_SESSION_COOKIE}=${signedIn ? '1' : ''}; path=/; SameSite=Lax; max-age=${signedIn ? 60 * 60 * 24 * 7 : 0}`;
+  const ok = toUser(s)?.gate === 'ok';
+  document.cookie = `${DEMO_SESSION_COOKIE}=${ok ? '1' : ''}; path=/; SameSite=Lax; max-age=${ok ? 60 * 60 * 24 * 7 : 0}`;
   listeners.forEach((l) => l());
 };
 const log = (s: DemoState, label: string) => { s.events = [{ at: new Date().toISOString(), label }, ...s.events].slice(0, 20); };
-/** Shared attempt limiter: five wrong codes locks verification for one minute. */
-function checkCode(s: DemoState, code: string) {
-  if (s.lockedUntil > Date.now()) throw new AuthError('RATE_LIMITED', `Too many attempts. Try again in ${Math.ceil((s.lockedUntil - Date.now()) / 1000)} seconds.`);
-  if (code !== DEMO_CODE) {
-    s.attempts += 1;
-    if (s.attempts >= 5) { s.attempts = 0; s.lockedUntil = Date.now() + 60_000; }
-    write(s);
-    throw new AuthError('INVALID', `That code is not right. In demo mode the code is ${DEMO_CODE}.`);
-  }
-  s.attempts = 0;
-}
+const hash = async (pw: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`inrgift-demo:${pw}`)))).map((b) => b.toString(16).padStart(2, '0')).join('');
+const phoneTaken = (s: DemoState, phone: string, self?: string) => s.accounts.some((a) => a.id !== self && (a.signupPhone === phone || a.phone === phone));
+const mask = (p: string) => `${p.slice(0, 3)} ••••• ${p.slice(-3)}`;
 const demoAdapter = (): AuthAdapter => ({
   mode: 'demo',
-  async getUser() { const s = read(); return s.pendingMfa ? null : s.user; },
+  async getUser() { return toUser(read()); },
   onChange(cb) { listeners.add(cb); return () => { listeners.delete(cb); }; },
-  async signUp({ email, name }) { const s = read(); s.user = { id: 'demo-user', email, phone: null, name, emailVerified: false, phoneVerified: false, mfaEnrolled: false }; s.pendingMfa = false; log(s, 'Account created'); write(s); },
-  async signIn(email) {
+  async signUp({ name, email, phone, password }) {
     const s = read();
-    const known = s.user ?? s.remembered ?? null;
-    s.user = known && known.email === email ? known : { id: 'demo-user', email, phone: '+919800000000', name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), emailVerified: true, phoneVerified: true, mfaEnrolled: false };
-    s.pendingMfa = s.user.mfaEnrolled;
-    log(s, 'Signed in with email and password');
-    write(s);
-    return { mfaRequired: s.pendingMfa };
+    const e = email.trim().toLowerCase(), p = normalizePhone(phone);
+    if (!isPhone(p)) throw new AuthError('INVALID', 'Enter the number with its country code.');
+    if (passwordProblem(password)) throw new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
+    if (s.accounts.some((a) => a.email === e)) throw new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
+    if (phoneTaken(s, p)) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
+    const a: DemoAccount = { id: `demo-${s.accounts.length + 1}-${Date.now()}`, email: e, signupPhone: p, phone: null, name, pw: await hash(password), emailVerified: false };
+    s.accounts.push(a); s.lastSignup = a.id; s.session = null;
+    log(s, 'Account created'); write(s);
   },
-  async confirmEmail() { const s = read(); if (s.user) { s.user.emailVerified = true; log(s, 'Email verified'); write(s); } },
+  async signIn(email, password) {
+    const s = read();
+    const a = s.accounts.find((x) => x.email === email.trim().toLowerCase());
+    if (!a || a.pw !== (await hash(password))) throw new AuthError('INVALID', 'Those details do not match. Check them and try again.');
+    if (!a.emailVerified) throw new AuthError('EMAIL_UNCONFIRMED', 'Verify your email address first. We can send the link again.');
+    s.session = { accountId: a.id, amr: ['password'], smsVerified: false, lastSmsAt: 0 }; s.challenge = null;
+    log(s, 'Signed in with email and password'); write(s);
+    return toUser(s)!.gate;
+  },
+  async confirmEmail(email) {
+    const s = read();
+    const a = s.accounts.find((x) => x.email === email.trim().toLowerCase()) ?? s.accounts.find((x) => x.id === s.lastSignup);
+    if (a) { a.emailVerified = true; log(s, 'Email verified'); }
+    s.session = null; // like the real link: verified, then sign in with the password
+    write(s);
+  },
   async resendEmail() {},
-  async sendPhoneOtp(_phone, purpose) { const s = read(); if (s.lockedUntil > Date.now()) throw new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.'); if (purpose === 'login' && !s.user && !s.remembered) throw new AuthError('INVALID', 'No account uses that number. Create an account first.'); },
-  async verifyPhoneOtp(phone, code, purpose) {
-    const s = read();
-    checkCode(s, code);
-    if (purpose === 'login' && !s.user) s.user = s.remembered ?? null;
-    if (!s.user) throw new AuthError('INVALID', 'No account uses that number.');
-    s.user.phone = phone; s.user.phoneVerified = true;
-    if (purpose === 'login') s.pendingMfa = s.user.mfaEnrolled;
-    log(s, purpose === 'login' ? 'Signed in with phone code' : 'Phone verified');
+  async sendSms(purpose, phone) {
+    const s = read(); const a = current(s); const u = toUser(s);
+    if (!a || !s.session || !u) throw new AuthError('INVALID', 'Sign in with your email and password first.');
+    const allowed = purpose === 'signup' ? u.gate === 'verify-phone' : purpose === 'login' ? u.gate === 'sms' : purpose === 'reset' ? Boolean(a.phone) : u.gate === 'ok';
+    if (!allowed) throw new AuthError('INVALID', 'This step is not available for your account right now. Sign in again.');
+    const target = purpose === 'login' || purpose === 'reset' ? a.phone! : normalizePhone(phone ?? a.signupPhone);
+    if (!isPhone(target)) throw new AuthError('INVALID', 'Enter the number with its country code.');
+    if ((purpose === 'signup' || purpose === 'change') && phoneTaken(s, target, a.id)) throw new AuthError('DUPLICATE_PHONE', 'That mobile number belongs to another account.');
+    if (purpose === 'change' && target === a.phone) throw new AuthError('INVALID', 'Enter a different mobile number with its country code.');
+    const wait = 30_000 - (Date.now() - s.session.lastSmsAt);
+    if (wait > 0) throw new AuthError('RATE_LIMITED', 'A code was just sent. Wait a moment before asking for another.', Math.ceil(wait / 1000));
+    s.challenge = { challengeId: `ch-${Date.now()}`, phone: mask(target), purpose, phoneE164: target, issuedAt: Date.now(), attempts: 0 };
+    s.session.lastSmsAt = Date.now();
     write(s);
-    return { mfaRequired: s.pendingMfa };
+    return { challengeId: s.challenge.challengeId, phone: s.challenge.phone, purpose };
   },
-  async resetPassword() {},
-  async updatePassword() { const s = read(); log(s, 'Password changed'); write(s); },
-  async mfaEnroll() { return { factorId: 'demo-totp', secret: 'JBSWY3DPEHPK3PXP' }; },
-  async mfaVerify(_id, code) { const s = read(); checkCode(s, code); if (s.user) { const first = !s.user.mfaEnrolled; s.user.mfaEnrolled = true; s.pendingMfa = false; log(s, first ? 'Authenticator app enrolled' : 'Two-step verification passed'); } write(s); },
-  async mfaFactorId() { return read().user?.mfaEnrolled ? 'demo-totp' : null; },
-  async mfaUnenroll() { const s = read(); if (s.user) { s.user.mfaEnrolled = false; log(s, 'Authenticator app removed'); write(s); } },
-  async updateName(name) { const s = read(); if (s.user) { s.user.name = name; write(s); } },
+  async verifySms(c, code) {
+    const s = read(); const a = current(s);
+    const ch = s.challenge;
+    if (!a || !s.session || !ch || ch.challengeId !== c.challengeId) throw new AuthError('EXPIRED', 'That code is no longer valid. Send a new one.');
+    if (Date.now() - ch.issuedAt > 10 * 60_000) throw new AuthError('EXPIRED', 'That code has expired. Send a new one.');
+    if (ch.attempts >= 5) throw new AuthError('RATE_LIMITED', 'Too many wrong codes. Send a new one.');
+    if (code !== DEMO_CODE) { ch.attempts += 1; write(s); throw new AuthError('INVALID', `That code is not right. In demo mode the code is ${DEMO_CODE}.`); }
+    if (ch.purpose === 'signup' || ch.purpose === 'change') a.phone = ch.phoneE164;
+    s.session.smsVerified = true; s.challenge = null; s.session.lastSmsAt = 0; // a used code does not hold up the next step
+    log(s, ch.purpose === 'change' ? 'Mobile number changed' : ch.purpose === 'signup' ? 'Mobile number verified' : 'SMS code verified');
+    write(s);
+  },
+  async resetPassword(email) { const s = read(); s.recoveryFor = s.accounts.find((a) => a.email === email.trim().toLowerCase())?.id ?? null; write(s); },
+  async openRecoveryLink() {
+    const s = read();
+    if (!s.recoveryFor) return false;
+    s.session = { accountId: s.recoveryFor, amr: ['otp'], smsVerified: false, lastSmsAt: 0 }; s.recoveryFor = null; // a recovery session, not a password session
+    write(s); return true;
+  },
+  async updatePassword(password) {
+    const s = read(); const a = current(s);
+    if (!a || !s.session) throw new AuthError('INVALID', 'Sign in first.');
+    if (passwordProblem(password)) throw new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
+    if (a.phone && !s.session.smsVerified) throw new AuthError('SMS_REQUIRED', 'Confirm the code sent to your phone first.');
+    a.pw = await hash(password); log(s, 'Password changed'); write(s);
+  },
+  async updateName(name) { const s = read(); const a = current(s); if (a) { a.name = name; write(s); } },
   async activity() { return read().events; },
-  async signOut() { const s = read(); s.pendingMfa = false; const keep = s.user; log(s, 'Signed out'); localStorage.setItem(KEY, JSON.stringify({ ...s, user: null, remembered: keep ?? s.remembered })); document.cookie = `${DEMO_SESSION_COOKIE}=; path=/; max-age=0`; listeners.forEach((l) => l()); },
+  async signOut() { clearPending(); const s = read(); s.session = null; s.challenge = null; log(s, 'Signed out'); write(s); },
 });
 
+const offAdapter = (): AuthAdapter => {
+  const no = async (): Promise<never> => { throw new AuthError('NOT_CONFIGURED', 'Sign-in is not available on this site yet.'); };
+  return { mode: 'off', getUser: async () => null, onChange: () => () => {}, signUp: no, signIn: no, resendEmail: no, sendSms: no, verifySms: no, resetPassword: no, updatePassword: no, updateName: no, activity: async () => [], signOut: async () => {} };
+};
+
 let adapter: AuthAdapter | null = null;
-export function getAuth(): AuthAdapter { adapter ??= isSupabaseConfigured ? supabaseAdapter() : demoAdapter(); return adapter; }
+export function getAuth(): AuthAdapter { adapter ??= authMode === 'supabase' ? supabaseAdapter() : authMode === 'demo' ? demoAdapter() : offAdapter(); return adapter; }

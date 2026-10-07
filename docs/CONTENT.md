@@ -32,3 +32,52 @@ Open items
 - FAQ, PLANS and LEGAL are written but have no pages yet.
 - Research framework for ETFs is eight steps: objective, cost, size, liquidity, holdings, allocation, performance, risk.
   The ETF page currently presents these as modules; a dedicated stepped review view (as in the v1 prototype) is not built.
+
+## News
+
+INRGIFT is market intelligence, not a general news site. News answers one question: what is relevant to global markets,
+companies, assets, economies and market-moving events?
+
+**Source.** NewsData.io (the "News IO" key), server side only (`docs/CONNECTORS.md`). Without a key the page shows
+demo headlines, labelled "Demo headlines".
+
+**Pipeline** (`src/services/news/`): validated query (`news-query.ts`) → bounded provider parameters
+(`news-provider.ts`) → NewsData.io adapter (`newsio.ts`) → normalisation (`news-normalizer.ts`) → relevance and
+entities (`news-filter.ts`) → dedup and ranking (`news-ranking.ts`) → cache (`news-cache.ts`) → `/resources/news` and
+`GET /api/v1/news/feed`.
+
+**Article model** (`news-types.ts`): provider fields pass through as given (title, description, link, image, source
+id/name/url, source priority, publish and fetch times, language, countries, categories, keywords, duplicate flag);
+missing values stay null. Everything INRGIFT computes sits under `derived` and is labelled as INRGIFT's own: topics,
+regions, markets, companies, tickers, asset classes, entities, relevance score and level, and the reasons.
+
+**Sections:** Most relevant, Latest, Global markets, India markets, US markets, Europe, Asia-Pacific, FX, Commodities,
+Bonds, Companies, Earnings, IPO & listings, Macro, Central banks, Politics & markets, Geopolitics, Trade & regulation,
+Country risk. **Filters:** search, topic, region, country/market, asset class, company, date (6/24/48 h), source id,
+relevance. **Topics:** Markets, Business, Equities, Macro, FX, Commodities, Bonds, ETFs, Indices, Earnings, IPO,
+Corporate actions, Central banks, Politics & markets, Geopolitics, Trade, Regulation.
+
+**Relevance** (deterministic, with reasons): weighted market vocabulary per topic (title counts double), canonical
+company and market matches, provider category "business". Politics and geopolitics score only when the same story has
+an economic or market link (tariffs, sanctions on oil, fiscal policy, rates). Sport, entertainment, celebrity,
+lifestyle, crime and similar signals lower the score but do not delete a story with a strong market core. High ≥ 7,
+Medium ≥ 3.5, otherwise Low. Feeds show High and Medium; Low appears only in a search whose words are in the headline.
+The page states how many low-relevance stories were hidden. It is an INRGIFT ranking aid, not a measure of financial
+importance and not advice.
+
+**Entities:** companies by their full canonical name (two words or more) or a one-word name followed by a corporate
+suffix ("Apple Inc"); tickers only when written with an exchange ("NASDAQ: AAPL") or as a cashtag; markets by
+canonical country names. News never changes the security master.
+
+**Dedup and ranking:** same provider id, same URL without tracking parameters, or the same headline from the same source
+within 36 hours collapse to one (the more relevant copy wins); different publishers covering one event are kept.
+Ranking = relevance, then recency (12-hour half-life), entity matches, source priority. Freshness badges come from
+publish time only: Recent (≤ 2 h), Today (≤ 24 h), Older. "Live" is never claimed.
+
+**Caching:** per-instance server cache keyed by validated parameters, 15 minutes by default
+(`NEWSIO_CACHE_SECONDS`); a provider failure serves the last good result for up to 6 hours as "Stale"; otherwise a safe
+"News is unavailable" state. Market pages link to filtered news instead of calling the provider, to protect quota.
+
+**Attribution and licensing:** every card shows the source name, publish time and a link to the original article
+(new tab). INRGIFT shows the headline and the provider's short description only, never full article text, and does
+not scrape publishers. Publisher images are shown only when the provider supplies them.

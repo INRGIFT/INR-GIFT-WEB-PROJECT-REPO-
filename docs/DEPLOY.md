@@ -116,13 +116,23 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key from Supabase → Project Settings → API keys |
 | `NEXT_PUBLIC_LOGO_PROVIDER` | `logo.dev` |
 | `NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY` | Logo.dev `pk_…` key |
+| `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API keys → secret key (server only; records verified phones) |
+| `SEND_EMAIL_HOOK_SECRET` | Supabase → Authentication → Hooks → Send Email secret (`v1,whsec_…`) |
+| `RESEND_API_KEY` | Resend API key (sending access) |
+| `RESEND_FROM_EMAIL` | e.g. `INRGIFT <no-reply@<your-domain>>` on a domain verified in Resend |
+| `TWO_FACTOR_API_KEY` | 2Factor.in API key |
+| `TWO_FACTOR_OTP_TEMPLATE` | 2Factor OTP template name approved for INRGIFT (DLT) |
+| `NEWSIO_API_KEY` | NewsData.io API key |
+| `NEWSIO_PAGE_SIZE` / `NEWSIO_CACHE_SECONDS` | Optional: 10 / 900 by default (free-plan safe) |
 | `MARKET_DATA_PROVIDER` | `demo` until a licensed feed is connected |
 | `INGEST_SECRET` | A long random string, only if `/api/internal/ingest` is used |
 | `SITE_INDEXABLE` | Leave empty. Demo data is never indexed. |
 
 `NEXT_PUBLIC_*` values are compiled in during `npm run build`, which runs on GoDaddy. They must be set there before
-the build, and changing one requires a rebuild. Never set `NEXT_PUBLIC_AUTH_MODE` in production. Never add the
-Supabase service-role or secret key to the app.
+the build, and changing one requires a rebuild. Never set `NEXT_PUBLIC_AUTH_MODE` in production. The Supabase secret key and the
+Resend, 2Factor.in and NewsData.io keys are server-only: never `NEXT_PUBLIC_`, never in the zip or the repository,
+only in GoDaddy's environment variables. After the first deploy, configure the Supabase hook and settings listed in
+`docs/CONNECTORS.md` and run its manual production smoke test.
 
 ## 5. Domain and TLS (GoDaddy DNS)
 

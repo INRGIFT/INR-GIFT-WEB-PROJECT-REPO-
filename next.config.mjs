@@ -18,7 +18,7 @@ function csp() {
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.logo.dev",
+    "img-src 'self' data: blob: https:", // logos (img.logo.dev) and publisher images on news cards
     "font-src 'self'",
     "media-src 'self'",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co${dev ? ' ws:' : ''}`,

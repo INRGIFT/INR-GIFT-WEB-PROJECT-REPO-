@@ -1,52 +1,90 @@
-# Auth and security
+# Auth, access and security
 
-## Modes
-- **Supabase** when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the legacy
-  `NEXT_PUBLIC_SUPABASE_ANON_KEY`) are set.
-- **Demo** otherwise: browser-local user, any email/password, code `123456`, five wrong codes lock for 60 s,
-  session cookie `inrgift_demo_session`. For development only.
+## Providers (do not substitute)
+| Provider | Role | Where |
+| --- | --- | --- |
+| **Supabase Auth** | Identity, email + password, sessions, email confirmation, password reset, the verified phone on `auth.users` | `@supabase/ssr`, `src/supabase/*` |
+| **Resend** | Every transactional email: sign-up confirmation, password reset, re-authentication code, security notices | `src/services/providers/resend.ts`, `src/services/email/*`, Supabase **Send Email Hook** → `/api/hooks/send-email` |
+| **2Factor.in** | SMS codes: phone verification and the second factor at every sign-in, password reset and number change | `src/services/providers/twofactor.ts`, `src/services/auth/*`, `/api/auth/sms/*` |
 
-Both implement `AuthAdapter` in `src/features/auth/auth-service.ts`; forms must use `useSession().auth` and nothing else.
+Supabase MFA factors and Supabase's own SMS provider are **not** used (migration 0007 refuses any MFA factor).
 
-## Flows (pages built in `src/app/(auth)`, forms in `src/features/auth/forms.tsx`)
-Sign up: email + password → email verification (`/auth/confirm` verifies `token_hash` from the INRGIFT templates in
-`supabase/templates`, working across devices; `/auth/callback` exchanges a PKCE code from the default templates) → phone OTP → TOTP enrolment →
-onboarding → workspace.
-Login: email + password **or** phone OTP → MFA challenge when the account has a verified factor (AAL2) → workspace.
-Recovery: forgot password → emailed link → `/auth/confirm?type=recovery&next=/reset-password` (or `/auth/callback`) → new password.
-Phone verification state is owned by Supabase Auth: `profiles.phone_verified` mirrors `auth.users.phone_confirmed_at`
-through a trigger (migration 0005) and client roles cannot change it.
+## Account model
+Every account has three credentials: **email**, **mobile number** and **password**. No passwordless sign-in, no social
+login, no phone-only or email-only accounts, no "skip".
 
-Adapter methods: getUser, onChange, signUp, signIn, confirmEmail (demo), resendEmail, sendPhoneOtp, verifyPhoneOtp,
-resetPassword, updatePassword, mfaEnroll, mfaVerify, mfaFactorId, mfaUnenroll, updateName, activity, signOut.
-Helpers: `passwordProblem` (≥10 chars, a number, a symbol), `isEmail`, `isPhone` (E.164), `normalizePhone`.
-Errors are mapped to `AuthError` codes: INVALID, RATE_LIMITED, EXPIRED, WEAK_PASSWORD, UNKNOWN.
+A session reaches any product page or data API only when all five facts hold (`src/features/auth/policy.ts`,
+`workspaceGate`), each read on the server from Supabase:
+1. signed in (Supabase session) · 2. email confirmed (`auth.users.email_confirmed_at`) · 3. the session was opened with
+the password (JWT `amr` contains `password`) · 4. phone verified (`auth.users.phone_confirmed_at`, written only by
+INRGIFT's server after 2Factor.in matched a code) · 5. **this session** passed an SMS code (`public.sms_step_ups` row
+for the JWT `session_id`, server-written).
+The database enforces the same rule with a restrictive RLS policy on every workspace table
+(`session_fully_verified()`, migration 0007). No localStorage, cookie or client boolean decides anything in production.
 
-## Pages
-Built: `/login` `/signup` `/verify` `/verify-phone` `/mfa` (`?mode=enrol|challenge`) `/forgot-password`
-`/reset-password` `/onboarding`, `/account/profile` `/account/settings` `/account/security` (email verified, phone verified, TOTP status, MFA status, current session, security activity).
-Required UI states: resend cooldown, rate-limited, expired link/code, invalid, loading; masked email on `/verify`.
-Supabase cannot list all sessions from the client; show the current session and activity, and say so.
+## Flows
+- **Sign-up** (`/signup`): name, email, mobile number (E.164), password, confirmation, terms. Server checks number
+  availability (`/api/auth/phone-available`, rate-limited); Supabase creates the user; a database trigger reserves the
+  number (unique). Supabase calls the Send Email Hook → Resend sends the confirmation link → `/auth/confirm` verifies
+  the token **and signs that link session out** → `/login` (email + password) → `/verify-phone`: 2Factor.in sends a
+  code → server checks it → `auth.users.phone` confirmed + SMS step-up for this session → onboarding → the original
+  destination (`next`).
+- **Sign-in** (`/login`): email + password (Supabase) → `/verify-phone` sends the code automatically → match → session
+  step-up → destination. A wrong code leaves the session blocked; five wrong codes lock the challenge.
+- **Password reset**: `/forgot-password` → Resend email → `/auth/confirm?type=recovery` → `/reset-password` asks for an
+  SMS code first (when a phone is verified) → `POST /api/auth/password` (server checks the SMS step-up) → all other
+  sessions signed out → sign in again with the new password + SMS. A recovery session never opens product pages
+  (no `password` in `amr`), and a reset never disables SMS.
+- **Change number** (`/verify-phone?mode=change`, from Security): needs a fully verified session; code sent to the
+  new number; the number changes only after it matches; Resend sends a notice. The old number is released.
+- **Lost phone**: `/support?topic=lost-phone` (public). Support confirms identity out of band, then removes the phone
+  with the Supabase dashboard/admin API; the person signs in with email + password and verifies a new number.
+- **Security page** (`/account/security`): email Verified/Pending, phone Verified/Pending, password Configured, SMS
+  two-factor Enabled (cannot be turned off), change number, change password, reset link, sign out.
 
-## Session and route protection
-`src/middleware.ts` refreshes the Supabase cookie on every request, verifies the JWT with `getClaims()` (never trust
-`getSession()` server-side), carries refreshed cookies and cache headers onto redirects, redirects unauthenticated requests for `/app`, `/account`, `/notifications`,
-`/onboarding` to `/login?next=…`, and sets `noindex` + `no-store` on private routes.
+## SMS verification (server)
+`src/services/auth/sms-verification.ts` (pure logic, unit-tested) with a Supabase store (`sms-store.ts`, secret key).
+- 2Factor generates and checks codes (`AUTOGEN` / `VERIFY`); INRGIFT stores only the 2Factor session id. Codes are
+  never stored, logged or returned. The API key appears only in 2Factor's URL path and is never logged.
+- A challenge is bound to the user **and** the Supabase session; another user's or session's id is "not found".
+- Single use (atomic consume; replay → not found), expires after 10 minutes, five attempts, resend cooldown 30 s per
+  session while a code is pending, at most five sends per account per 15 minutes, plus per-IP rate limits.
+- The number for sign-in and reset always comes from `auth.users`, never from the request.
+
+## Site access (homepage-only public)
+`src/lib/route-registry.ts` classifies every path; `src/middleware.ts` enforces it for pages **and** `/api`:
+| Class | Paths | Rule |
+| --- | --- | --- |
+| public | `/`, `/legal/*`, `/support`, `/contact` | open (legal pages must be readable before consenting at sign-up and are required by Indian IT Rules 2021; support/contact are the only route for someone who cannot sign in) |
+| auth | `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | open |
+| public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/contact` (rate-limited), `/api/internal/*` (secret) | each protects itself |
+| file | robots, sitemap, icons, share image, `/brand` `/fonts` `/media` files | open, no product data |
+| **protected** | **everything else** (default deny): markets, assets, discover, research, resources, search, about, pricing, FAQ, workspace, account, all `/api/v1/*` | fully verified session |
+
+Anonymous page requests → `307 /login?next=<path+query>`; signed in but unverified → the missing step (`/verify`,
+`/verify-phone`). Anonymous API requests → `401 { error: { code: "UNAUTHENTICATED" } }`; unverified → `403
+VERIFICATION_REQUIRED`. Protected responses are `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`; every
+page renders dynamically (`export const dynamic = 'force-dynamic'` in the root layout), so nothing is served from a
+static or shared cache. Prefetch requests hit the same middleware.
+
+**Return URL**: one rule, `safeReturnPath` (`src/lib/return-url.ts`): internal paths only, query and hash kept;
+absolute URLs, `//host`, backslashes, `javascript:`, control characters, auth pages and over-long values fall back to
+`/app`. It carries `next` through sign-in, sign-up, the emailed link (via the hook and `/auth/confirm`), phone
+verification and onboarding.
 
 ## Data security
-- RLS on every private table, forced, and tested: `npm run test:db` runs `supabase/tests/rls.test.sql` on a local
-  Postgres after all migrations (cross-user read/write, spoofed owner, owner reassignment, anon, verification flag); ownership set by the database; child rows verified against parent owner.
-- Client never sends `user_id`; `supabaseRepo.update` strips it.
-- No service-role key is used today. Provider keys are server-only env vars; only `/api/internal/*` may use a
-  service-role key when ingestion persistence is built. The only `NEXT_PUBLIC_*` keys are browser-safe by design
-  (Supabase publishable/anon, Logo.dev `pk_`).
-- Ingest route compares the secret with `timingSafeEqual`.
-- All API query input is zod-validated; screener share links are sanitised on decode (`decodeTree`).
-- `next` redirect targets are restricted to same-origin paths (`safeNext`, unit-tested).
-- Auth routes send `X-Robots-Tag: noindex`; contact form is rate limited and has a honeypot.
-- Security headers in `next.config.mjs` (nosniff, frame deny, referrer policy, permissions policy, HSTS, Content-Security-Policy with `frame-ancestors 'none'` and an allow-list for Supabase and Logo.dev).
+- RLS on every private table, forced and tested (`npm run test:db`, `supabase/tests/rls.test.sql`).
+- Client never sends `user_id`. The secret key is used only in route handlers (`src/supabase/admin.ts`) for
+  `auth.users` phone confirmation and the SMS tables; never in client code or middleware.
+- Server-only secrets: `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`), `SEND_EMAIL_HOOK_SECRET`,
+  `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `TWO_FACTOR_API_KEY`, `TWO_FACTOR_OTP_TEMPLATE`, `NEWSIO_API_KEY`,
+  `INGEST_SECRET` (`src/lib/server-env.ts` throws if imported in a browser). Only browser-safe keys use `NEXT_PUBLIC_*`.
+- Production never falls back to demo auth: a production build without Supabase and without an explicit
+  `NEXT_PUBLIC_AUTH_MODE=demo` runs with sign-in **off** (`authMode`, `src/lib/config.ts`). Demo mode (dev/tests) is a
+  browser simulation of the same rules, not a security boundary.
+- Security headers: nosniff, frame deny, referrer policy, permissions policy, HSTS, CSP (`frame-ancestors 'none'`;
+  `img-src https:` for publisher images on news cards).
 
 ## Not done
-CSP nonce (CSP is set but allows `'unsafe-inline'`) · distributed rate limiting (current limiter is per-instance memory) · rate limiting on auth forms beyond
-Supabase's own · Supabase project configuration (SMS provider, email templates, custom SMTP, MFA enabled, CAPTCHA) · any test
-against a real Supabase project (RLS is verified on local Postgres only) · legal review of auth copy.
+CSP nonce · distributed rate limiting (in-memory per instance) · real-provider tests (Resend, 2Factor, Supabase on the
+live project) · migration 0007 applied to the live project · legal review of auth copy.

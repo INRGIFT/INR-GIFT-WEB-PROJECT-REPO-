@@ -7,9 +7,9 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (51), build | Pass | — |
-| Playwright (64: journeys, routes, 404s, axe, six widths, reduced motion, failure cases) | Pass, demo mode | — |
-| Migrations + RLS (`npm run test:db`) | Pass on local Postgres; live project on 0001–0006 | — |
+| Typecheck, unit/API tests (117), build | Pass | — |
+| Playwright (92: access gate, journeys, auth cases 1–15, return URL, news, 404s, axe, six widths, reduced motion, failure cases) | Pass, demo mode | — |
+| Migrations + RLS (`npm run test:db`, incl. 0007) | Pass on local Postgres; live project on 0001–0006, **0007 not yet applied** | Owner |
 | GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
 | `NEXT_PUBLIC_SITE_URL` set in GoDaddy before the build (canonical and share URLs) | Open, needs the domain | Owner |
 | GoDaddy runs the build step and has the memory for `next build` (DEPLOY.md, remaining GoDaddy questions) | Unverified on the real account | Owner |
@@ -17,7 +17,9 @@ necessary, not sufficient. The product currently serves demo data, and several l
 | Host environment variables (Supabase URL and publishable key, `NEXT_PUBLIC_SITE_URL`, Logo.dev key) | Open | Owner |
 | `NEXT_PUBLIC_AUTH_MODE` is **not** `demo` on the public host | Must verify at deploy | Owner + engineering |
 | Supabase Site URL, redirect URLs, email templates, custom SMTP | Open; production email untested | Owner |
-| SMS provider for phone OTP | Open; untested | Owner |
+| 2Factor.in key + DLT template; real SMS received and verified | Open; untested | Owner |
+| Resend key + verified domain + Supabase Send Email Hook; real email received | Open; untested | Owner |
+| NewsData.io key; real request filtered to market news | Open; untested | Owner |
 | Real sign-up round trip on the deployed domain | Open | Engineering, after the items above |
 | Live market data (NSE licence and credentials) | Open; site stays noindex until then | Owner |
 | Lawyer-reviewed legal text and a named grievance officer | Open | Owner |

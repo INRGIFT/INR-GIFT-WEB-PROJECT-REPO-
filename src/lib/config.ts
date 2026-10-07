@@ -17,6 +17,16 @@ export const config = {
  * built-in demo account (browser-local data) for automated test builds; never set it on a public deployment.
  */
 export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey) && process.env.NEXT_PUBLIC_AUTH_MODE !== 'demo';
+/**
+ * Which sign-in system runs:
+ *   supabase  Supabase is configured (production).
+ *   demo      browser-only simulation, for `npm run dev` without configuration and for builds that set
+ *             NEXT_PUBLIC_AUTH_MODE=demo (automated tests). Never on a public deployment.
+ *   off       a production build with no Supabase configuration and no explicit demo opt-in: sign-in is unavailable,
+ *             so a misconfigured deployment can never fall back to the demo account.
+ */
+export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
+  : process.env.NEXT_PUBLIC_AUTH_MODE === 'demo' || process.env.NODE_ENV !== 'production' ? 'demo' : 'off';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).
 export const isDemoData = config.provider === 'demo' || config.fallbackProvider === 'demo';
 /**

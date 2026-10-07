@@ -1,31 +1,18 @@
 import type { MetadataRoute } from 'next';
-import { assetHref, collectionHref, DIRECTORY_CLASS, glossaryHref, learnHref, marketHref, researchHref } from '@/lib/routes';
-import { assetQuality, marketQuality } from '@/lib/indexability';
 import { isIndexable } from '@/lib/config';
 import { absoluteUrl } from '@/lib/seo';
-import { getGlossary, getLearnArticles, getLegalDocs } from '@/services/content';
-import * as md from '@/services/market-data';
+import { getLegalDocs } from '@/services/content';
 
 /**
- * Sitemap index split by section so each file stays small as coverage grows (served at /sitemap/<id>.xml, indexed by /sitemap.xml).
- * Only canonical, indexable URLs are listed: no faceted, private or search URLs.
+ * Sitemap of public pages only (served at /sitemap/core.xml, indexed by /sitemap.xml). Product pages require sign-in
+ * and are never listed. Empty while the site serves demo data, like robots.txt.
  */
-export const SITEMAP_SECTIONS = ['core', 'markets', 'assets', 'research', 'resources'] as const;
-const SECTIONS = SITEMAP_SECTIONS;
-export async function generateSitemaps() { return SECTIONS.map((id) => ({ id })); }
+export const SITEMAP_SECTIONS = ['core'] as const;
+export async function generateSitemaps() { return SITEMAP_SECTIONS.map((id) => ({ id })); }
 type Entry = MetadataRoute.Sitemap[number];
-const u = (path: string, priority = 0.6, changeFrequency: Entry['changeFrequency'] = 'daily', lastModified?: string | Date): Entry => ({ url: absoluteUrl(path), priority, changeFrequency, ...(lastModified ? { lastModified } : {}) });
+const u = (path: string, priority: number, changeFrequency: Entry['changeFrequency']): Entry => ({ url: absoluteUrl(path), priority, changeFrequency });
 
-export default async function sitemap({ id }: { id: (typeof SECTIONS)[number] }): Promise<MetadataRoute.Sitemap> {
-  // Like robots.txt, list nothing while the site serves demo data.
-  if (!isIndexable) return [];
-  const now = new Date();
-  switch (id) {
-    case 'core': return [u('/', 1, 'hourly', now), ...['/markets', '/markets/all', '/assets', '/discover', '/discover/heatmap', '/discover/screener', '/discover/compare', '/discover/trending', '/discover/collections', '/research', '/resources'].map((p) => u(p, 0.8, 'hourly', now)), ...['/about', '/pricing', '/faq', '/support', '/contact'].map((p) => u(p, 0.4, 'monthly')), ...(await getLegalDocs()).map((d) => u(`/legal/${d.slug}`, 0.2, 'yearly'))];
-    case 'markets': { const [ms, all] = await Promise.all([md.getMarkets(), md.getAssets()]); return ms.filter((m) => marketQuality(m, all.filter((a) => a.marketId === m.id).length).indexable).map((m) => u(marketHref(m.slug), 0.8, 'hourly', now)); }
-    case 'assets': { const all = (await md.getAssets()).filter((a) => assetQuality(a).indexable); return [...Object.keys(DIRECTORY_CLASS).map((c) => u(`/assets/${c}`, 0.7)), ...all.map((a) => u(assetHref(a), a.cls === 'stock' || a.cls === 'etf' ? 0.7 : 0.6, 'hourly', now)), ...all.filter((a) => a.cls === 'etf').map((a) => u(`${assetHref(a)}/review`, 0.6, 'weekly'))]; }
-    case 'research': { const [docs, themes] = await Promise.all([md.getResearch(), md.getThemes()]); return [...(['stocks', 'etfs', 'markets', 'themes', 'sectors', 'countries'] as const).map((k) => u(`/research/${k}`, 0.7)), ...docs.map((d) => u(researchHref(d), 0.7, 'weekly', d.publishedAt)), ...themes.map((t) => u(collectionHref(t.id), 0.6))]; }
-    case 'resources': { const [learn, terms] = await Promise.all([getLearnArticles(), getGlossary()]); return [...['news', 'earnings', 'dividends', 'ipo', 'calendar', 'learn', 'glossary', 'data'].map((k) => u(`/resources/${k}`, 0.6)), ...learn.map((a) => u(learnHref(a.slug), 0.5, 'monthly')), ...terms.map((t) => u(glossaryHref(t.slug), 0.5, 'monthly'))]; }
-    default: return [];
-  }
+export default async function sitemap({ id }: { id: (typeof SITEMAP_SECTIONS)[number] }): Promise<MetadataRoute.Sitemap> {
+  if (!isIndexable || id !== 'core') return [];
+  return [u('/', 1, 'weekly'), u('/support', 0.3, 'monthly'), u('/contact', 0.3, 'monthly'), ...(await getLegalDocs()).map((d) => u(`/legal/${d.slug}`, 0.2, 'yearly'))];
 }

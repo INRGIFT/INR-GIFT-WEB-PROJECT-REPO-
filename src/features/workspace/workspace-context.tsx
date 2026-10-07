@@ -33,8 +33,17 @@ interface Workspace {
 const Ctx = createContext<Workspace | null>(null);
 export function useWorkspace(): Workspace { const v = useContext(Ctx); if (!v) throw new Error('useWorkspace must be used inside <WorkspaceProvider>'); return v; }
 
-export function WorkspaceProvider({ rates, children }: { rates: Record<string, number>; children: ReactNode }) {
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useSession();
+  // Reference FX rates are market data: loaded through the protected API once someone is signed in, never embedded
+  // in public pages.
+  const [rates, setRates] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!user) { setRates({}); return; }
+    let live = true;
+    fetch('/api/v1/fx-rates').then((r) => (r.ok ? r.json() : null)).then((j) => { if (live && j?.data) setRates(j.data as Record<string, number>); }).catch(() => {});
+    return () => { live = false; };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const toast = useToast();
   const router = useRouter();
   const pathname = usePathname();

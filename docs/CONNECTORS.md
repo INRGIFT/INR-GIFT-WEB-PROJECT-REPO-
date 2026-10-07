@@ -10,10 +10,12 @@ Anything marked **unverified** could not be confirmed from an official page.
 | Hosting | GoDaddy (owner confirmed) | `npm run package:godaddy` → source zip (`deploy/inrgift-godaddy-source.zip`: package.json at root, no node_modules, no .next, no .env; GoDaddy runs npm install → npm run build → npm start); `docs/DEPLOY.md` | Not deployed |
 | Market data | NSE (designated provider) | `src/providers/nse` source adapter + provider; `MARKET_DATA_PROVIDER=nse` | Not connected: no licensed product, spec or credentials |
 | Database | Supabase Postgres, project `odiflbsoitgktylaksng` (ap-south-1, free plan) | Migrations 0001–0006 applied to the hosted project; RLS verified locally and live | Live; advisors clean (security) |
-| Authentication | Supabase Auth (`@supabase/ssr` 0.12) | Login, signup, email verification, phone OTP, TOTP, reset, logout, guard | Project connected; Site URL/redirects, templates, SMTP and SMS still to set in the dashboard |
+| Authentication | Supabase Auth (`@supabase/ssr` 0.12) | Email + password identity, sessions, email confirmation, reset; verified phone recorded on `auth.users` by the server; homepage-only access gate | Project connected; migration 0007, Site URL/redirects and the Send Email Hook still to set |
+| SMS (phone verification and second factor) | **2Factor.in** | `src/services/providers/twofactor.ts` (AUTOGEN/VERIFY), `/api/auth/sms/*` | Needs `TWO_FACTOR_API_KEY` (+ DLT-approved OTP template) |
+| News | **NewsData.io** (the "News IO" key) | `src/services/news/*`, `/resources/news`, `/api/v1/news/feed` | Needs `NEWSIO_API_KEY`; demo headlines until then |
 | Storage | Supabase Storage | Not used: no upload feature exists, so no buckets | n/a |
 | Stock/ETF logos | Logo.dev (replaceable) | `src/lib/logos` + `AssetLogo` with ticker-tile fallback | Publishable key supplied (in `.env.local`, gitignored; set it on the host) |
-| Email | Resend via Supabase custom SMTP | Templates in `supabase/templates` | Needs a Resend key and verified domain |
+| Email | **Resend** through the Supabase Send Email Hook | `src/services/providers/resend.ts`, `src/services/email/*`, `/api/hooks/send-email` | Needs `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, a verified domain and `SEND_EMAIL_HOOK_SECRET` |
 
 ## NSE market data
 
@@ -71,12 +73,14 @@ To finish:
   (`src/supabase/server.ts`).
 - **Middleware:** `src/middleware.ts` refreshes the session and guards private routes with `auth.getClaims()`. It
   passes the refreshed cookies and cache headers onto redirects.
-- **Keys:** the publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) is preferred; the legacy anon key still
-  works. No service-role key is used anywhere in the app.
+- **Keys:** the publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) in the browser; the **secret key**
+  (`SUPABASE_SECRET_KEY`, or legacy `SUPABASE_SERVICE_ROLE_KEY`) only in route handlers (`src/supabase/admin.ts`) to
+  record a verified phone and write the SMS tables. Never in client code, middleware, logs or the deployment zip.
 - **Tables:**
   - `public.profiles` is linked 1:1 to `auth.users`. It is created by the `on_auth_user_created` trigger.
-  - `profiles.phone_verified` is owned by the server: it mirrors `auth.users.phone_confirmed_at` (migration 0005), and
-    client roles cannot change it.
+  - Migration 0007 removes `profiles.phone_verified`; the verified phone lives on `auth.users`. It adds
+    `account_phones` (unique numbers), `sms_challenges`, `sms_step_ups` (server-written) and a restrictive RLS policy
+    on every workspace table (password session + confirmed email and phone + SMS for this session).
   - Every private table has owner-only RLS, and `user_id` defaults to `auth.uid()`.
 - **Verification:** `npm run test:db` applies every migration to a throwaway local Postgres with a minimal `auth`
   shim, then runs `supabase/tests/rls.test.sql`. That covers cross-user reads and writes, spoofed owners, ownership
@@ -85,26 +89,57 @@ To finish:
   owner-scoped `storage.objects` policies. Never store credentials in Storage.
 
 **Dashboard settings still to set** (needs the project):
-- Site URL, and the redirect URLs `/auth/callback` and `/auth/confirm`.
-- Email confirmation on.
-- The two email templates from `supabase/templates`.
-- Custom SMTP (below).
-- An SMS provider for phone OTP. India SMS needs TRAI DLT registration.
-- TOTP MFA on.
-- CAPTCHA (optional; see Anti-abuse).
-- Auth rate limits.
+- Apply migration 0007 (`supabase/migrations/0007_required_credentials_sms.sql`).
+- Site URL; redirect URLs `https://<domain>/auth/callback**` and `https://<domain>/auth/confirm**` (with `**` so the
+  `next` return path is allowed).
+- Email confirmation **on**. Email provider on; **Phone provider off** (SMS goes through INRGIFT + 2Factor.in);
+  anonymous sign-ins off; no OAuth providers; MFA (TOTP/phone) **off** (INRGIFT refuses Supabase MFA factors).
+- Authentication → Hooks → **Send Email**: HTTPS hook to `https://<domain>/api/hooks/send-email`; copy its secret
+  (`v1,whsec_…`) into `SEND_EMAIL_HOOK_SECRET` on the host.
+- Project Settings → API keys: create a **secret key** for `SUPABASE_SECRET_KEY` (server only).
+- CAPTCHA (optional; see Anti-abuse) and Auth rate limits.
 
-## Email: Resend through Supabase SMTP
+## Email: Resend (Send Email Hook)
 
-Supabase's built-in mailer is for testing only. It sends about 2 emails an hour, so production needs custom SMTP.
-Steps ([Resend guide](https://resend.com/docs/send-with-supabase-smtp)):
-1. Verify the sending domain in Resend: add its DKIM/SPF (and recommended DMARC) records at the DNS host.
-2. Create a Resend API key with sending access only.
-3. In Supabase → Authentication → Emails → SMTP settings, enter host `smtp.resend.com`, port `465`, username
-   `resend`, the API key as password, and a sender such as `no-reply@<domain>` named "INRGIFT".
+Supabase generates every auth token; INRGIFT renders the email and Resend delivers it:
+Supabase → `POST /api/hooks/send-email` (Standard Webhooks signature checked with `SEND_EMAIL_HOOK_SECRET`) →
+`src/services/email` → `POST https://api.resend.com/emails` (`Authorization: Bearer RESEND_API_KEY`).
+Handled types: `signup` (link to `/auth/confirm?type=signup`), `recovery` (`/auth/confirm?type=recovery`),
+`reauthentication` (code). `magiclink`, `invite` and `email_change` are refused (422): INRGIFT has no passwordless
+sign-in, and email changes go through support. Security notices (phone changed, password changed) are sent by the
+server through the same adapter. Sending an email never marks anything verified; Supabase does.
+Setup: verify the sending domain in Resend (SPF/DKIM, DMARC recommended), create a sending-only API key, set
+`RESEND_API_KEY` and `RESEND_FROM_EMAIL` (e.g. `INRGIFT <no-reply@<domain>>`) on the host, then enable the hook in
+Supabase. (Resend's Supabase SMTP integration is an alternative only for Supabase's own templates; INRGIFT uses the
+hook so all mail goes through one adapter.)
 
-Alternatively, Resend's Supabase integration fills these settings in automatically. The app sends no email itself,
-so no Resend key belongs in this repository.
+## SMS: 2Factor.in
+
+Browser → `/api/auth/sms/start|verify` → `src/services/auth/sms-verification.ts` → `src/services/providers/twofactor.ts`
+→ 2Factor.in. Endpoints (2Factor API reference): `GET https://2factor.in/API/V1/{key}/SMS/{phone}/AUTOGEN/{template}`
+(returns an OTP session id, not the code) and `GET …/SMS/VERIFY/{session_id}/{otp}` ("OTP Matched" / "OTP Mismatch" /
+"OTP Expired"). Setup: `TWO_FACTOR_API_KEY`; `TWO_FACTOR_OTP_TEMPLATE` = the OTP template name approved for INRGIFT
+(Indian SMS needs TRAI DLT sender and template registration through 2Factor); optionally restrict the key to the
+server's IP in the 2Factor dashboard.
+
+## News: NewsData.io ("News IO")
+
+`GET https://newsdata.io/api/1/latest` with header `X-ACCESS-KEY: NEWSIO_API_KEY` (documented alternative to the
+`apikey` query parameter, so the key never appears in URLs). Parameters INRGIFT sends: `language=en`,
+`removeduplicate=1`, `size` (`NEWSIO_PAGE_SIZE`, default 10 for the free plan, max 50), `category`, `country` (≤5),
+`q` (≤512), `timeframe` (1–48 h), `domain`, `page` (the previous `nextPage`). Errors 400/401/403/409/415/422/429/500
+map to safe INRGIFT states. Free plan: 200 credits a day; the cache (`NEWSIO_CACHE_SECONDS`, default 900) protects
+it. Attribution: source name, publish time and a link to the original on every card; INRGIFT shows headline and the
+provider's short description only (no `full_content`). Details: `docs/CONTENT.md#news`.
+
+## Manual production smoke test (real providers)
+1. `/api/health` → `integrations` shows supabase.secretKey, resend.configured + sendEmailHook, twofactor.configured,
+   news.provider `newsdata.io` (it sends nothing and spends no quota).
+2. Sign up with a real inbox and phone → the Resend email arrives (check Resend logs) → the link lands on sign-in.
+3. Sign in → an SMS from 2Factor.in arrives → a wrong code is refused → the right code opens the workspace.
+4. Sign out, sign in → a new SMS is required. Reset the password → SMS required before saving.
+5. `/resources/news` shows "Fresh from provider" or "Cached", source NewsData.io, and only market/business stories.
+6. Search the client bundle and the deployment zip for the key values (none may appear).
 
 ## Logos
 

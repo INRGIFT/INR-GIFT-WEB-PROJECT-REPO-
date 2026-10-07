@@ -1,11 +1,13 @@
 'use client';
 import { track } from '@/lib/telemetry/analytics';
 import { Search } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/format';
 import { assetHref, CLASS_LABEL, marketHref } from '@/lib/routes';
 import type { SearchResults } from '@/services/market-data';
+import { useSession } from '@/features/auth/session-context';
+import { loginHref } from '@/lib/return-url';
 
 const Ctx = createContext<() => void>(() => {});
 export const useOpenSearch = () => useContext(Ctx);
@@ -16,6 +18,8 @@ const EXAMPLES: Item[] = [{ label: 'Apple', hint: 'AAPL · Stock', href: '/stock
 /** Universal search. Opens with "/" or Ctrl/Cmd+K, navigable entirely by keyboard. */
 export function SearchProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [res, setRes] = useState<SearchResults | null>(null);
@@ -25,7 +29,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const input = useRef<HTMLInputElement>(null);
   const opener = useRef<Element | null>(null);
 
-  const show = useCallback(() => { opener.current = document.activeElement; setQ(''); setRes(null); setActive(0); try { setRecent(JSON.parse(localStorage.getItem(RECENT) ?? '[]')); } catch { setRecent([]); } setOpen(true); }, []);
+  // Search reads protected data: a signed-out visitor is sent to sign in (and back here afterwards).
+  const show = useCallback(() => { if (!user) { router.push(loginHref(pathname === '/' ? '/search' : pathname)); return; } opener.current = document.activeElement; setQ(''); setRes(null); setActive(0); try { setRecent(JSON.parse(localStorage.getItem(RECENT) ?? '[]')); } catch { setRecent([]); } setOpen(true); }, [user, router, pathname]);
   const close = useCallback(() => { setOpen(false); (opener.current as HTMLElement | null)?.focus?.(); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

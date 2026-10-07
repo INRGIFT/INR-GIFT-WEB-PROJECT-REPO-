@@ -14,13 +14,16 @@ import { learnHref } from '@/lib/routes';
 import { definedTermSet, JsonLd } from '@/lib/structured-data';
 import { getGlossary, getLearnArticles, getVideoFor, getVideos } from '@/services/content';
 import * as md from '@/services/market-data';
+import { NewsFeed } from '@/features/news/news-feed';
+import { parseNewsQuery } from '@/services/news/news-query';
+import { getNews } from '@/services/news/news-service';
 
 const TITLES: Record<string, [string, string]> = {
-  news: ['Market news', 'Headlines linked to the assets and markets they concern.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
+  news: ['Market news', 'Global business and market news, filtered for market relevance and linked to the assets and markets it concerns.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
-type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string; type?: string }> };
-export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, { category }] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: category ? 'faceted' : 'index' }) : notFound(); }
+type Props = { params: Promise<{ kind: string }>; searchParams: Promise<Record<string, string | undefined>> };
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, sp] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: Object.keys(sp).length ? 'faceted' : 'index' }) : notFound(); }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 const cell = 'num whitespace-nowrap border-b border-line px-4 py-2 text-right';
@@ -34,16 +37,9 @@ export default async function ResourcePage({ params, searchParams }: Props) {
   const [title, lead] = TITLES[kind];
   let body: ReactNode;
   if (kind === 'news') {
-    const { category, type } = await searchParams;
-    const all = await md.getNews();
-    const cats = [...new Set(all.map((n) => n.category))];
-    const KINDS = [['', 'Latest'], ['market', 'Markets'], ['company', 'Companies'], ['etf', 'ETFs'], ['sector', 'Sectors'], ['macro', 'Global and macro']] as const;
-    const news = all.filter((n) => (!category || n.category === category) && (!type || n.kind === type));
-    body = (<>
-      <nav aria-label="News type" className="flex flex-wrap gap-1.5">{KINDS.map(([k, l]) => <Link key={l} href={k ? `/resources/news?type=${k}` : '/resources/news'} aria-current={(type ?? '') === k ? 'page' : undefined} className={cn('chip', (type ?? '') === k && 'border-brand bg-brand-soft text-brand-ink')}>{l} <span className="ml-1 text-faint">{k ? all.filter((n) => n.kind === k).length : all.length}</span></Link>)}</nav>
-      <nav aria-label="Category" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-hover p-[3px]">{[['All', '/resources/news', !category] as const, ...cats.map((c) => [c, `/resources/news?category=${encodeURIComponent(c)}`, c === category] as const)].map(([l, h, on]) => <Link key={l} href={h} className={cn('rounded-lg px-2.5 py-1 text-[13px] font-medium', on ? 'bg-white shadow-card' : 'text-slate2 hover:text-navy')}>{l}</Link>)}</nav>
-      <Panel title={`${news.length} headlines`} flush>{news.length ? news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-3 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span>{n.summary && <span className="mt-0.5 block text-ui text-slate2">{n.summary}</span>}<span className="mt-1 flex flex-wrap gap-1.5 text-xs text-faint">{n.assetSymbol && <Badge tone="brand">{n.assetSymbol}</Badge>}<Badge>{n.category}</Badge>{n.publisher} · {dateShort(n.publishedAt)}</span></Link>) : <EmptyState title="No headlines in this category" />}</Panel>
-    </>);
+    const query = parseNewsQuery(await searchParams);
+    const [result, markets, assets] = await Promise.all([getNews(query), md.getMarkets(), md.getAssets({ cls: ['stock', 'etf', 'reit'] })]);
+    body = <NewsFeed query={query} result={result} markets={markets} companies={assets} />;
   } else if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
     const events = await md.getCalendar(kind === 'earnings' ? 'earnings' : kind === 'dividends' ? 'dividend' : 'ipo');
     const markets = new Map((await md.getMarkets()).map((m) => [m.id, m]));

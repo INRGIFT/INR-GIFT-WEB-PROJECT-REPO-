@@ -62,7 +62,7 @@ export function ProfilePage() {
       <Panel title="Contact">
         <dl>
           <Row label="Email" value={<span className="flex flex-wrap items-center gap-2">{user.email ?? '—'} {user.email && <Verified ok={user.emailVerified} />}</span>} action={user.email && !user.emailVerified ? <ButtonLink size="sm" href={`/verify?email=${encodeURIComponent(user.email)}&next=/account/profile`}>Verify</ButtonLink> : undefined} />
-          <Row label="Mobile" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : 'Not added'} {user.phone && <Verified ok={user.phoneVerified} />}</span>} action={<ButtonLink size="sm" href="/verify-phone?next=/account/profile">{user.phone ? 'Change' : 'Add number'}</ButtonLink>} />
+          <Row label="Mobile" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : 'Not added'} {user.phone && <Verified ok={user.phoneVerified} />}</span>} action={<ButtonLink size="sm" href="/verify-phone?mode=change&next=/account/profile">Change number</ButtonLink>} />
         </dl>
         <p className="mt-2 text-xs text-faint">To change your email address, contact support from the address on the account. This protects against account takeover.</p>
       </Panel>
@@ -119,38 +119,37 @@ export function SettingsPage() {
 }
 
 /* ------------------------------------ Security ------------------------------------ */
+/**
+ * Email, phone and password are all required credentials, and the SMS code is the second factor at every sign-in.
+ * Two-factor cannot be turned off; the number can only be replaced by verifying a new one (VerifyPhone ?mode=change).
+ */
 export function SecurityPage() {
-  const { user, auth, refresh } = useSession();
+  const { user, auth } = useSession();
   const toast = useToast();
   const router = useRouter();
   const [events, setEvents] = useState<SecurityEvent[] | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState('');
   const [pwErr, setPwErr] = useState<string | null>(null);
-  const [mfaOff, setMfaOff] = useState(false);
-  const [code, setCode] = useState('');
-  const [mfaErr, setMfaErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { void auth.activity().then(setEvents).catch(() => setEvents([])); }, [auth, user]);
   if (!user) return <Loading />;
   const changePw = async () => { const p = passwordProblem(pw); if (p) return setPwErr(p); setBusy(true); try { await auth.updatePassword(pw); setPwOpen(false); setPw(''); toast('Password changed'); setEvents(await auth.activity()); } catch (e) { setPwErr(authMessage(e)); } finally { setBusy(false); } };
-  const disableMfa = async () => {
-    if (code.length !== 6) return setMfaErr('Enter the current code from your authenticator app.');
-    setBusy(true); setMfaErr(null);
-    try { const id = await auth.mfaFactorId(); if (!id) throw new Error(); await auth.mfaVerify(id, code); await auth.mfaUnenroll(id); await refresh(); setMfaOff(false); setCode(''); toast('Two-step verification turned off'); setEvents(await auth.activity()); } catch (e) { setMfaErr(authMessage(e)); } finally { setBusy(false); }
-  };
-  const score = [user.emailVerified, user.phoneVerified, user.mfaEnrolled].filter(Boolean).length;
+  const activated = user.emailVerified && user.phoneVerified;
   return (
     <PageContainer className="max-w-[880px]">
-      <PageHeader crumbs={crumbs('Security')} title="Security" lead="Verification, two-step sign-in, password and recent activity." />
-      {score < 3 && <Callout tone="warn" title={`${score} of 3 protections on`}>Verify your email and phone and turn on two-step verification so a leaked password alone cannot open your account.</Callout>}
-      <Panel title="Sign-in protection">
+      <PageHeader crumbs={crumbs('Security')} title="Security" lead="Your sign-in credentials, two-factor authentication and recent activity." />
+      {!activated && <Callout tone="warn" title="Account not fully activated">Email and phone verification are both required.</Callout>}
+      <Panel title="Sign-in credentials">
         <dl>
-          <Row label="Email" value={<span className="flex flex-wrap items-center gap-2">{user.email ?? '—'} <Verified ok={user.emailVerified} /></span>} action={!user.emailVerified && user.email ? <ButtonLink size="sm" href={`/verify?email=${encodeURIComponent(user.email)}&next=/account/security`}>Verify</ButtonLink> : undefined} />
-          <Row label="Mobile" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : 'Not added'} <Verified ok={user.phoneVerified} /></span>} action={!user.phoneVerified ? <ButtonLink size="sm" href="/verify-phone?next=/account/security">Verify</ButtonLink> : undefined} />
-          <Row label="Two-step verification" value={<span className="flex flex-wrap items-center gap-2">Authenticator app <Verified ok={user.mfaEnrolled} yes="On" no="Off" /></span>} action={user.mfaEnrolled ? <Button size="sm" variant="danger" onClick={() => setMfaOff(true)}>Turn off</Button> : <ButtonLink size="sm" variant="primary" href="/mfa?mode=enrol&next=/account/security">Turn on</ButtonLink>} />
-          <Row label="Password" value="Set" action={<Button size="sm" onClick={() => { setPwErr(null); setPwOpen(true); }}>Change</Button>} />
+          <Row label="Email" value={<span className="flex flex-wrap items-center gap-2">{user.email ?? '—'} <Verified ok={user.emailVerified} no="Pending" /></span>} />
+          <Row label="Phone" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : '—'} <Verified ok={user.phoneVerified} no="Pending" /></span>} action={<ButtonLink size="sm" href="/verify-phone?mode=change&next=/account/security">Change number</ButtonLink>} />
+          <Row label="Password" value={<span className="flex flex-wrap items-center gap-2">Configured <Verified ok yes="Set" /></span>} action={<Button size="sm" onClick={() => { setPwErr(null); setPwOpen(true); }}>Change</Button>} />
+          <Row label="SMS two-factor" value={<span className="flex flex-wrap items-center gap-2">Code sent to your phone at every sign-in <Verified ok={user.phoneVerified} yes="Enabled" no="Pending" /></span>} />
         </dl>
+        <p className="mt-3 text-[13px] text-slate2">Two-factor authentication is required for every INRGIFT account and cannot be turned off. Each sign-in needs your email, your password and a code sent to your phone.</p>
+        <p className="mt-2 text-[13px] text-slate2">Forgot your password? <Link className="link" href="/forgot-password">Reset it by email</Link>; you will also confirm a code sent to your phone.</p>
+        <p className="mt-2 text-[13px] text-slate2">Lost this phone? <Link className="link" href="/support?topic=lost-phone">Recover your account</Link>. Support confirms your identity before the old number is removed; you then sign in with your email and password and verify a new number.</p>
       </Panel>
       <Panel title="Current session" tools={<Button size="sm" onClick={async () => { await auth.signOut(); router.push('/'); router.refresh(); }}><LogOut size={14} />Sign out</Button>}>
         <dl><Row label="This device" value={typeof navigator !== 'undefined' ? navigator.userAgent.replace(/\(.*?\)/g, '').split(' ').slice(-2).join(' ') : '—'} /><Row label="Sign-in method" value={auth.mode === 'demo' ? 'Demo account (this browser only)' : 'Secure session cookie, refreshed automatically'} /></dl>
@@ -162,10 +161,6 @@ export function SecurityPage() {
       <Dialog open={pwOpen} onClose={() => setPwOpen(false)} title="Change password" footer={<><Button onClick={() => setPwOpen(false)}>Cancel</Button><Button variant="primary" onClick={changePw} disabled={busy}>{busy ? 'Saving…' : 'Save password'}</Button></>}>
         <PasswordField label="New password" autoComplete="new-password" value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(null); }} error={pwErr} />
         <PasswordRules value={pw} />
-      </Dialog>
-      <Dialog open={mfaOff} onClose={() => setMfaOff(false)} title="Turn off two-step verification?" footer={<><Button onClick={() => setMfaOff(false)}>Keep it on</Button><Button variant="danger" onClick={disableMfa} disabled={busy}>{busy ? 'Checking…' : 'Turn off'}</Button></>}>
-        <p className="mb-4 text-slate2">Your account will be protected by your password alone. Confirm with a current code.</p>
-        <CodeField label="Authenticator code" value={code} onChange={setCode} error={mfaErr} />
       </Dialog>
     </PageContainer>
   );

@@ -4,6 +4,13 @@ INRGIFT is a working, research-only web app. It runs end to end on **demo data**
 It is **not production-ready**. Live market data, production email and SMS, legal text and an analytics vendor are
 not connected. `docs/RELEASE_READINESS.md` lists the gates.
 
+
+**Update (7 Oct 2026, later):** only the homepage (plus legal, support and contact) is public; every product page and
+`/api/v1` route requires a fully verified account (email + phone + password, and an SMS code in the current session).
+SMS codes come from 2Factor.in through INRGIFT's server, auth email goes through Resend via the Supabase Send Email
+Hook, and news comes from NewsData.io (demo headlines until its key is set). None of the three providers has been
+exercised with real keys yet, and migration 0007 is not yet applied to the live Supabase project.
+
 ## What runs
 - **Public product:** home, markets (28 markets, directory, detail with sessions, auctions, holidays and India-time
   hours), assets (90 instruments: 35 stocks, 8 ETFs, 4 REITs, 23 indices, 9 FX pairs, 6 commodities, 5 bonds).

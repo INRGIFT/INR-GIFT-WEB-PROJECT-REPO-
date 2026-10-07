@@ -1,5 +1,13 @@
 # SEO
 
+## Access-driven indexing (7 Oct 2026)
+Only the homepage (and the public legal, support and contact pages) can be indexed. Every product page requires sign-in:
+middleware sends `X-Robots-Tag: noindex, nofollow` and `Cache-Control: private, no-store`, `pageMetadata()` emits
+`noindex` for any non-public path, robots.txt allows only `/`, `/legal/`, `/support` and `/contact` (and disallows
+everything while the site serves demo data), and the sitemap (`/sitemap.xml` → `/sitemap/core.xml`) lists only those
+public pages. The entity quality gate and per-entity titles below still shape titles and share text for signed-in
+users, but no product URL is published to crawlers. Sections below describe the earlier public-site design.
+
 ## Implemented
 - Root metadata in `src/app/layout.tsx`: `metadataBase`, title template `%s | INRGIFT`, description, Open Graph basics, canonical.
 - Per-route `metadata` / `generateMetadata` with canonical on markets, assets, discover, research, resources.

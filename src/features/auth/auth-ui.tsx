@@ -6,15 +6,18 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { Callout } from '@/components/ui/primitives';
 import { cn } from '@/lib/format';
 import { AuthError, DEMO_CODE } from './auth-service';
+import { safeReturnPath } from '@/lib/return-url';
+import { GATE_PATH, type Gate } from './policy';
 import { useSession } from './session-context';
 
-/** Same-origin path from `?next=`, or the fallback. Prevents open redirects (`//evil.com`, `https://…`). */
-export function safeNext(raw: string | null | undefined, fallback = '/app'): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
-  if (/^\/(login|signup|verify|forgot-password|reset-password)(\/|\?|$)/.test(raw)) return fallback;
-  return raw;
-}
+/** Same-origin path (with query) from `?next=`, or the fallback. One rule for the whole site: src/lib/return-url.ts. */
+export const safeNext = (raw: string | null | undefined, fallback = '/app') => safeReturnPath(raw, fallback);
 export function useNext(fallback = '/app') { const p = useSearchParams(); return safeNext(p.get('next'), fallback); }
+/** Where a session goes next: the destination when activated, otherwise the step it still has to complete. */
+export function gateHref(gate: Gate, next = '/app'): string {
+  if (gate === 'ok') return next;
+  return `${GATE_PATH[gate]}${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`;
+}
 export const maskEmail = (e: string) => { const [u, d] = e.split('@'); return d ? `${u.slice(0, 2)}${'•'.repeat(Math.max(1, u.length - 2))}@${d}` : e; };
 export const maskPhone = (p: string) => (p.length > 6 ? `${p.slice(0, 3)} ••••• ${p.slice(-3)}` : p);
 export const authMessage = (e: unknown) => (e instanceof AuthError ? e.message : 'That did not work. Check your connection and try again.');
@@ -33,16 +36,17 @@ export function useAuthAction() {
   return { busy, error, setError, run };
 }
 /**
- * Sends visitors who arrive already signed in on to their destination instead of showing a sign-in form.
- * Only the state at arrival counts: once the form itself signs someone in, the form decides where to go next
- * (verification, MFA challenge), so a session appearing later never triggers this redirect.
+ * Sends visitors who arrive already signed in on to their destination, or to the verification step their session
+ * still needs, instead of showing a sign-in form. A session that must sign in with the password again (gate 'login',
+ * for example after a recovery link) stays on the form. Only the state at arrival counts: once the form itself signs
+ * someone in, the form decides where to go next.
  */
 export function useRedirectIfSignedIn(to: string) {
-  const { user, loading } = useSession();
+  const { account, loading } = useSession();
   const router = useRouter();
-  const decided = useRef<'redirect' | 'stay' | null>(null);
-  if (!loading && decided.current === null) decided.current = user ? 'redirect' : 'stay';
-  useEffect(() => { if (decided.current === 'redirect') router.replace(to); }, [loading, router, to]);
+  const decided = useRef<string | 'stay' | null>(null);
+  if (!loading && decided.current === null) decided.current = account && account.gate !== 'login' ? gateHref(account.gate, to) : 'stay';
+  useEffect(() => { if (decided.current && decided.current !== 'stay') router.replace(decided.current); }, [loading, router]);
   return { ready: decided.current === 'stay' };
 }
 
@@ -65,7 +69,7 @@ export function FormError({ error }: { error: string | null }) { return error ? 
 function DemoNotice() {
   const { auth } = useSession();
   if (auth.mode !== 'demo') return null;
-  return <p className="mt-4 rounded-ctl border border-warn/30 bg-warn/5 px-3 py-2 text-[13px] text-slate2"><b className="text-warn">Demo account.</b> Data stays in this browser. Any email and password work, and every code is <span className="num font-semibold text-navy">{DEMO_CODE}</span>.</p>;
+  return <p className="mt-4 rounded-ctl border border-warn/30 bg-warn/5 px-3 py-2 text-[13px] text-slate2"><b className="text-warn">Demo mode.</b> Accounts and data stay in this browser and no email or SMS is sent. The email link is a button, and every SMS code is <span className="num font-semibold text-navy">{DEMO_CODE}</span>.</p>;
 }
 /** Live password rules, shown as a checklist with text, not colour alone. */
 export function PasswordRules({ value }: { value: string }) {

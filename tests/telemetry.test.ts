@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assetQuality, assetTitle, marketQuality } from '@/lib/indexability';
-import { isNoindexPath, isPrivatePath, matchRoute, ROUTES } from '@/lib/route-registry';
+import { classifyPath, isNoindexPath, isPrivatePath, matchRoute, ROUTES } from '@/lib/route-registry';
+import { loginHref, safeReturnPath } from '@/lib/return-url';
 import { DemoProvider } from '@/providers/demo';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,14 +17,29 @@ describe('route registry', () => {
     const missing = pages.map(toPattern).map((p) => (p === '/' ? '/' : p.replace(/\/$/, ''))).filter((p) => !patterns.has(p));
     expect(missing).toEqual([]);
   });
-  it('classifies access and indexing', () => {
+  it('classifies access: homepage public, everything else protected by default', () => {
+    for (const p of ['/', '/legal/privacy', '/support', '/contact']) expect(classifyPath(p), p).toBe('public');
+    for (const p of ['/login', '/signup', '/verify', '/verify-phone', '/forgot-password', '/reset-password', '/auth/confirm', '/auth/callback']) expect(classifyPath(p), p).toBe('auth');
+    for (const p of ['/api/health', '/api/auth/sms/start', '/api/hooks/send-email', '/api/contact']) expect(classifyPath(p), p).toBe('public-api');
+    for (const p of ['/markets', '/markets/US', '/assets/stocks', '/stocks/AAPL', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/discover/screener', '/research/stocks', '/resources/news', '/resources/learn/etf-basics', '/search', '/about', '/pricing', '/faq', '/app', '/app/notes', '/account/profile', '/notifications', '/onboarding', '/api/v1/assets', '/api/v1/news/feed', '/some-future-route', '/stocks/AAPL.png', '/legalese', '/supportx'])
+      expect(classifyPath(p), p).toBe('protected');
+    for (const p of ['/robots.txt', '/sitemap.xml', '/sitemap/core.xml', '/brand/logo/INRGIFT_Emblem_NavyCobalt.svg', '/media/universal-search.webm', '/icon.svg', '/opengraph-image', '/_next/static/x.js']) expect(classifyPath(p), p).toBe('file');
     expect(isPrivatePath('/app/watchlist')).toBe(true);
-    expect(isPrivatePath('/application')).toBe(false);
     expect(isNoindexPath('/login')).toBe(true);
-    expect(isNoindexPath('/search')).toBe(true);
-    expect(isNoindexPath('/stocks/AAPL')).toBe(false);
+    expect(isNoindexPath('/stocks/AAPL')).toBe(true);
+    expect(isNoindexPath('/')).toBe(false);
+    expect(ROUTES.filter((r) => r.access === 'public').map((r) => r.pattern).sort()).toEqual(['/', '/contact', '/legal/[doc]', '/support']);
     expect(matchRoute('/markets/all')?.pattern).toBe('/markets/all');
     expect(matchRoute('/markets/India')?.pattern).toBe('/markets/[market]');
+  });
+  it('return URLs keep path and query, and never leave the site', () => {
+    expect(safeReturnPath('/markets/US')).toBe('/markets/US');
+    expect(safeReturnPath('/discover/screener?market=us&sector=technology')).toBe('/discover/screener?market=us&sector=technology');
+    expect(safeReturnPath('/research/stocks/MSFT#method')).toBe('/research/stocks/MSFT#method');
+    for (const bad of ['https://evil.com', '//evil.com', '/\\evil.com', '\\evil.com', 'javascript:alert(1)', '/%0d%0aSet-Cookie:x', '/x\u0000y', 'evil.com', '', '/login?next=/app', '/verify-phone', 'x'.repeat(3000)])
+      expect(safeReturnPath(bad, '/app'), bad).toBe(bad === '/%0d%0aSet-Cookie:x' ? '/%0d%0aSet-Cookie:x' : '/app');
+    expect(loginHref('/markets/US')).toBe('/login?next=%2Fmarkets%2FUS');
+    expect(loginHref('https://evil.com')).toBe('/login?next=%2Fapp');
   });
 });
 

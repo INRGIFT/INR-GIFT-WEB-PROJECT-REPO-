@@ -1,43 +1,79 @@
 /**
- * Route registry: every intended route, its shell, access rule, indexing rule and feature. Middleware (auth guard and
- * X-Robots-Tag), robots.txt and the route tests read this table, so a route's rules live in one place.
+ * Route registry and access policy. Middleware, robots.txt, the sitemap and the tests all read this file, so a route's
+ * rules live in one place.
  *
- * index:     'index'   public and indexable (still subject to the demo-data guard and entity quality, docs/SEO.md)
- *            'faceted' indexable base page; query-string variants are noindex,follow with a canonical to the base
- *            'noindex' never indexed (auth screens, internal search, private pages)
- * canonical: 'self' (path without query) or 'base' (strip every query parameter)
+ * ACCESS POLICY (default deny):
+ *   public      "/" (the homepage) and the few pages listed in PUBLIC_PAGES with a stated reason
+ *   auth        sign-in, sign-up and verification infrastructure, open so people can authenticate
+ *   public-api  endpoints that must work before sign-in and protect themselves (health, auth steps, signed hooks, contact)
+ *   file        static and metadata files (robots, sitemap, icons, share images, files in /public)
+ *   protected   EVERYTHING ELSE, pages and /api alike: requires a fully verified session (src/features/auth/policy.ts)
+ * A new route is protected automatically; making something public means adding it here with a reason.
  */
+export type Access = 'public' | 'auth' | 'public-api' | 'file' | 'protected';
 export type Layout = 'site' | 'workspace' | 'auth' | 'api';
-export type Access = 'public' | 'private' | 'auth';
-export interface RouteSpec { pattern: string; layout: Layout; access: Access; index: 'index' | 'faceted' | 'noindex'; canonical: 'self' | 'base'; feature: string; sample?: string }
+export interface RouteSpec { pattern: string; layout: Layout; access: Access; index: 'index' | 'noindex'; feature: string }
 
-const pub = (pattern: string, feature: string, index: RouteSpec['index'] = 'index', sample?: string): RouteSpec => ({ pattern, layout: 'site', access: 'public', index, canonical: index === 'faceted' ? 'base' : 'self', feature, sample });
-const auth = (pattern: string): RouteSpec => ({ pattern, layout: 'auth', access: 'auth', index: 'noindex', canonical: 'self', feature: 'auth' });
-const priv = (pattern: string, feature: string, layout: Layout = 'workspace'): RouteSpec => ({ pattern, layout, access: 'private', index: 'noindex', canonical: 'self', feature });
+/**
+ * Pages public besides the homepage, and why. Decision recorded in docs/DECISIONS.md (7 Oct 2026):
+ *   /legal/*   Terms and Privacy must be readable before someone accepts them at sign-up; Indian IT Rules 2021 require
+ *              the grievance officer details to be published; risk disclosure and refund terms are pre-purchase notices.
+ *   /support   Account recovery when a phone is lost happens before sign-in is possible.
+ *   /contact   The only way for someone who cannot sign in to reach INRGIFT (and the grievance channel).
+ */
+export const PUBLIC_PAGES = ['/', '/legal', '/support', '/contact'];
+export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/mfa', '/forgot-password', '/reset-password', '/auth/callback', '/auth/confirm'];
+export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/contact', '/api/internal'];
+const METADATA_FILES = ['/robots.txt', '/sitemap.xml', '/sitemap', '/manifest.webmanifest', '/icon', '/apple-icon', '/opengraph-image', '/twitter-image', '/favicon.ico'];
+/** Files served from /public (brand, fonts, media, posters): marketing assets with no product data. Only root-level
+ * files and these folders count, so a page path with a file-like suffix (/stocks/AAPL.png) stays protected. */
+const FILE_EXT = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|webm|mp4|vtt|json|woff2?|ttf|otf|css|js|map|txt|xml|webmanifest)$/i;
+const FILE_DIRS = /^\/(?:brand|fonts|media)\/|^\/[^/]+$/;
 
+const under = (p: string, base: string) => (base === '/' ? p === '/' : p === base || p.startsWith(`${base}/`));
+/** The access class of a pathname (no query). */
+export function classifyPath(pathname: string): Access {
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  if (p.startsWith('/_next/') || METADATA_FILES.some((b) => under(p, b) || p.startsWith(`${b}.`) || p.startsWith(`${b}-`)) || (FILE_EXT.test(p) && FILE_DIRS.test(p))) return 'file';
+  if (PUBLIC_PAGES.some((b) => under(p, b))) return 'public';
+  if (AUTH_PAGES.some((b) => under(p, b))) return 'auth';
+  if (PUBLIC_API.some((b) => under(p, b))) return 'public-api';
+  return 'protected';
+}
+export const isProtectedPath = (p: string) => classifyPath(p) === 'protected';
+/** Kept for older call sites: "private" now means protected. */
+export const isPrivatePath = isProtectedPath;
+/** Only the homepage and the public pages may be indexed; everything else (and anything with a query) is noindex. */
+export const isIndexablePath = (p: string) => classifyPath(p) === 'public';
+export const isNoindexPath = (p: string) => !isIndexablePath(p);
+
+const page = (pattern: string, feature: string, layout: Layout = 'site'): RouteSpec => {
+  const access = classifyPath(pattern.replace(/\[[^\]]+\]/g, 'x'));
+  return { pattern, layout, access, index: access === 'public' ? 'index' : 'noindex', feature };
+};
+/** Every page in src/app (tests/telemetry.test.ts checks none is missing). Access comes from classifyPath. */
 export const ROUTES: RouteSpec[] = [
-  pub('/', 'home'),
-  pub('/markets', 'markets', 'faceted'), pub('/markets/all', 'markets'), pub('/markets/[market]', 'markets', 'index', '/markets/India'),
-  pub('/assets', 'assets'), pub('/assets/[cls]', 'assets', 'faceted', '/assets/stocks'),
-  pub('/stocks/[symbol]', 'asset-detail', 'index', '/stocks/AAPL'), pub('/etfs/[symbol]', 'asset-detail', 'index', '/etfs/SPY'), pub('/etfs/[symbol]/review', 'etf-review', 'index', '/etfs/SPY/review'),
-  pub('/indices/[index]', 'asset-detail', 'index', '/indices/NIFTY-50'), pub('/fx/[pair]', 'asset-detail', 'index', '/fx/USD-INR'), pub('/commodities/[commodity]', 'asset-detail', 'index', '/commodities/GOLD'),
-  pub('/bonds/[bond]', 'asset-detail', 'index', '/bonds/US-10Y'), pub('/reits/[reit]', 'asset-detail', 'index', '/reits/PLD'),
-  pub('/discover', 'discover'), pub('/discover/heatmap', 'heatmap', 'faceted'), pub('/discover/screener', 'screener', 'faceted'), pub('/discover/compare', 'compare', 'faceted'),
-  pub('/discover/collections', 'collections'), pub('/discover/collections/[id]', 'collections', 'index', '/discover/collections/india'), pub('/discover/trending', 'trending'),
-  pub('/research', 'research'), pub('/research/[kind]', 'research', 'index', '/research/stocks'), pub('/research/[kind]/[slug]', 'research', 'index', '/research/sectors/technology'),
-  pub('/resources', 'resources'), pub('/resources/[kind]', 'resources', 'index', '/resources/news'),
-  pub('/resources/learn/[slug]', 'learn', 'index', '/resources/learn/etf-basics'), pub('/resources/glossary/[slug]', 'glossary', 'index', '/resources/glossary/beta'),
-  pub('/search', 'search', 'noindex'),
-  pub('/about', 'company'), pub('/pricing', 'company'), pub('/faq', 'company'), pub('/support', 'company'), pub('/contact', 'company'), pub('/legal/[doc]', 'legal', 'index', '/legal/privacy'),
-  auth('/login'), auth('/signup'), auth('/verify'), auth('/verify-phone'), auth('/mfa'), auth('/forgot-password'), auth('/reset-password'),
-  { pattern: '/auth/callback', layout: 'api', access: 'public', index: 'noindex', canonical: 'self', feature: 'auth' },
-  { pattern: '/auth/confirm', layout: 'api', access: 'public', index: 'noindex', canonical: 'self', feature: 'auth' },
-  priv('/onboarding', 'onboarding', 'auth'),
-  priv('/app', 'workspace'), priv('/app/watchlist', 'watchlists'), priv('/app/alerts', 'alerts'), priv('/app/screens', 'saved-screens'), priv('/app/comparisons', 'saved-comparisons'),
-  priv('/app/collections', 'collections'), priv('/app/recent', 'history'), priv('/app/research', 'saved-research'), priv('/app/notes', 'notes'), priv('/app/history', 'history'),
-  priv('/account', 'account'), priv('/account/profile', 'account'), priv('/account/settings', 'preferences'), priv('/account/security', 'security'), priv('/notifications', 'notifications'),
+  page('/', 'home'),
+  page('/markets', 'markets'), page('/markets/all', 'markets'), page('/markets/[market]', 'markets'),
+  page('/assets', 'assets'), page('/assets/[cls]', 'assets'),
+  page('/stocks/[symbol]', 'asset-detail'), page('/etfs/[symbol]', 'asset-detail'), page('/etfs/[symbol]/review', 'etf-review'),
+  page('/indices/[index]', 'asset-detail'), page('/fx/[pair]', 'asset-detail'), page('/commodities/[commodity]', 'asset-detail'),
+  page('/bonds/[bond]', 'asset-detail'), page('/reits/[reit]', 'asset-detail'),
+  page('/discover', 'discover'), page('/discover/heatmap', 'heatmap'), page('/discover/screener', 'screener'), page('/discover/compare', 'compare'),
+  page('/discover/collections', 'collections'), page('/discover/collections/[id]', 'collections'), page('/discover/trending', 'trending'),
+  page('/research', 'research'), page('/research/[kind]', 'research'), page('/research/[kind]/[slug]', 'research'),
+  page('/resources', 'resources'), page('/resources/[kind]', 'resources'), page('/resources/learn/[slug]', 'learn'), page('/resources/glossary/[slug]', 'glossary'),
+  page('/search', 'search'),
+  page('/about', 'company'), page('/pricing', 'company'), page('/faq', 'company'), page('/support', 'company'), page('/contact', 'company'), page('/legal/[doc]', 'legal'),
+  page('/login', 'auth', 'auth'), page('/signup', 'auth', 'auth'), page('/verify', 'auth', 'auth'), page('/verify-phone', 'auth', 'auth'), page('/mfa', 'auth', 'auth'),
+  page('/forgot-password', 'auth', 'auth'), page('/reset-password', 'auth', 'auth'),
+  page('/onboarding', 'onboarding', 'auth'),
+  page('/app', 'workspace', 'workspace'), page('/app/watchlist', 'watchlists', 'workspace'), page('/app/alerts', 'alerts', 'workspace'), page('/app/screens', 'saved-screens', 'workspace'),
+  page('/app/comparisons', 'saved-comparisons', 'workspace'), page('/app/collections', 'collections', 'workspace'), page('/app/recent', 'history', 'workspace'),
+  page('/app/research', 'saved-research', 'workspace'), page('/app/notes', 'notes', 'workspace'), page('/app/history', 'history', 'workspace'),
+  page('/account', 'account', 'workspace'), page('/account/profile', 'account', 'workspace'), page('/account/settings', 'preferences', 'workspace'),
+  page('/account/security', 'security', 'workspace'), page('/notifications', 'notifications', 'workspace'),
 ];
-
 const toRegex = (pattern: string) => new RegExp(`^${pattern === '/' ? '/' : pattern.replace(/\[[^\]]+\]/g, '[^/]+')}/?$`);
 const COMPILED = ROUTES.map((r) => ({ r, re: toRegex(r.pattern) }));
 /** The most specific registered route for a pathname (static segments win over dynamic ones). */
@@ -45,10 +81,3 @@ export function matchRoute(pathname: string): RouteSpec | null {
   const hits = COMPILED.filter((c) => c.re.test(pathname)).map((c) => c.r);
   return hits.sort((a, b) => (a.pattern.match(/\[/g)?.length ?? 0) - (b.pattern.match(/\[/g)?.length ?? 0))[0] ?? null;
 }
-/** Path prefixes that require a session. */
-export const PRIVATE_PREFIXES = ['/app', '/account', '/notifications', '/onboarding'];
-export const isPrivatePath = (p: string) => PRIVATE_PREFIXES.some((x) => p === x || p.startsWith(`${x}/`));
-/** Prefixes kept out of crawling entirely (robots.txt). */
-export const DISALLOWED_PREFIXES = ['/api/', ...PRIVATE_PREFIXES, ...ROUTES.filter((r) => r.access === 'auth').map((r) => r.pattern), '/auth/', '/search'];
-/** Whether a pathname (without query) is noindex by rule, before content quality is considered. */
-export const isNoindexPath = (p: string) => isPrivatePath(p) || matchRoute(p)?.index === 'noindex';

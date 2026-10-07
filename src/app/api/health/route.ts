@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { config, isSupabaseConfigured } from '@/lib/config';
+import { authMode, config } from '@/lib/config';
+import { configured } from '@/lib/server-env';
 import { getProvider } from '@/providers';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,13 @@ export async function GET() {
   } catch (e) {
     provider = { name: config.provider, ok: false, latencyMs: Date.now() - started, error: e instanceof Error ? e.message : 'error' };
   }
-  const body = { status: provider.ok ? 'ok' : 'degraded', time: new Date().toISOString(), provider, fallback: config.fallbackProvider, auth: isSupabaseConfigured ? 'supabase' : 'demo', logos: config.logoProvider };
+  // Integrations report configuration only: this endpoint never sends an SMS or email and never spends news quota.
+  const integrations = {
+    supabase: { auth: authMode, secretKey: configured.supabaseAdmin() },
+    resend: { configured: configured.email(), sendEmailHook: configured.emailHook() },
+    twofactor: { configured: configured.sms() },
+    news: { provider: configured.news() ? 'newsdata.io' : 'demo', configured: configured.news() },
+  };
+  const body = { status: provider.ok ? 'ok' : 'degraded', time: new Date().toISOString(), provider, fallback: config.fallbackProvider, auth: authMode, logos: config.logoProvider, integrations };
   return NextResponse.json(body, { status: provider.ok ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
 }

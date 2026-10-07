@@ -1,13 +1,15 @@
 import type { MetadataRoute } from 'next';
 import { isIndexable } from '@/lib/config';
-import { DISALLOWED_PREFIXES } from '@/lib/route-registry';
 import { absoluteUrl } from '@/lib/seo';
 
-/** Private, auth, API and search routes are never crawled. The whole site is closed while it serves demo data. */
+/**
+ * Only the homepage and the public pages (legal, support, contact) may be crawled; every product page requires
+ * sign-in (src/lib/route-registry.ts) and is disallowed. While the site serves demo data everything is closed.
+ */
 export default function robots(): MetadataRoute.Robots {
   if (!isIndexable) return { rules: [{ userAgent: '*', disallow: '/' }] };
   return {
-    rules: [{ userAgent: '*', allow: '/', disallow: DISALLOWED_PREFIXES }],
+    rules: [{ userAgent: '*', allow: ['/$', '/legal/', '/support$', '/contact$'], disallow: '/' }],
     sitemap: absoluteUrl('/sitemap.xml'),
     host: absoluteUrl('/'),
   };

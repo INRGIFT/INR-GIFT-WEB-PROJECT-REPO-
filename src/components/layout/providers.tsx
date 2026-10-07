@@ -7,11 +7,11 @@ import { SearchProvider } from '@/features/search/search-command';
 import { AlertEngine } from '@/features/workspace/alert-engine';
 import { WorkspaceProvider } from '@/features/workspace/workspace-context';
 
-export function Providers({ rates, children }: { rates: Record<string, number>; children: ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
       <SessionProvider>
-        <WorkspaceProvider rates={rates}>
+        <WorkspaceProvider>
           <SearchProvider>{children}</SearchProvider>
           <AlertEngine />
           <PageViewTracker />

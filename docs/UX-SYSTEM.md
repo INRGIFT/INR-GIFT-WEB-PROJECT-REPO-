@@ -1,5 +1,15 @@
 # UX system
 
+## Access (7 Oct 2026): homepage-only public
+**Public:** `/` only, plus `/legal/*`, `/support` and `/contact` (legal consent, grievance and account recovery; see
+`docs/DECISIONS.md`). **Auth infrastructure:** `/login` `/signup` `/verify` `/verify-phone` `/forgot-password`
+`/reset-password` `/auth/*`. **Everything else requires a fully verified account** (email + phone + password, and an SMS
+code in this session), including markets, assets, discover, research, resources, search, about, pricing and FAQ.
+Signed out, any product link or URL goes to `/login?next=<path+query>`; "Create your account" keeps `next`; after
+verification the person lands on the original page. The header keeps its navigation and search for discovery; they lead
+to sign-in when signed out. The homepage is a conversion page: no market tables, prices, research or news feeds.
+Route list below describes what exists; access is decided only by `src/lib/route-registry.ts`.
+
 ## Shells
 - **Public `(site)`**: header + main + footer + mobile bottom nav. No sidebar.
 - **Authenticated `(workspace)`**: header + personal sidebar (248px, collapses to 64px; icons only below `lg`) +

@@ -3,7 +3,7 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 51 unit/API tests, 64 Playwright tests on desktop and Pixel 7, local and live RLS checks, build, GoDaddy source zip)
+## Done (typecheck, 117 unit/API tests, 92 Playwright tests on desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -63,9 +63,20 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
   - "INRGIFT in 60 seconds" and "Universal search" tutorials.
   - Quality e2e suite: axe, six widths, reduced motion, failure cases.
 
+- **Providers and access (7 Oct 2026):**
+  - Accounts require email + phone + password; sign-in is email + password then an SMS code from **2Factor.in**
+    (server routes `/api/auth/sms/*`, per-session step-up, migration 0007 with RLS). No skip, no passwordless.
+  - Auth email through the Supabase Send Email Hook and **Resend**; security notices on phone and password changes.
+  - **NewsData.io** ("News IO") news with relevance filtering, entities, dedup, ranking, cache, sections, filters and
+    search on `/resources/news` and `GET /api/v1/news/feed`.
+  - **Homepage-only public access**: default-deny route registry enforced in middleware for pages and APIs; safe
+    `next` return path with query; noindex, robots and sitemap limited to public pages; marketing-only homepage.
+
 ## Not done — next, in order
-1. **Supabase dashboard settings (owner):** Site URL and redirect URLs once the domain is known, the two email
-   templates, custom SMTP (Resend), SMS provider (phone OTP) and TOTP. Then a real sign-up round trip on the deployed site.
+1. **Owner configuration, then the real-provider smoke test** (`docs/CONNECTORS.md`): apply migration 0007 to the live
+   project; Supabase Site URL and redirect URLs, Send Email Hook, secret key, phone provider and MFA off; Resend key and
+   verified domain; 2Factor.in key and DLT template; NewsData.io key. Nothing is production-ready until a real email,
+   a real SMS and a real NewsData.io request have been verified on the deployed site.
 2. **Server-side alert job:** run `evaluateAlert` (src/lib/alerts.ts) on a schedule with the service role, write
    notifications and send email for `channel = 'email'`. Today alerts are evaluated in the browser while INRGIFT is open.
 3. **NSE** (`docs/CONNECTORS.md`): implement `NseSource` against the licensed spec, load the security master,
@@ -86,12 +97,13 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - Rate limiter is in-memory per instance. CSP needs `'unsafe-inline'` (no nonce).
 - No route-level loading skeleton in `(site)` (removed to keep genuine 404 status).
 - Analytics and error reporting have no vendor sink; Event/Dataset JSON-LD deferred.
-- Demo auth accepts any password; it must never be enabled on a public deployment.
+- Demo auth is a browser simulation for dev and tests (hashed passwords, same rules); production builds without Supabase run with sign-in off.
+- Middleware reads the user record and the SMS step-up on every protected request (two Supabase calls); add short-lived caching if latency matters.
 - Supabase cannot list other sessions from the browser; the security page says so.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
   that match the type scale steps.
 
 ## Blockers needing the owner
-Domain name and GoDaddy plan type (cPanel Node.js or VPS) · SMS provider for phone OTP · Resend key and verified
-domain · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
+Domain name and GoDaddy plan type (cPanel Node.js or VPS) · 2Factor.in key and DLT-approved template · Resend key and
+verified domain · NewsData.io key · Supabase secret key, hook and migration 0007 on the live project · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
 analytics and error-reporting vendors.

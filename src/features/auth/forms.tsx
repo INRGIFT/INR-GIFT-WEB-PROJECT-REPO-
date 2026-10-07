@@ -1,102 +1,118 @@
 'use client';
 import { track } from '@/lib/telemetry/analytics';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox, CodeField, PasswordField, SelectField, TextField } from '@/components/ui/field';
 import { Callout, Skeleton } from '@/components/ui/primitives';
-import { Tabs } from '@/components/ui/tabs';
-import { AltLink, AuthCard, AuthForm, FormError, maskEmail, maskPhone, PasswordRules, safeNext, useAuthAction, useCooldown, useNext, useRedirectIfSignedIn } from './auth-ui';
-import { isEmail, isPhone, normalizePhone, passwordProblem } from './auth-service';
+import { AltLink, AuthCard, AuthForm, FormError, gateHref, maskEmail, maskPhone, PasswordRules, safeNext, useAuthAction, useCooldown, useNext, useRedirectIfSignedIn } from './auth-ui';
+import { AuthError, isEmail, passwordProblem, type PhoneChallenge, type SmsPurpose } from './auth-service';
+import { validateSignup, type SignupErrors, type SignupInput } from './policy';
 import { useSession } from './session-context';
 
 const COUNTRIES = ['India', 'United Arab Emirates', 'Singapore', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'Japan', 'Saudi Arabia', 'Other'];
-const CALLBACK_ERRORS: Record<string, string> = { link: 'That link could not be used. Request a new one below.', expired: 'That link has expired. Request a new one below.' };
+const NOTICES: Record<string, [tone: 'warn' | 'success', text: string]> = {
+  link: ['warn', 'That link could not be used. Request a new one below.'],
+  expired: ['warn', 'That link has expired. Request a new one below.'],
+  verified: ['success', 'Email verified. Sign in with your email and password to verify your mobile number.'],
+  reset: ['success', 'Password changed and other sessions signed out. Sign in with your new password; we will text a code to your phone.'],
+};
+const STEPS = 3;
+/**
+ * The pending SMS challenge for this tab (opaque id + masked number only), so coming back to the page within the
+ * resend cooldown still shows the code box. Not security state: the server checks user, session, expiry and attempts.
+ */
+const PENDING = 'inrgift.sms.pending';
+const savePending = (c: PhoneChallenge | null) => { try { if (c) sessionStorage.setItem(PENDING, JSON.stringify({ ...c, at: Date.now() })); else sessionStorage.removeItem(PENDING); } catch { /* storage unavailable */ } };
+const loadPending = (purpose: SmsPurpose): PhoneChallenge | null => {
+  try { const c = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as (PhoneChallenge & { at: number }) | null; return c && c.purpose === purpose && Date.now() - c.at < 10 * 60_000 ? c : null; } catch { return null; }
+};
 
 /* ------------------------------------ Login ------------------------------------ */
+/** Email and password are the only primary sign-in. The SMS code is the second factor, asked for afterwards. */
 export function LoginForm() {
   const next = useNext();
   const params = useSearchParams();
   const { ready } = useRedirectIfSignedIn(next);
-  const err = params.get('error');
-  if (!ready) return <AuthSkeleton />;
-  return (
-    <AuthCard title="Sign in to INRGIFT" lead="Your watchlists, alerts and saved research are waiting." footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</AltLink></>}>
-      {err && CALLBACK_ERRORS[err] && <Callout tone="warn" className="mb-4" title={CALLBACK_ERRORS[err]} />}
-      <Tabs label="Sign-in method" items={[{ id: 'email', label: 'Email and password', content: <EmailLogin next={next} /> }, { id: 'phone', label: 'Phone code', content: <PhoneLogin next={next} /> }]} panelClassName="pt-5" />
-    </AuthCard>
-  );
-}
-function EmailLogin({ next }: { next: string }) {
   const { auth, refresh } = useSession();
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [touched, setTouched] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const { busy, error, run } = useAuthAction();
+  const notice = NOTICES[params.get('error') ?? params.get('notice') ?? ''];
   const emailErr = touched && !isEmail(email.trim()) ? 'Enter the email address you signed up with.' : null;
   const pwErr = touched && !password ? 'Enter your password.' : null;
-  const submit = () => { setTouched(true); if (!isEmail(email.trim()) || !password) return; void run(async () => { const { mfaRequired } = await auth.signIn(email.trim(), password); if (mfaRequired) router.push(`/mfa?mode=challenge&next=${encodeURIComponent(next)}`); else { await refresh(); router.replace(next); router.refresh(); } }); };
+  const submit = () => {
+    setTouched(true); setUnconfirmed(false);
+    if (!isEmail(email.trim()) || !password) return;
+    void run(async () => {
+      try {
+        const gate = await auth.signIn(email.trim(), password);
+        await refresh();
+        router.replace(gateHref(gate, next));
+      } catch (e) { if (e instanceof AuthError && e.code === 'EMAIL_UNCONFIRMED') setUnconfirmed(true); throw e; }
+    });
+  };
+  if (!ready) return <AuthSkeleton />;
   return (
-    <AuthForm onSubmit={submit}>
-      <FormError error={error} />
-      <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} error={emailErr} autoFocus />
-      <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={pwErr} />
-      <div className="flex justify-end"><AltLink href="/forgot-password">Forgot password?</AltLink></div>
-      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
-    </AuthForm>
-  );
-}
-function PhoneLogin({ next }: { next: string }) {
-  const { auth, refresh } = useSession();
-  const router = useRouter();
-  const [phone, setPhone] = useState('+91 ');
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-  const cool = useCooldown(30);
-  const { busy, error, setError, run } = useAuthAction();
-  const send = () => { const p = normalizePhone(phone); if (!isPhone(p)) return setError('Enter the number with its country code, for example +91 98765 43210.'); void run(async () => { await auth.sendPhoneOtp(p, 'login'); setSentTo(p); cool.start(); }); };
-  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code.'); void run(async () => { const { mfaRequired } = await auth.verifyPhoneOtp(sentTo!, code, 'login'); if (mfaRequired) router.push(`/mfa?mode=challenge&next=${encodeURIComponent(next)}`); else { await refresh(); router.replace(next); router.refresh(); } }); };
-  if (!sentTo) return (
-    <AuthForm onSubmit={send}>
-      <FormError error={error} />
-      <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} hint="Use the number you verified on your account. Standard SMS rates may apply." autoFocus />
-      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Sending…' : 'Send code'}</Button>
-    </AuthForm>
-  );
-  return (
-    <AuthForm onSubmit={verify}>
-      <p className="text-slate2">We sent a six-digit code to <b className="text-navy">{maskPhone(sentTo)}</b>.</p>
-      <FormError error={error} />
-      <CodeField value={code} onChange={setCode} autoFocus />
-      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Checking…' : 'Verify and sign in'}</Button>
-      <p className="flex flex-wrap items-center justify-between gap-2 text-[13px]"><button type="button" className="link" onClick={() => { setSentTo(null); setCode(''); }}>Use a different number</button><button type="button" className="link disabled:text-faint disabled:no-underline" disabled={cool.left > 0 || busy} onClick={send}>{cool.left > 0 ? `Resend in ${cool.left}s` : 'Resend code'}</button></p>
-    </AuthForm>
+    <AuthCard title="Sign in to INRGIFT" lead="Email and password, then a code sent to your phone." footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create your account</AltLink></>}>
+      {notice && <Callout tone={notice[0]} className="mb-4" title={notice[1]} />}
+      <AuthForm onSubmit={submit}>
+        <FormError error={error} />
+        {unconfirmed && <p className="text-[13px]"><AltLink href={`/verify?email=${encodeURIComponent(email.trim())}`}>Send the verification link again</AltLink></p>}
+        <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} error={emailErr} autoFocus />
+        <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={pwErr} />
+        <div className="flex justify-end"><AltLink href="/forgot-password">Forgot password?</AltLink></div>
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
+      </AuthForm>
+    </AuthCard>
   );
 }
 
 /* ------------------------------------ Sign up ------------------------------------ */
+/** Email, mobile number and password are all required; the account opens once email and phone are verified. */
 export function SignupForm() {
   const { auth } = useSession();
   const router = useRouter();
-  const next = useNext('/onboarding');
-  const { ready } = useRedirectIfSignedIn('/app');
-  const [f, setF] = useState({ name: '', email: '', country: 'India', password: '', terms: false });
+  const next = useNext();
+  const { ready } = useRedirectIfSignedIn(next);
+  const [f, setF] = useState<SignupInput & { country: string }>({ name: '', email: '', phone: '+91 ', country: 'India', password: '', confirm: '', terms: false });
   const [touched, setTouched] = useState(false);
+  const [taken, setTaken] = useState<SignupErrors>({});
   const { busy, error, run } = useAuthAction();
-  const errs = { name: !f.name.trim() ? 'Enter your name.' : null, email: !isEmail(f.email.trim()) ? 'Enter a valid email address.' : null, password: passwordProblem(f.password), terms: !f.terms ? 'Accept the terms to continue.' : null };
-  const show = (k: keyof typeof errs) => (touched ? errs[k] : null);
-  const submit = () => { setTouched(true); if (Object.values(errs).some(Boolean)) return; track('signup_started', {}); void run(async () => { await auth.signUp({ email: f.email.trim(), password: f.password, name: f.name.trim(), country: f.country }); track('signup_completed', {}); router.push(`/verify?email=${encodeURIComponent(f.email.trim())}&next=${encodeURIComponent(next)}`); }); };
+  const errs = { ...validateSignup(f), ...taken };
+  const show = (k: keyof SignupErrors) => (touched || taken[k] ? errs[k] ?? null : null);
+  const set = (k: keyof typeof f, v: string | boolean) => { setF({ ...f, [k]: v }); if (k in taken) setTaken({ ...taken, [k]: undefined }); };
+  const submit = () => {
+    setTouched(true);
+    if (Object.values(validateSignup(f)).some(Boolean)) return;
+    track('signup_started', {});
+    void run(async () => {
+      try {
+        await auth.signUp({ name: f.name.trim(), email: f.email.trim(), phone: f.phone, password: f.password, country: f.country, next });
+      } catch (e) {
+        if (e instanceof AuthError && e.code === 'DUPLICATE_EMAIL') { setTaken({ email: e.message }); return; }
+        if (e instanceof AuthError && e.code === 'DUPLICATE_PHONE') { setTaken({ phone: e.message }); return; }
+        throw e;
+      }
+      track('signup_completed', {});
+      router.push(`/verify?email=${encodeURIComponent(f.email.trim())}${next !== '/app' ? `&next=${encodeURIComponent(next)}` : ''}`);
+    });
+  };
   if (!ready) return <AuthSkeleton />;
   return (
-    <AuthCard title="Create your account" lead="Free. Research tools stay open without an account; an account keeps your work." step={[1, 4, 'Account']} footer={<>Already have an account? <AltLink href="/login">Sign in</AltLink></>}>
+    <AuthCard title="Create your account" lead="Your account uses three credentials: email, mobile number and password. Research tools stay open without an account." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign in</AltLink></>}>
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
-        <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} error={show('name')} maxLength={80} autoFocus />
-        <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} error={show('email')} />
-        <SelectField label="Country of residence" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
-        <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} error={touched ? errs.password : null} /><PasswordRules value={f.password} /></div>
-        <div><Checkbox checked={f.terms} onChange={(v) => setF({ ...f, terms: v })} label={<>I accept the <AltLink href="/legal/terms">terms</AltLink> and <AltLink href="/legal/privacy">privacy policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
+        <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} error={show('name')} maxLength={80} autoFocus />
+        <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={f.email} onChange={(e) => set('email', e.target.value)} error={show('email')} />
+        <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} error={show('phone')} hint="With country code. Each sign-in asks for a code sent here by SMS." />
+        <SelectField label="Country of residence" value={f.country} onChange={(e) => set('country', e.target.value)}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
+        <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} error={show('password')} /><PasswordRules value={f.password} /></div>
+        <PasswordField label="Confirm password" autoComplete="new-password" value={f.confirm} onChange={(e) => set('confirm', e.target.value)} error={show('confirm')} />
+        <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/legal/terms">terms</AltLink> and <AltLink href="/legal/privacy">privacy policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
       </AuthForm>
     </AuthCard>
@@ -105,113 +121,122 @@ export function SignupForm() {
 
 /* --------------------------------- Verify email --------------------------------- */
 export function VerifyEmail() {
-  const { auth, user, refresh } = useSession();
+  const { auth, account } = useSession();
   const router = useRouter();
   const params = useSearchParams();
-  const email = params.get('email') ?? user?.email ?? '';
-  const next = safeNext(params.get('next'), '/onboarding');
+  const email = params.get('email') ?? account?.email ?? '';
+  const next = safeNext(params.get('next'));
+  const nextQ = next !== '/app' ? `&next=${encodeURIComponent(next)}` : '';
   const cool = useCooldown(45);
   const [sent, setSent] = useState(false);
   const { busy, error, run } = useAuthAction();
-  useEffect(() => { if (user?.emailVerified) router.replace(`/verify-phone?next=${encodeURIComponent(next)}`); }, [user, router, next]);
+  useEffect(() => { if (account?.emailVerified) router.replace(gateHref(account.gate)); }, [account, router]);
   return (
-    <AuthCard title="Check your email" step={[2, 4, 'Verify email']} lead={email ? <>We sent a verification link to <b className="text-navy">{maskEmail(email)}</b>. Open it on this device to continue.</> : 'We sent a verification link to your email address.'}
+    <AuthCard title="Check your email" step={[2, STEPS, 'Verify email']} lead={email ? <>We sent a verification link to <b className="text-navy">{maskEmail(email)}</b>. After opening it, sign in with your email and password to verify your phone.</> : 'We sent a verification link to your email address.'}
       footer={<>Wrong address? <AltLink href="/signup">Start again</AltLink></>}>
       <div className="space-y-4">
         <FormError error={error} />
-        {sent && <Callout tone="success" title="A new link is on its way." >Links expire after one hour. Check spam if it has not arrived in a few minutes.</Callout>}
-        {auth.mode === 'demo' && <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => { await auth.confirmEmail?.(); track('verification_completed', { step: 'email' }); await refresh(); router.push(`/verify-phone?next=${encodeURIComponent(next)}`); })}>Open the verification link (demo)</Button>}
-        <Button size="lg" className="w-full" disabled={!email || cool.left > 0 || busy} onClick={() => run(async () => { await auth.resendEmail(email); setSent(true); cool.start(); })}>{cool.left > 0 ? `Resend available in ${cool.left}s` : 'Resend the link'}</Button>
+        {sent && <Callout tone="success" title="A new link is on its way.">Links expire after one hour. Check spam if it has not arrived in a few minutes.</Callout>}
+        {auth.mode === 'demo' && <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => { await auth.confirmEmail?.(email); track('verification_completed', { step: 'email' }); router.push(`/login?notice=verified&email=${encodeURIComponent(email)}${nextQ}`); })}>Open the verification link (demo)</Button>}
+        <Button size="lg" className="w-full" disabled={!email || cool.left > 0 || busy} onClick={() => run(async () => { await auth.resendEmail(email, next); setSent(true); cool.start(); })}>{cool.left > 0 ? `Resend available in ${cool.left}s` : 'Resend the link'}</Button>
       </div>
     </AuthCard>
   );
 }
 
-/* --------------------------------- Verify phone --------------------------------- */
-export function VerifyPhone() {
-  const { auth, user, loading, refresh } = useSession();
-  const router = useRouter();
-  const next = useNext('/onboarding');
-  const [phone, setPhone] = useState('+91 ');
-  const [sentTo, setSentTo] = useState<string | null>(null);
+/* ----------------------------- SMS code entry (shared) ----------------------------- */
+function CodeStep({ challenge, onVerify, onResend, busy, error, submitLabel, extra }: { challenge: PhoneChallenge; onVerify: (code: string) => void; onResend: () => void; busy: boolean; error: string | null; submitLabel: string; extra?: ReactNode }) {
   const [code, setCode] = useState('');
   const cool = useCooldown(30);
-  const { busy, error, setError, run } = useAuthAction();
-  useEffect(() => { if (!loading && !user) router.replace(`/login?next=${encodeURIComponent('/verify-phone')}`); }, [user, loading, router]);
-  const after = `/mfa?mode=enrol&next=${encodeURIComponent(next)}`;
-  if (loading || !user) return <AuthSkeleton />;
-  const send = () => { const p = normalizePhone(phone); if (!isPhone(p)) return setError('Enter the number with its country code, for example +91 98765 43210.'); void run(async () => { await auth.sendPhoneOtp(p, 'verify'); setSentTo(p); cool.start(); }); };
-  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code.'); void run(async () => { await auth.verifyPhoneOtp(sentTo!, code, 'verify'); track('verification_completed', { step: 'phone' }); await refresh(); router.push(after); }); };
+  useEffect(() => { cool.start(); setCode(''); }, [challenge.challengeId]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <AuthCard title="Verify your mobile number" step={[3, 4, 'Verify phone']} lead="A verified number lets you sign in with a code and helps recover the account." footer={<button type="button" className="link" onClick={() => router.push(after)}>Skip for now</button>}>
-      {user.phoneVerified && !sentTo ? <div className="space-y-4"><Callout tone="success" title={`${maskPhone(user.phone ?? '')} is already verified.`} /><Button variant="primary" size="lg" className="w-full" onClick={() => router.push(after)}>Continue</Button></div> : !sentTo ? (
+    <AuthForm onSubmit={() => onVerify(code)}>
+      <p className="text-slate2">We sent a six-digit code by SMS to <b className="text-navy">{maskPhone(challenge.phone)}</b>. It expires in five minutes.</p>
+      <FormError error={error} />
+      <CodeField label="SMS code" value={code} onChange={setCode} autoFocus />
+      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Checking…' : submitLabel}</Button>
+      <p className="flex flex-wrap items-center justify-between gap-2 text-[13px]">{extra ?? <span />}<button type="button" className="link disabled:text-faint disabled:no-underline" disabled={cool.left > 0 || busy} onClick={onResend}>{cool.left > 0 ? `Send a new code in ${cool.left}s` : 'Send a new code'}</button></p>
+    </AuthForm>
+  );
+}
+
+/* --------------------------------- Verify phone --------------------------------- */
+/**
+ * Every SMS step happens here, with codes sent and checked by 2Factor.in through INRGIFT's server:
+ *   gate 'verify-phone'  first verification of the account's number (required; no skip)
+ *   gate 'sms'           the code at every sign-in, after email + password
+ *   ?mode=change         a new number on an activated account (needs this session's SMS code already); the number
+ *                        changes only after the code sent to the new number matches
+ */
+export function VerifyPhone() {
+  const { auth, account, loading, refresh } = useSession();
+  const router = useRouter();
+  const params = useSearchParams();
+  const change = params.get('mode') === 'change';
+  const next = safeNext(params.get('next'), change ? '/account/security' : '/app');
+  const purpose: SmsPurpose | null = !account ? null : change ? (account.gate === 'ok' ? 'change' : null) : account.gate === 'verify-phone' ? 'signup' : account.gate === 'sms' ? 'login' : null;
+  const [phone, setPhone] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<PhoneChallenge | null>(null);
+  const autoSent = useRef(false);
+  const { busy, error, setError, run } = useAuthAction();
+  useEffect(() => {
+    if (loading) return;
+    if (!account) { router.replace(`/login?next=${encodeURIComponent(change ? '/account/security' : next)}`); return; }
+    if (!purpose) router.replace(gateHref(account.gate, next));
+  }, [loading, account, purpose, change, next, router]);
+  useEffect(() => { if (account && phone === null) setPhone(change ? '+91 ' : account.phone ?? '+91 '); }, [account, change, phone]);
+  const send = () => void run(async () => { const c = await auth.sendSms(purpose!, purpose === 'signup' || purpose === 'change' ? phone ?? undefined : undefined); savePending(c); setChallenge(c); });
+  // A code already sent from this tab is reused; at sign-in the number is known, so the first code goes out at once.
+  useEffect(() => {
+    if (!purpose || autoSent.current) return;
+    autoSent.current = true;
+    const pending = loadPending(purpose);
+    if (pending) setChallenge(pending); else if (purpose === 'login') send();
+  }, [purpose]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (loading || !account || !purpose || phone === null) return <AuthSkeleton />;
+  const verify = (code: string) => {
+    if (code.length !== 6) return setError('Enter the six-digit code.');
+    void run(async () => {
+      await auth.verifySms(challenge!, code);
+      savePending(null);
+      if (purpose !== 'login') track('verification_completed', { step: 'phone' });
+      const u = await refresh();
+      router.replace(purpose === 'signup' && u?.gate === 'ok' ? `/onboarding${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}` : next);
+    });
+  };
+  const signOutLink = <button type="button" className="link" onClick={async () => { await auth.signOut(); router.replace('/login'); }}>Sign out</button>;
+  if (purpose === 'login') return (
+    <AuthCard title="Enter the code sent to your phone" lead="Your password was correct. Confirm it is you with the SMS code to open your workspace."
+      footer={<>Lost access to this phone? <AltLink href="/support?topic=lost-phone">Recover your account</AltLink></>}>
+      {!challenge ? (error ? <div className="space-y-3"><FormError error={error} /><Button size="lg" className="w-full" onClick={send} disabled={busy}>Send a code</Button></div> : <AuthSkeleton />) : (
+        <CodeStep challenge={challenge} busy={busy} error={error} submitLabel="Verify and continue" onVerify={verify} onResend={send} extra={signOutLink} />
+      )}
+    </AuthCard>
+  );
+  return (
+    <AuthCard title={change ? 'Change your mobile number' : 'Verify your mobile number'} step={change ? undefined : [3, STEPS, 'Verify phone']}
+      lead={change ? 'Enter the new number. It replaces the current one only after you confirm the code we send to it.' : 'Your number is your second sign-in step: every sign-in asks for a code sent to it. This step is required.'}
+      footer={change ? <AltLink href="/account/security">Keep the current number</AltLink> : <>Finish later? {signOutLink}</>}>
+      {!challenge ? (
         <AuthForm onSubmit={send}>
           <FormError error={error} />
-          <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} hint="Include the country code. We only use it for sign-in codes and security notices." autoFocus />
+          <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} hint="With country code. Standard SMS rates may apply." autoFocus />
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Sending…' : 'Send code'}</Button>
         </AuthForm>
       ) : (
-        <AuthForm onSubmit={verify}>
-          <p className="text-slate2">Enter the code sent to <b className="text-navy">{maskPhone(sentTo)}</b>.</p>
-          <FormError error={error} />
-          <CodeField value={code} onChange={setCode} autoFocus />
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Verifying…' : 'Verify number'}</Button>
-          <p className="flex flex-wrap justify-between gap-2 text-[13px]"><button type="button" className="link" onClick={() => { setSentTo(null); setCode(''); }}>Change number</button><button type="button" className="link disabled:text-faint disabled:no-underline" disabled={cool.left > 0 || busy} onClick={send}>{cool.left > 0 ? `Resend in ${cool.left}s` : 'Resend code'}</button></p>
-        </AuthForm>
+        <CodeStep challenge={challenge} busy={busy} error={error} submitLabel="Verify number" onVerify={verify} onResend={send}
+          extra={<button type="button" className="link" onClick={() => { savePending(null); setChallenge(null); }}>Use a different number</button>} />
       )}
     </AuthCard>
   );
 }
 
-/* ------------------------------------ MFA ------------------------------------ */
+/** Older links to /mfa land on the SMS step. */
 export function MfaPage() {
-  const { auth, user, loading, refresh } = useSession();
   const router = useRouter();
   const params = useSearchParams();
-  const mode = params.get('mode') === 'challenge' ? 'challenge' : 'enrol';
-  const next = safeNext(params.get('next'), mode === 'enrol' ? '/onboarding' : '/app');
-  const [enrol, setEnrol] = useState<{ factorId: string; secret: string; qr?: string } | null>(null);
-  const [factor, setFactor] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-  const { busy, error, setError, run } = useAuthAction();
-  useEffect(() => {
-    if (loading) return;
-    if (mode === 'challenge') { void auth.mfaFactorId().then((id) => { if (id) setFactor(id); else router.replace('/login'); }); return; }
-    if (!user) { router.replace(`/login?next=${encodeURIComponent('/mfa?mode=enrol')}`); return; }
-    if (user.mfaEnrolled) { router.replace(next); return; }
-    void run(async () => setEnrol(await auth.mfaEnroll()));
-  }, [loading, mode, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code from your authenticator app.'); void run(async () => { await auth.mfaVerify(mode === 'challenge' ? factor! : enrol!.factorId, code); if (mode !== 'challenge') track('verification_completed', { step: 'mfa' }); await refresh(); router.replace(next); router.refresh(); }); };
-  if (mode === 'challenge') return (
-    <AuthCard title="Two-step verification" lead="Open your authenticator app and enter the current code for INRGIFT." footer={<>Lost access to your authenticator? <AltLink href="/support">Contact support</AltLink></>}>
-      {!factor ? <AuthSkeleton /> : (
-        <AuthForm onSubmit={verify}>
-          <FormError error={error} />
-          <CodeField label="Authenticator code" value={code} onChange={setCode} autoFocus />
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Verifying…' : 'Verify'}</Button>
-          <button type="button" className="link text-[13px]" onClick={async () => { await auth.signOut(); router.replace('/login'); }}>Cancel and sign out</button>
-        </AuthForm>
-      )}
-    </AuthCard>
-  );
-  return (
-    <AuthCard title="Protect your account" step={[4, 4, 'Two-step verification']} lead="Add an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password. You will enter a code from it when you sign in." footer={<button type="button" className="link" onClick={() => router.push(next)}>Skip for now. You can enrol later in Security.</button>}>
-      {!enrol ? (error ? <FormError error={error} /> : <AuthSkeleton />) : (
-        <AuthForm onSubmit={verify}>
-          <ol className="space-y-4 text-[14px]">
-            <li><p className="font-semibold">1. Scan this code with your app</p>
-              {enrol.qr ? <img src={enrol.qr} alt="QR code for your authenticator app" width={168} height={168} className="mt-2 rounded-lg border border-line" /> : <p className="mt-1 text-slate2">Your app can also add the account from the key below.</p>}
-            </li>
-            <li><p className="font-semibold">2. Or enter this key by hand</p><code className="num mt-1.5 block select-all break-all rounded-lg bg-soft px-3 py-2 text-[13px] tracking-wider">{enrol.secret.replace(/(.{4})/g, '$1 ').trim()}</code></li>
-            <li><p className="font-semibold">3. Enter the six-digit code it shows</p></li>
-          </ol>
-          <FormError error={error} />
-          <CodeField label="Authenticator code" value={code} onChange={setCode} />
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Verifying…' : 'Turn on two-step verification'}</Button>
-        </AuthForm>
-      )}
-    </AuthCard>
-  );
+  useEffect(() => { router.replace(`/verify-phone${params.get('next') ? `?next=${encodeURIComponent(params.get('next')!)}` : ''}`); }, [router, params]);
+  return <AuthSkeleton />;
 }
 
 /* ------------------------------- Password recovery ------------------------------- */
@@ -223,7 +248,7 @@ export function ForgotPassword() {
   const { busy, error, setError, run } = useAuthAction();
   const submit = () => { if (!isEmail(email.trim())) return setError('Enter the email address on your account.'); void run(async () => { await auth.resetPassword(email.trim()); setSent(true); cool.start(); }); };
   return (
-    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in one hour.</> : 'Enter your email and we will send a link to choose a new password.'} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
+    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in one hour. You will also need your phone.</> : 'Enter your email and we will send a link to choose a new password. You will also confirm a code sent to your phone.'} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
       {!sent ? (
         <AuthForm onSubmit={submit}>
           <FormError error={error} />
@@ -233,27 +258,51 @@ export function ForgotPassword() {
       ) : (
         <div className="space-y-3">
           <FormError error={error} />
-          {auth.mode === 'demo' && <a href="/reset-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Open the reset link (demo)</a>}
+          {auth.mode === 'demo' && <a href="/reset-password?demo=1" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Open the reset link (demo)</a>}
           <Button size="lg" className="w-full" disabled={cool.left > 0 || busy} onClick={submit}>{cool.left > 0 ? `Resend available in ${cool.left}s` : 'Send again'}</Button>
         </div>
       )}
     </AuthCard>
   );
 }
+/**
+ * The reset link opens a recovery session, which never reaches the workspace. If the account has a verified phone,
+ * the SMS code is required before the password can change; the phone factor is never removed. Afterwards every
+ * session is signed out and the person signs in again with email, the new password and an SMS code.
+ */
 export function ResetPassword() {
-  const { auth, refresh, user, loading } = useSession();
+  const { auth, refresh, account, loading } = useSession();
   const router = useRouter();
+  const params = useSearchParams();
+  const [opening, setOpening] = useState(auth.mode === 'demo' && params.get('demo') === '1');
+  const [challenge, setChallenge] = useState<PhoneChallenge | null>(null);
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
   const [touched, setTouched] = useState(false);
-  const [done, setDone] = useState(false);
-  const { busy, error, run } = useAuthAction();
+  const { busy, error, setError, run } = useAuthAction();
+  useEffect(() => { if (opening) void auth.openRecoveryLink?.().then(() => refresh()).finally(() => setOpening(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const problem = passwordProblem(pw), mismatch = confirm && pw !== confirm ? 'The two passwords do not match.' : null;
-  const submit = () => { setTouched(true); if (problem || !confirm || mismatch) return; void run(async () => { await auth.updatePassword(pw); await refresh(); setDone(true); }); };
-  if (!loading && !user && auth.mode === 'supabase') return <AuthCard title="This reset link has expired" lead="Reset links work once and expire after one hour."><a href="/forgot-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Request a new link</a></AuthCard>;
-  if (done) return <AuthCard title="Password changed" lead="Use your new password the next time you sign in. Other devices stay signed in until their session ends."><Button variant="primary" size="lg" className="w-full" onClick={() => router.push('/app')}>Go to your workspace</Button></AuthCard>;
+  if (loading || opening) return <AuthSkeleton />;
+  if (!account) return <AuthCard title="This reset link has expired" lead="Reset links work once and expire after one hour."><a href="/forgot-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Request a new link</a></AuthCard>;
+  const needsSms = account.phoneVerified && !account.smsVerified;
+  if (needsSms) return (
+    <AuthCard title="Confirm it is you" lead="Before choosing a new password, enter the code we send to your phone. A password reset never removes your phone verification."
+      footer={<>Lost access to this phone? <AltLink href="/support?topic=lost-phone">Recover your account</AltLink></>}>
+      {!challenge ? (
+        <div className="space-y-3"><FormError error={error} /><Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => setChallenge(await auth.sendSms('reset')))}>{busy ? 'Sending…' : 'Send code to my phone'}</Button></div>
+      ) : (
+        <CodeStep challenge={challenge} busy={busy} error={error} submitLabel="Verify" onResend={() => run(async () => setChallenge(await auth.sendSms('reset')))}
+          onVerify={(code) => { if (code.length !== 6) return setError('Enter the six-digit code.'); void run(async () => { await auth.verifySms(challenge, code); await refresh(); }); }} />
+      )}
+    </AuthCard>
+  );
+  const submit = () => {
+    setTouched(true);
+    if (problem || !confirm || mismatch) return;
+    void run(async () => { await auth.updatePassword(pw); await auth.signOut('global'); await refresh(); router.replace('/login?notice=reset'); });
+  };
   return (
-    <AuthCard title="Choose a new password" lead="This link signs you in for this change only.">
+    <AuthCard title="Choose a new password" lead="After saving, every session is signed out. Sign in again with your email, the new password and an SMS code.">
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         <div><PasswordField label="New password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} error={touched ? problem : null} autoFocus /><PasswordRules value={pw} /></div>
