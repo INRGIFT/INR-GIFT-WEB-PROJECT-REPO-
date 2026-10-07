@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { GATE_PATH, type Gate } from '@/features/auth/policy';
 import { readServerSession } from '@/features/auth/server-facts';
-import { authMode, config as app, DEMO_SESSION_COOKIE, redirectBase } from '@/lib/config';
+import { authMode, config as app, DEMO_SESSION_COOKIE, redirectBase, supabaseCookieOptions } from '@/lib/config';
 import { classifyPath, isNoindexPath } from '@/lib/route-registry';
 import { safeReturnPath } from '@/lib/return-url';
 
@@ -17,9 +17,11 @@ export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const access = classifyPath(pathname);
   if (access === 'file') return res;
+  if (pathname.startsWith('/api/') && !sameOriginWrite(req)) return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Cross-site requests are not allowed.' } }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
   let gate: Gate = 'login';
   if (authMode === 'supabase') {
     const supabase = createServerClient(app.supabaseUrl, app.supabaseKey, {
+      cookieOptions: supabaseCookieOptions,
       cookies: {
         getAll: () => req.cookies.getAll(),
         setAll: (list: { name: string; value: string; options: CookieOptions }[], headers?: Record<string, string>) => {
@@ -52,12 +54,32 @@ export async function middleware(req: NextRequest) {
         return carry(NextResponse.json({ error: { code, step: gate, message: gate === 'login' ? 'Sign in to use INRGIFT.' : 'Finish verifying your account to use INRGIFT.' } }, { status: gate === 'login' ? 401 : 403, headers: { 'Cache-Control': 'no-store' } }));
       }
       const url = new URL(`${GATE_PATH[gate]}?next=${encodeURIComponent(safeReturnPath(`${pathname}${search}`))}`, redirectBase(req.url));
-      return carry(NextResponse.redirect(url));
+      const out = carry(NextResponse.redirect(url));
+      out.headers.set('Cache-Control', 'private, no-store');
+      return out;
     }
     res.headers.set('Cache-Control', 'private, no-store');
   }
   if (isNoindexPath(pathname) || search) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return res;
+}
+/**
+ * CSRF guard for every state-changing API call (forms, SMS, password, profile): a browser sends Origin (and
+ * Sec-Fetch-Site) with cross-site writes, so a foreign origin is refused before any handler runs. Signed webhooks and
+ * the secret-protected ingest endpoint are server-to-server and authenticate themselves.
+ */
+function sameOriginWrite(req: NextRequest): boolean {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return true;
+  const p = req.nextUrl.pathname;
+  if (p.startsWith('/api/hooks/') || p.startsWith('/api/internal/')) return true;
+  if (req.headers.get('sec-fetch-site') === 'cross-site') return false;
+  const origin = req.headers.get('origin');
+  if (!origin) return true;
+  let host: string;
+  try { host = new URL(origin).host; } catch { return false; }
+  const allowed = [req.nextUrl.host, req.headers.get('host'), req.headers.get('x-forwarded-host')];
+  try { allowed.push(new URL(app.siteUrl).host); } catch { /* ignore */ }
+  return allowed.includes(host);
 }
 // Everything except Next's own static assets; public files are classified (and let through) above.
 export const config = { matcher: ['/((?!_next/static|_next/image).*)'] };

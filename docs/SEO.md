@@ -1,11 +1,11 @@
 # SEO
 
 ## Access-driven indexing (7 Oct 2026)
-Only the homepage can be indexed. Every product page requires sign-in:
+Only the public pages (homepage and compliance pages) can be indexed; they show no market data, so they are indexable even while the product serves demo data (`SITE_INDEXABLE=false` closes them). Every product page requires sign-in:
 middleware sends `X-Robots-Tag: noindex, nofollow` and `Cache-Control: private, no-store`, `pageMetadata()` emits
-`noindex` for any non-public path, robots.txt allows only `/` (`Allow: /$`, `Disallow: /`; it disallows
+`noindex` for any non-public path, robots.txt allows only those pages (`Allow: /$`, `/terms-and-conditions$`, … `/legal/`; `Disallow: /`; with SITE_INDEXABLE=false it disallows
 everything while the site serves demo data), and the sitemap (`/sitemap.xml` → `/sitemap/core.xml`) lists only the
-homepage. The entity quality gate and per-entity titles below still shape titles and share text for signed-in
+public pages. The entity quality gate and per-entity titles below still shape titles and share text for signed-in
 users, but no product URL is published to crawlers. Sections below describe the earlier public-site design.
 
 ## Implemented

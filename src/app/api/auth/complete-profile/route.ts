@@ -6,6 +6,7 @@ import { readServerSession } from '@/features/auth/server-facts';
 import { authMode } from '@/lib/config';
 import { rateLimit } from '@/lib/rate-limit';
 import { configured } from '@/lib/server-env';
+import { log } from '@/lib/telemetry/log';
 import { supabaseAdmin } from '@/supabase/admin';
 import { supabaseServer } from '@/supabase/server';
 
@@ -52,5 +53,6 @@ export async function POST(req: NextRequest) {
     const weak = error.code === 'weak_password' || /password/i.test(error.message ?? '');
     return weak ? fail(400, 'WEAK_PASSWORD', 'Choose a stronger password.') : fail(500, 'UNKNOWN', 'Your profile could not be saved. Try again in a moment.');
   }
+  log('info', 'security_profile_completed', { providers: session.profile.providers.join(','), passwordAdded: needsPassword });
   return NextResponse.json({ data: { completed: true } }, { headers: { 'Cache-Control': 'no-store' } });
 }

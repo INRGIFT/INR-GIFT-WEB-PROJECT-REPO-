@@ -6,6 +6,7 @@ import { authMode, smsSecondFactor } from '@/lib/config';
 import { rateLimit } from '@/lib/rate-limit';
 import { sendEmail } from '@/services/email/email-service';
 import { emailTemplates } from '@/services/email/templates';
+import { log } from '@/lib/telemetry/log';
 import { supabaseServer } from '@/supabase/server';
 
 export const runtime = 'nodejs';
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
   const { error } = await sb.auth.updateUser({ password: parsed.data.password });
   if (error) return NextResponse.json({ error: { code: 'REJECTED', message: error.code === 'same_password' ? 'Choose a password you have not used here before.' : 'Choose a stronger password.' } }, { status: 400 });
   await sb.auth.signOut({ scope: 'others' });
+  log('info', 'security_password_changed', { recovery: !session.amr.includes('password') && !session.amr.includes('oauth') });
   if (session.email) await sendEmail(session.email, emailTemplates.passwordChanged(), 'password_changed');
   return NextResponse.json({ data: { changed: true } });
 }

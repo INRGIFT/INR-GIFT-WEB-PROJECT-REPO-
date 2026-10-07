@@ -3,7 +3,11 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 119 unit/API tests, Playwright 88 + 6 skipped with SMS off / 92 + 2 skipped with SMS on, desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+## Done (typecheck, 144 unit/API tests, Playwright 106 + 6 skipped with SMS off / 110 + 2 skipped with SMS on, desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+- **Compliance, Google and session hardening (7 Oct 2026):** public compliance pages with company details and forms
+  (support, grievance, account closure → Resend → support@inrgift.com); Google sign-in via Supabase OAuth with the
+  `/complete-profile` step; Secure/Lax session cookies; middleware CSRF guard; session context re-checks and cross-tab
+  sign-out; "sign out on all devices"; demo auth refused on the live site; indexable public pages and sitemap.
 - **Sign-in incident fix (7 Oct 2026):** live `/login` showed "Sign-in is not available" because GoDaddy's build had no
   `NEXT_PUBLIC_*` values; settings are now read at runtime and handed to the browser; `/api/health` reports
   configuration booleans and the packaged commit.
@@ -81,6 +85,7 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
     `next` return path with query; noindex, robots and sitemap limited to public pages; marketing-only homepage.
 
 ## Not done — next, in order
+1. **Google Cloud + Supabase Google provider** (`docs/DEPLOY.md`, "Google sign-in"), then the real-provider smoke test.
 1. **Owner configuration, then the real-provider smoke test** (`docs/CONNECTORS.md`, `docs/DEPLOY.md`): Supabase Site
    URL `https://inrgift.com` and redirect URLs, Send Email Hook, phone provider and MFA off; Resend key and verified
    domain; NewsData.io key. **After DLT approval only:** 2Factor.in key and template, secret key, migration 0007 and
@@ -107,7 +112,8 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - No route-level loading skeleton in `(site)` (removed to keep genuine 404 status).
 - Analytics and error reporting have no vendor sink; Event/Dataset JSON-LD deferred.
 - Demo auth is a browser simulation for dev and tests (hashed passwords, same rules); production builds without Supabase run with sign-in off.
-- With homepage-only access, Terms/Privacy (linked from sign-up consent) and support/contact need sign-in; anonymous visitors cannot read them before consenting. Owner/legal decision.
+- Legal documents are drafted for INRGIFT's actual functionality but not reviewed by counsel; governing law is neutral pending the registered entity details.
+- Rate limits and the duplicate closure guard are in-memory per instance.
 - Middleware reads the user record and the SMS step-up (when SMS is on) on every protected request (two Supabase calls); add short-lived caching if latency matters.
 - Supabase cannot list other sessions from the browser; the security page says so.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes

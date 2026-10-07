@@ -7,8 +7,11 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (119), build | Pass | — |
-| Playwright (access gate, journeys, auth cases 1–15, return URL, news, 404s, axe, six widths, reduced motion, failure cases) | Pass on demo builds: SMS off 88 + 6 skipped, SMS on 92 + 2 skipped | — |
+| Typecheck, unit/API tests (144), build | Pass | — |
+| Live `/login` uses Supabase (runtime settings fix) | Fixed in code; live site needs a redeploy of the new zip | Owner |
+| Google provider in Google Cloud + Supabase | Open | Owner |
+| Legal documents reviewed by counsel (registered entity, governing law) | Open | Owner |
+| Playwright (access gate, compliance pages and forms, Google flow, session lifecycle, journeys, auth cases 1–15, axe, six widths, failure cases) | Pass on demo builds: SMS off 106 + 6 skipped, SMS on 110 + 2 skipped | — |
 | Migrations + RLS (`npm run test:db`, incl. 0007) | Pass on local Postgres; live project on 0001–0006; **0007 deliberately not applied** until SMS is switched on | Owner, after DLT |
 | GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
 | `NEXT_PUBLIC_SITE_URL=https://inrgift.com` in GoDaddy before the build (canonical, email links, redirects; a production build also defaults to it) | Open | Owner |

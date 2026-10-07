@@ -53,7 +53,13 @@ export const config = {
  * Supabase auth and workspace storage are used whenever both values are set. NEXT_PUBLIC_AUTH_MODE=demo forces the
  * built-in demo account (browser-local data) for automated test builds; never set it on a public deployment.
  */
-export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey) && publicSetting('NEXT_PUBLIC_AUTH_MODE') !== 'demo';
+/**
+ * Demo auth can never run on the live site: when the site URL is configured as inrgift.com, NEXT_PUBLIC_AUTH_MODE=demo
+ * is ignored (a misconfigured variable then yields Supabase, or "off" without Supabase settings, never demo).
+ */
+const LIVE_SITE = /^https:\/\/(www\.)?inrgift\.com\/?$/.test(publicSetting('NEXT_PUBLIC_SITE_URL'));
+const demoRequested = publicSetting('NEXT_PUBLIC_AUTH_MODE') === 'demo' && !LIVE_SITE;
+export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey) && !demoRequested;
 /**
  * Which sign-in system runs:
  *   supabase  Supabase is configured (production).
@@ -74,7 +80,7 @@ export const redirectBase = (requestUrl: string) => (process.env.NODE_ENV === 'p
  */
 export const smsSecondFactor = publicSetting('NEXT_PUBLIC_SMS_SECOND_FACTOR') === 'on';
 export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
-  : publicSetting('NEXT_PUBLIC_AUTH_MODE') === 'demo' || process.env.NODE_ENV !== 'production' ? 'demo' : 'off';
+  : demoRequested || (process.env.NODE_ENV !== 'production' && !LIVE_SITE) ? 'demo' : 'off';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).
 export const isDemoData = config.provider === 'demo' || config.fallbackProvider === 'demo';
 /**
@@ -89,3 +95,16 @@ export const isIndexable = process.env.SITE_INDEXABLE === 'true' || (!isDemoData
  */
 export const publicPagesIndexable = process.env.SITE_INDEXABLE !== 'false';
 export const DEMO_SESSION_COOKIE = 'inrgift_demo_session';
+/**
+ * Attributes for the Supabase session cookies (names, values, chunking and lifetime stay with @supabase/ssr):
+ * Path=/, SameSite=Lax (sent on the top-level redirect back from Google and from emailed links, never on cross-site
+ * POSTs), Secure whenever the site is served over HTTPS in production, no Domain (host-only). Not HttpOnly: the
+ * official browser client reads and refreshes the session from these cookies; tokens are never placed in
+ * localStorage, sessionStorage, URLs or logs. Lifetime is Supabase's: the refresh token is rotated and can be revoked
+ * server-side, which ends the session on the next check.
+ */
+export const supabaseCookieOptions = {
+  path: '/',
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production' && config.siteUrl.startsWith('https://'),
+};

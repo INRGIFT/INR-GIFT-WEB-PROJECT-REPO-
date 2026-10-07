@@ -3,15 +3,19 @@
 ## Providers (do not substitute)
 | Provider | Role | Where |
 | --- | --- | --- |
-| **Supabase Auth** | Identity, email + password, sessions, email confirmation, password reset, the verified phone on `auth.users` | `@supabase/ssr`, `src/supabase/*` |
+| **Supabase Auth** | Identity, email + password, Google OAuth, sessions, email confirmation, password reset, the verified phone on `auth.users` | `@supabase/ssr`, `src/supabase/*` |
 | **Resend** | Every transactional email: sign-up confirmation, password reset, re-authentication code, security notices | `src/services/providers/resend.ts`, `src/services/email/*`, Supabase **Send Email Hook** → `/api/hooks/send-email` |
 | **2Factor.in** | SMS codes: phone verification and the second factor at every sign-in, password reset and number change | `src/services/providers/twofactor.ts`, `src/services/auth/*`, `/api/auth/sms/*` |
 
 Supabase MFA factors and Supabase's own SMS provider are **not** used (migration 0007 refuses any MFA factor).
 
 ## Account model
-Every account has three credentials: **email**, **mobile number** and **password**. No passwordless sign-in, no social
-login, no phone-only or email-only accounts, no "skip".
+Every account has three credentials: **email**, **mobile number** and **password**. **Google** is an additional way to
+sign in, not a replacement: a first Google sign-in must add the mobile number, a password, country and acceptance of
+the Terms and Privacy Policy on `/complete-profile` before anything opens (gate step `profile`). The password and the
+terms acceptance are written by the server with the secret key into `app_metadata.inrgift` (the person cannot edit
+it), so the step cannot be skipped from the browser. No passwordless sign-in, no other social login, no phone-only or
+email-only accounts, no "skip".
 
 **SMS switch (`NEXT_PUBLIC_SMS_SECOND_FACTOR`, `src/lib/config.ts`). Off by default and off in production today**,
 because 2Factor.in DLT approval is pending and migration 0007 is not applied. While off: the gate is facts 1–3 below
@@ -41,8 +45,7 @@ The database enforces the same rule with a restrictive RLS policy on every works
   (no `password` in `amr`), and a reset never disables SMS.
 - **Change number** (`/verify-phone?mode=change`, from Security): needs a fully verified session; code sent to the
   new number; the number changes only after it matches; Resend sends a notice. The old number is released.
-- **Lost phone** (SMS on only): `/support?topic=lost-phone` (protected under homepage-only access, so the person
-  writes to the support email address instead). Support confirms identity out of band, then removes the phone
+- **Lost phone** (SMS on only): `/support` (public) or support@inrgift.com. Support confirms identity out of band, then removes the phone
   with the Supabase dashboard/admin API; the person signs in with email + password and verifies a new number.
 - **Security page** (`/account/security`): email Verified/Pending, phone Verified/Pending, password Configured, SMS
   two-factor Enabled (cannot be turned off), change number, change password, reset link, sign out.
@@ -72,11 +75,11 @@ workspace table and the app only writes step-ups when the switch is on.
 `src/lib/route-registry.ts` classifies every path; `src/middleware.ts` enforces it for pages **and** `/api`:
 | Class | Paths | Rule |
 | --- | --- | --- |
-| public | `/` | open (owner requirement: homepage only; legal, support and contact pages are protected too) |
-| auth | `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | open |
-| public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/internal/*` (secret) | each protects itself |
+| public | `/`, `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal`, `/legal`, `/legal/*` | open (compliance pages required by the NSEIXGA white-label documentation; no market data) |
+| auth | `/login` `/signup` `/verify` `/verify-phone` `/complete-profile` `/mfa` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | open |
+| public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/internal/*` (secret), `/api/forms/*` (support, grievance, closure: validated, rate-limited) | each protects itself |
 | file | robots, sitemap, icons, share image, `/brand` `/fonts` `/media` files | open, no product data |
-| **protected** | **everything else** (default deny): markets, assets, discover, research, resources, search, legal, support, contact, about, pricing, FAQ, workspace, account, all `/api/v1/*`, `/api/contact` | fully verified session |
+| **protected** | **everything else** (default deny): markets, assets, discover, research, resources, search, pricing, FAQ, workspace, account, all `/api/v1/*` | fully verified session |
 
 Anonymous page requests → `307 /login?next=<path+query>` (absolute on `NEXT_PUBLIC_SITE_URL` in production, so a
 proxy never rewrites the host); signed in but unverified → the missing step (`/verify`,
@@ -89,6 +92,47 @@ static or shared cache. Prefetch requests hit the same middleware.
 absolute URLs, `//host`, backslashes, `javascript:`, control characters, auth pages and over-long values fall back to
 `/app`. It carries `next` through sign-in, sign-up, the emailed link (via the hook and `/auth/confirm`), phone
 verification and onboarding.
+
+## Sessions and cookies
+Supabase Auth is the only session authority: browser client `createBrowserClient` → Supabase session in cookies →
+middleware `createServerClient` (validates with `getClaims()`, refreshes, copies refreshed cookies and their cache
+headers onto every response including redirects) → route handlers `createServerClient` → RLS in the database. No
+custom JWT, session id or login cookie exists.
+
+| Cookie | Set by | Purpose | Attributes |
+| --- | --- | --- | --- |
+| `sb-<project>-auth-token` (may be split `.0`, `.1`) | @supabase/ssr (browser + server) | Supabase access + refresh token | Path=/, SameSite=Lax, **Secure** in HTTPS production, host-only, not HttpOnly (the official browser client must read it to refresh), lifetime from @supabase/ssr; ends at sign-out/revocation |
+| `sb-<project>-auth-token-code-verifier` (+ flow variants) | @supabase/ssr | PKCE verifier for Google sign-in and emailed links | same attributes; short-lived |
+| `inrgift_demo_session` | demo adapter only | demo/test builds only; never read in Supabase mode | Path=/, SameSite=Lax |
+
+No analytics, advertising or preference cookies exist (preferences, recent searches and the analytics choice are in
+localStorage; the pending SMS challenge reference is in sessionStorage and holds no code). Analytics is off unless the
+person allows it and no vendor receives events, so no consent banner is needed beyond the existing analytics choice.
+Tokens never appear in localStorage, sessionStorage, URLs, the DOM or logs (checked by tests and the production probe).
+Demo auth can never run on the live site: with `NEXT_PUBLIC_SITE_URL=https://inrgift.com`, `NEXT_PUBLIC_AUTH_MODE=demo`
+is ignored (`src/lib/config.ts`).
+
+**Lifecycle.** Expired or revoked sessions fail `getClaims()`/`getUser()` → middleware redirects pages to `/login?next=`
+and answers APIs 401. The session context (`session-context.tsx`) ignores stale answers, re-checks when a tab becomes
+visible, follows Supabase auth events across tabs, and leaves a protected page for sign-in when the session ends
+elsewhere. Sign-out: Supabase `signOut()` (local) or "Sign out on all devices" (`scope: 'global'`) on Security; the
+pending-challenge reference is cleared. Protected responses and their redirects are `Cache-Control: private,
+no-store`, so Back never shows cached protected pages. Password reset signs out every other session.
+
+**Google OAuth.** `signInWithOAuth` with PKCE (S256) → Google → Supabase → `/auth/callback?flow=oauth` → server code
+exchange (verifier cookie from the same browser, so a code from another browser fails) → destination through
+`safeReturnPath`. Errors (cancelled, denied, provider disabled, bad or expired code) → `/login?error=oauth` with a
+message. No Google secret exists outside Supabase.
+
+**CSRF.** Middleware refuses any cross-site state-changing `/api` request (`Origin` from another host or
+`Sec-Fetch-Site: cross-site`) before a handler runs; signed webhooks and the secret ingest endpoint are exempt. Session
+cookies are SameSite=Lax. The public forms additionally check Origin, require JSON, cap the body at 16 KB, rate-limit
+per connection, per email and globally, drop honeypot or too-fast submissions, and send only to the fixed support
+inbox (reply-to = sender), so they cannot relay mail.
+
+**Logging.** Server logs are structured JSON with event names and coarse fields only (kind, code, reference); never
+tokens, codes, passwords, cookies or full emails/phones. Security events: `security_profile_completed`,
+`security_password_changed`, `form_submitted` (with reference), `sms_verified`.
 
 ## Data security
 - RLS on every private table, forced and tested (`npm run test:db`, `supabase/tests/rls.test.sql`).

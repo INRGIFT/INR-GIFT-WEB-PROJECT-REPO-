@@ -1,7 +1,7 @@
 # UX system
 
 ## Access (7 Oct 2026): homepage-only public
-**Public:** `/` only (legal, support and contact are protected too; see `docs/DECISIONS.md`). **Auth infrastructure:** `/login` `/signup` `/verify` `/verify-phone` `/forgot-password`
+**Public:** `/` and the compliance pages `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal`, `/legal/*` (see `docs/DECISIONS.md`). **Auth infrastructure:** `/login` `/signup` `/verify` `/verify-phone` `/forgot-password`
 `/reset-password` `/auth/*`. **Everything else requires a fully verified account** (email + phone + password; plus an SMS
 code in this session once the SMS second factor is switched on), including markets, assets, discover, research, resources, search, about, pricing and FAQ.
 Signed out, any product link or URL goes to `/login?next=<path+query>`; "Create your account" keeps `next`; after

@@ -98,8 +98,11 @@ async function api<T>(path: string, body: unknown): Promise<T> {
 /** Origin for links Supabase sends people back to: the canonical site in production, never localhost there. */
 const origin = () => (process.env.NODE_ENV === 'production' ? config.siteUrl.replace(/\/$/, '') : window.location.origin);
 const nextQ = (next?: string) => (next && next !== '/app' ? `&next=${encodeURIComponent(next)}` : '');
-/** Forget the tab's pending SMS challenge (see forms.tsx) when the session ends. */
-const clearPending = () => { try { sessionStorage.removeItem('inrgift.sms.pending'); } catch { /* storage unavailable */ } };
+let localSignOutAt = 0;
+/** True for a few seconds after this tab asked to sign out (its own navigation follows; see session-context.tsx). */
+export const signingOutHere = () => Date.now() - localSignOutAt < 5000;
+/** Forget this tab's temporary auth state (the pending SMS challenge reference, see forms.tsx) when the session ends. */
+const clearPending = () => { localSignOutAt = Date.now(); try { sessionStorage.removeItem('inrgift.sms.pending'); } catch { /* storage unavailable */ } };
 /** Carries the return path through the emailed link (the email hook and /auth/confirm validate it again). */
 const confirmRedirect = (next?: string) => `${origin()}/auth/callback?flow=signup${nextQ(next)}`;
 async function phoneAvailable(phone: string): Promise<boolean> {
@@ -215,7 +218,12 @@ const mask = (p: string) => `${p.slice(0, 3)} ••••• ${p.slice(-3)}`;
 const demoAdapter = (): AuthAdapter => ({
   mode: 'demo',
   async getUser() { return toUser(read()); },
-  onChange(cb) { listeners.add(cb); return () => { listeners.delete(cb); }; },
+  onChange(cb) {
+    // Other tabs change the same storage; Supabase syncs tabs itself (BroadcastChannel), the demo follows `storage` events.
+    const onStorage = (e: StorageEvent) => { if (e.key === KEY) cb(); };
+    listeners.add(cb); window.addEventListener('storage', onStorage);
+    return () => { listeners.delete(cb); window.removeEventListener('storage', onStorage); };
+  },
   async signUp({ name, email, phone, password }) {
     const s = read();
     const e = email.trim().toLowerCase(), p = normalizePhone(phone);

@@ -5,7 +5,13 @@ It is **not production-ready**. Live market data, production email and SMS, lega
 not connected. `docs/RELEASE_READINESS.md` lists the gates.
 
 
-**Update (7 Oct 2026, final audit for https://inrgift.com):** only `/` is public (plus auth pages); every other page and
+**Update (7 Oct 2026, compliance + Google):** `/`, Terms and Conditions, Privacy Policy, About, Support, Account
+Closure, Grievance Redressal and `/legal/*` are public; support, grievance and closure forms email support@inrgift.com
+through Resend; Google sign-in (Supabase OAuth) is built and appears once the Google provider is enabled in Supabase.
+The live `/login` "Sign-in is not available" incident was a build without `NEXT_PUBLIC_*` values; settings are now
+read at runtime. Earlier:
+
+**Update (7 Oct 2026, final audit for https://inrgift.com):** only `/` was public (plus auth pages); every other page and
 `/api` route requires a verified account. Every account has email + phone + password. The SMS code step is built but
 **switched off** (`NEXT_PUBLIC_SMS_SECOND_FACTOR`) until 2Factor.in DLT approval, so sign-in today is email + password
 with a confirmed email; migration 0007 is applied together with switching SMS on.

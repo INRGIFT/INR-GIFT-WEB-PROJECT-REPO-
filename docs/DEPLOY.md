@@ -122,6 +122,9 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `RESEND_FROM_EMAIL` | e.g. `INRGIFT <no-reply@<your-domain>>` on a domain verified in Resend |
 | `TWO_FACTOR_API_KEY` | 2Factor.in API key |
 | `TWO_FACTOR_OTP_TEMPLATE` | 2Factor OTP template name approved for INRGIFT (DLT) — after DLT approval |
+| `SUPPORT_PHONE` | Optional. Shown on Support, the footer and legal pages only when set. Leave empty until a real number exists |
+| `SUPPORT_INBOX_EMAIL` | Optional. Where form submissions go; default `support@inrgift.com` |
+| `GOOGLE_SIGN_IN` | Optional. `off` hides "Continue with Google"; otherwise it follows the Google provider switch in Supabase |
 | `NEXT_PUBLIC_SMS_SECOND_FACTOR` | **Leave empty (off)** until DLT approval, the 2Factor key and migration 0007 are in place; then `on` and rebuild (`docs/AUTH-SECURITY.md`) |
 | `NEWSIO_API_KEY` | NewsData.io API key |
 | `NEWSIO_PAGE_SIZE` / `NEWSIO_CACHE_SECONDS` | Optional: 10 / 900 by default (free-plan safe) |
@@ -160,6 +163,22 @@ In the Supabase dashboard for project `odiflbsoitgktylaksng` (Authentication →
 - **Redirect URLs:** `https://inrgift.com/auth/confirm`, `https://inrgift.com/auth/callback`, and
   `http://localhost:3000/**` for development.
 
+### Google sign-in (Google Cloud Console, then Supabase)
+No Google secret is ever placed in the repository, the zip, GoDaddy or the browser: it is entered only in Supabase.
+1. Google Cloud Console → select or create the INRGIFT project → **APIs & Services → OAuth consent screen**: app name
+   INRGIFT, support email support@inrgift.com, authorised domain `inrgift.com`, links to
+   `https://inrgift.com/privacy-policy` and `https://inrgift.com/terms-and-conditions`; scopes `openid`, `email`,
+   `profile` only; publish the app.
+2. **Credentials → Create credentials → OAuth client ID → Web application**:
+   - Authorised JavaScript origins: `https://inrgift.com` (and `http://localhost:3000` for development).
+   - Authorised redirect URI: **`https://odiflbsoitgktylaksng.supabase.co/auth/v1/callback`** (Supabase's callback for
+     this project; Google returns to Supabase, which then returns to `https://inrgift.com/auth/callback`).
+3. Supabase → Authentication → **Sign In / Providers → Google**: enable, paste the Client ID and Client Secret, save.
+4. Supabase → Authentication → URL Configuration: the redirect URLs above must include
+   `https://inrgift.com/auth/callback**` (already required).
+5. Check: `https://inrgift.com/api/health` shows `integrations.google.signIn: "enabled"` (within 5 minutes), and
+   `/login` shows **Continue with Google**.
+
 Then, under Authentication → Hooks, enable the **Send Email** hook (HTTPS) at `https://inrgift.com/api/hooks/send-email`
 and copy its secret into `SEND_EMAIL_HOOK_SECRET`. With the hook on, every auth email goes through Resend and the
 Supabase email templates and SMTP are not used. Leave **Phone** provider and **MFA** off in Supabase: SMS goes through
@@ -170,6 +189,11 @@ Supabase email templates and SMTP are not used. Leave **Phone** provider and **M
 - `/` loads with the official logo, favicon and share image. Signed out, `/markets`, `/legal/terms` and `/app`
   redirect to `https://inrgift.com/login?next=…`, and `/api/v1/assets` answers 401.
 - `/api/health` reports `auth: supabase`, `demo: false` and `twofactor.secondFactor: off` (until SMS is switched on).
+- `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal` open
+  signed out; a test support form submission reaches support@inrgift.com with a reference.
+- Google (after the Google steps): Continue with Google → Google → back on inrgift.com → "Finish setting up your
+  account" (mobile number, password, country, terms) → onboarding → workspace; sign out; sign in with that email and
+  password.
 - Sign up with email, mobile number and password; the confirmation email arrives from Resend with a link to
   `https://inrgift.com/auth/confirm…`; sign in with email + password; finish onboarding; add a watchlist item; sign
   out and back in. The watchlist item should persist; that is the Supabase round trip.

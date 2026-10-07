@@ -115,6 +115,16 @@ Setup: verify the sending domain in Resend (SPF/DKIM, DMARC recommended), create
 Supabase. (Resend's Supabase SMTP integration is an alternative only for Supabase's own templates; INRGIFT uses the
 hook so all mail goes through one adapter.)
 
+## Google sign-in (Supabase OAuth)
+
+Browser → `supabase.auth.signInWithOAuth({ provider: 'google' })` (PKCE, S256; the code verifier is a Supabase
+cookie) → Google → `https://odiflbsoitgktylaksng.supabase.co/auth/v1/callback` → `https://inrgift.com/auth/callback?flow=oauth&next=…`
+→ server exchanges the code for the session (cookies) → destination. A first Google sign-in completes the account
+model on `/complete-profile` (mobile number, password, country, terms; written by `/api/auth/complete-profile` with the
+secret key into `app_metadata`). Accounts with the same verified email are linked by Supabase's automatic identity
+linking, which first removes unconfirmed identities (pre-account-takeover protection). The button appears only when
+Supabase reports the Google provider enabled (`/auth/v1/settings`); setup steps are in `docs/DEPLOY.md`.
+
 ## SMS: 2Factor.in
 
 Browser → `/api/auth/sms/start|verify` → `src/services/auth/sms-verification.ts` → `src/services/providers/twofactor.ts`

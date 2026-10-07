@@ -36,14 +36,18 @@ function sameOrigin(req: NextRequest): boolean {
 }
 const reference = (kind: FormKind) => `INR-${PREFIX[kind]}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
 
-/** Who submitted, as far as the server can tell: whether a signed-in session's email matches the one given. */
-async function sessionMatch(email: string): Promise<string> {
-  if (!isSupabaseConfigured) return 'Not checked (sign-in not configured here)';
+/**
+ * Who submitted, as far as the server can tell, from the Supabase session cookie only (never from anything the form
+ * sends): whether a signed-in session's verified email matches the one given, and then that account's id.
+ */
+async function sessionMatch(email: string): Promise<[string, string][]> {
+  if (!isSupabaseConfigured) return [['Signed-in session check', 'Not checked (sign-in not configured here)']];
   try {
     const { data } = await (await supabaseServer()).auth.getUser();
-    if (!data.user?.email) return 'Not signed in when submitting';
-    return data.user.email.toLowerCase() === email.toLowerCase() ? 'Yes: submitted from a signed-in session with this email' : 'No: signed in with a different email';
-  } catch { return 'Could not be checked'; }
+    if (!data.user?.email) return [['Signed-in session check', 'Not signed in when submitting']];
+    if (data.user.email.toLowerCase() !== email.toLowerCase()) return [['Signed-in session check', 'No: signed in with a different email']];
+    return [['Signed-in session check', 'Yes: submitted from a signed-in session with this verified email'], ['Account ID (from session)', data.user.id]];
+  } catch { return [['Signed-in session check', 'Could not be checked']]; }
 }
 
 /**
@@ -81,7 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
   const ref = reference(kind);
   const rows = rowsFor(kind, values);
   rows.push(['Reference', ref], ['Submitted at', new Date().toISOString()]);
-  if (kind === 'account-closure') rows.push(['Signed-in session check', await sessionMatch(email)]);
+  if (kind === 'account-closure') rows.push(...(await sessionMatch(email)));
   const subject = kind === 'account-closure' ? 'INRGIFT Account Closure Request'
     : kind === 'grievance' ? `INRGIFT Grievance ${ref}: ${String(values.subject).slice(0, 120)}`
     : `INRGIFT Support: ${optionLabel(FORMS.support.fields.find((f) => f.name === 'category')!, String(values.category))}: ${String(values.subject).slice(0, 120)}`;
