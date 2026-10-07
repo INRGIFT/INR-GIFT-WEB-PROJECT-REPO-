@@ -1,6 +1,7 @@
 /** Domain types shared by providers, services, the API and the UI. Nothing here is provider-specific. */
 
-export type DataStatus = 'LIVE' | 'DELAYED' | 'END_OF_DAY' | 'CLOSED' | 'UNAVAILABLE' | 'STALE' | 'ERROR';
+/** DEMO: values from the demo provider (simulated, never market prices). Never shown as LIVE, DELAYED or END_OF_DAY. */
+export type DataStatus = 'LIVE' | 'DELAYED' | 'END_OF_DAY' | 'CLOSED' | 'UNAVAILABLE' | 'STALE' | 'ERROR' | 'DEMO';
 export type AssetClass = 'stock' | 'etf' | 'index' | 'fx' | 'commodity' | 'bond' | 'reit' | 'fund';
 export type SessionState = 'OPEN' | 'CLOSED' | 'PRE_MARKET' | 'POST_MARKET' | 'BREAK' | 'HOLIDAY';
 export type Region = 'North America' | 'Latin America' | 'Europe' | 'Asia-Pacific' | 'Middle East' | 'Africa';

@@ -40,3 +40,25 @@ export function rsi(c: number[], n = 14): (number | null)[] {
 }
 /** Percentage change from the first value, for rebased comparison lines. */
 export const rebase = (c: number[]): number[] => (c.length ? c.map((x) => (x / c[0] - 1) * 100) : []);
+/** EMA seeded with the simple average of its first `n` values (the TA-Lib convention used for MACD). */
+function seededEma(values: number[], n: number): (number | null)[] {
+  const out: (number | null)[] = values.map(() => null);
+  if (values.length < n || n < 1) return out;
+  const k = 2 / (n + 1);
+  let e = values.slice(0, n).reduce((a, b) => a + b, 0) / n;
+  out[n - 1] = e;
+  for (let i = n; i < values.length; i++) { e = values[i] * k + e * (1 - k); out[i] = e; }
+  return out;
+}
+/**
+ * MACD (Appel): MACD line = EMA(fast) − EMA(slow); signal = EMA(signal) of the MACD line; histogram = MACD − signal.
+ * The histogram is the plain difference (no ×2 scaling).
+ */
+export function macd(c: number[], fast = 12, slow = 26, signal = 9): { macd: (number | null)[]; signal: (number | null)[]; histogram: (number | null)[] } {
+  const f = seededEma(c, fast), s = seededEma(c, slow);
+  const line = c.map((_, i) => (f[i] != null && s[i] != null ? f[i]! - s[i]! : null));
+  const start = line.findIndex((v) => v != null);
+  const sig: (number | null)[] = c.map(() => null);
+  if (start >= 0) seededEma(line.slice(start) as number[], signal).forEach((v, j) => { sig[start + j] = v; });
+  return { macd: line, signal: sig, histogram: line.map((m, i) => (m != null && sig[i] != null ? m - sig[i]! : null)) };
+}

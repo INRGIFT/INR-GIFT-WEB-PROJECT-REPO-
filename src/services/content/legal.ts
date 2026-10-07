@@ -7,7 +7,7 @@ import { ADDRESS_ONE_LINE, COMPANY, LEGAL_PATHS } from '@/lib/company';
  * details that have not been supplied (registered entity name, governing law) are drafted neutrally rather than
  * invented. Have these documents reviewed by counsel; update `LEGAL_UPDATED` whenever a document changes.
  */
-export interface LegalSection { heading: string; paragraphs?: string[]; list?: string[] }
+export interface LegalSection { heading: string; paragraphs?: string[]; list?: string[]; links?: { label: string; href: string }[]; /** Text shown exactly as written (licence notices). */ preformatted?: string[] }
 export interface LegalDocument { slug: string; path: string; title: string; summary: string; sections: LegalSection[] }
 
 /** The date these documents were last changed (they were written and published on this date). */
@@ -228,4 +228,38 @@ const REFUND: LegalDocument = {
   ],
 };
 
-export const LEGAL_DOCUMENTS: LegalDocument[] = [TERMS, PRIVACY, RISK, COOKIES, REFUND];
+
+const OPEN_SOURCE: LegalDocument = {
+  slug: 'open-source',
+  path: LEGAL_PATHS.openSource,
+  title: 'Open-Source Software Notices',
+  summary: 'Open-source software INRGIFT uses, with the licences and notices that apply to it.',
+  sections: [
+    { heading: 'About these notices', paragraphs: [
+      'INRGIFT’s own software is proprietary to INRGIFT. It includes open-source components, each under its own licence. INRGIFT’s Terms and Conditions do not change those licences, and these notices do not license INRGIFT’s own software.',
+    ] },
+    { heading: 'KLineChart', paragraphs: [
+      'INRGIFT’s financial charts are drawn with KLineChart, version 10.0.3, published at github.com/klinecharts/KLineChart and used without modification. KLineChart is licensed under the Apache License, Version 2.0. Copyright (c) 2019 lihu.',
+      'KLineChart is a charting library. It does not supply market data: the data on INRGIFT’s charts comes from INRGIFT’s data providers and is labelled with its source and status on each chart.',
+      'The authors of KLineChart do not endorse or sponsor INRGIFT and are not affiliated with it.',
+    ], links: [
+      { label: 'Apache License, Version 2.0 (KLineChart)', href: '/licenses/klinecharts/LICENSE.txt' },
+      { label: 'KLineChart NOTICE file', href: '/licenses/klinecharts/NOTICE.txt' },
+    ] },
+    { heading: 'Notice distributed with KLineChart', paragraphs: [
+      'Reproduced exactly as it appears in KLineChart’s NOTICE file, as section 4(d) of the Apache License requires:',
+    ], preformatted: [
+      'KLineChart',
+      'Copyright (c) 2019 lihu',
+      '',
+      'TradingView Lightweight Charts',
+      'Copyright (с) 2019 TradingView, Inc. https://www.tradingview.com',
+    ] },
+    { heading: 'Components credited by KLineChart', paragraphs: [
+      'KLineChart’s NOTICE file credits TradingView Lightweight Charts, and KLineChart distributes that project’s licence (also the Apache License, Version 2.0). INRGIFT reproduces the notice and the licence for that reason only. INRGIFT does not use TradingView’s products, services or programming interfaces and has no agreement or relationship with TradingView, Inc.',
+    ], links: [{ label: 'Apache License, Version 2.0 (distributed with KLineChart for TradingView Lightweight Charts)', href: '/licenses/klinecharts/LICENSE-lightweight-charts.txt' }] },
+    CONTACT,
+  ],
+};
+
+export const LEGAL_DOCUMENTS: LegalDocument[] = [TERMS, PRIVACY, RISK, COOKIES, REFUND, OPEN_SOURCE];

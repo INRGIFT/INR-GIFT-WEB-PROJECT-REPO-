@@ -18,7 +18,9 @@ describe('/api/v1 contract', () => {
     expect(r.status).toBe(200);
     expect(r.body.data).toHaveLength(5);
     expect(r.body.pagination).toMatchObject({ page: 2, pageSize: 5 });
-    expect(r.body.meta.dataStatus).toMatch(/LIVE|DELAYED|END_OF_DAY|CLOSED|STALE|UNAVAILABLE|ERROR/);
+    expect(r.body.meta.dataStatus).toMatch(/^(LIVE|DELAYED|END_OF_DAY|CLOSED|STALE|UNAVAILABLE|ERROR|DEMO)$/);
+    // The demo provider never claims a real feed.
+    expect(r.body.data.map((a: { status: string }) => a.status)).not.toContain('LIVE');
   });
   it('resolves an asset by slug or immutable id', async () => {
     const bySlug = await api('assets/AAPL');

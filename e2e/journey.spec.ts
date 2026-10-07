@@ -34,9 +34,10 @@ test('signed-in research flow: search, asset, chart, compare, heatmap, screener'
   await expect(page.getByRole('listbox', { name: 'Search results' }).getByRole('option').first()).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/stocks\/AAPL/);
-  await expect(page.getByRole('img', { name: /AAPL 1Y price chart/ })).toBeVisible();
-  await page.getByRole('button', { name: '5Y', exact: true }).click();
-  await expect(page.getByRole('img', { name: /AAPL 5Y price chart/ })).toBeVisible();
+  const chart = page.getByRole('region', { name: 'Apple chart' });
+  await expect(chart.locator('canvas').first()).toBeVisible();
+  await chart.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '5Y', exact: true }).click();
+  await expect(chart.getByRole('combobox', { name: /Interval/ })).toHaveValue('1W');
   await page.goto('/discover/compare?s=AAPL,NVDA,MSFT');
   await expect(page.getByRole('heading', { name: 'Metrics' })).toBeVisible();
   await page.goto('/discover/heatmap');
@@ -102,7 +103,7 @@ test('error and unavailable states render without breaking the page', async ({ p
   await signInDemo(page);
   await page.goto('/commodities/NATGAS');
   await expect(page.getByText('The chart could not load')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   await page.goto('/markets/Saudi-Arabia');
   await expect(page.getByText('Data unavailable from source.').first()).toBeVisible();
   const res = await page.request.get('/api/v1/assets/does-not-exist');

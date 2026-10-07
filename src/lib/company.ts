@@ -25,4 +25,5 @@ export const LEGAL_PATHS = {
   legal: '/legal',
   risk: '/legal/risk-disclaimer',
   cookies: '/legal/cookie-policy',
+  openSource: '/legal/open-source',
 } as const;

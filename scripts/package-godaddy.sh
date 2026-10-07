@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 ZIP=deploy/inrgift-godaddy-source.zip
 # Everything `next build` and `next start` read. Keep in step with next.config.mjs, tsconfig.json and tailwind.config.ts.
-PATHS=(package.json package-lock.json next.config.mjs tsconfig.json postcss.config.mjs tailwind.config.ts README.md src public)
+PATHS=(package.json package-lock.json next.config.mjs tsconfig.json postcss.config.mjs tailwind.config.ts README.md THIRD_PARTY_NOTICES.md src public)
 
 for p in "${PATHS[@]}"; do
   git ls-files --error-unmatch "$p" >/dev/null 2>&1 || { echo "error: $p is not tracked by git" >&2; exit 1; }

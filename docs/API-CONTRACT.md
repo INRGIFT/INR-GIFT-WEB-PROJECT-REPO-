@@ -21,6 +21,7 @@ Lists and aggregates report the freshest `dataStatus` of their rows; content end
 | `assets/:id` | Asset |
 | `assets/:id/price` | Quote |
 | `assets/:id/ohlcv?range=` | Candle[] or null (validated) |
+| `assets/:id/chart?range=&resolution=` | `ChartSeries` (`src/lib/charts/types.ts`): bars + listing, native currency, venue time zone, status, session, source, as-of. `400 UNSUPPORTED_RESOLUTION` with `supported` when the source has no such bars; `502 PROVIDER_ERROR`; `404` for an unknown instrument. Protected like every `/api/v1` route. |
 | `assets/:id/identity` | InstrumentIdentity or null (issuer, securities, listings) |
 | `research?kind=` | ResearchDoc[]; kinds stocks, etfs, markets, themes, sectors, countries; structured fields filled by `structureDoc` |
 | `assets/:id/fundamentals` `valuation` `technicals` `dividends` `news` `research` | per-asset blocks, null when unavailable |

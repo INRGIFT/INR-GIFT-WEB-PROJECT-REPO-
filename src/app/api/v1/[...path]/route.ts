@@ -4,8 +4,10 @@ import { z } from 'zod';
 import { rateLimit } from '@/lib/rate-limit';
 import { DIRECTORY_CLASS } from '@/lib/routes';
 import type { AssetClass, CalendarKind, ChartRange, Envelope, ResearchKind } from '@/lib/types';
-import { getProvider } from '@/providers';
+import { getProvider, ProviderError } from '@/providers';
 import * as md from '@/services/market-data';
+import { RESOLUTIONS, type ChartError } from '@/lib/charts/types';
+import { getChartSeries } from '@/services/chart-data';
 
 /**
  * INRGIFT public read API, version 1. One router keeps the contract in one readable table.
@@ -23,10 +25,13 @@ const Query = z.object({
   kind: z.string().max(20).optional(),
   universe: z.enum(['all', 'stock', 'etf', 'reit']).default('all'),
   ids: z.string().max(4000).optional(),
+  resolution: z.enum(RESOLUTIONS).optional(),
 });
 type Q = z.infer<typeof Query>;
 const ID = /^[A-Za-z0-9._%-]{1,40}$/;
 class NotFound extends Error {}
+/** A valid request the source cannot serve as asked (e.g. a resolution it does not have): 400 with the alternatives. */
+class Unservable extends Error { constructor(public detail: ChartError) { super(detail.message); } }
 const classes = (v?: string): AssetClass[] | undefined => v ? (v.split(',').map((c) => DIRECTORY_CLASS[c] ?? (c as AssetClass)).filter(Boolean)) : undefined;
 const list = async (q: Q, cls?: AssetClass[]): Promise<Envelope<unknown>> => {
   const market = q.market ? (await md.getMarket(q.market))?.id : undefined;
@@ -47,6 +52,13 @@ const ROUTES: [RegExp, Handler][] = [
   [/^(?:assets\/)?search$/, async (_, q) => md.envelope(await md.search(q.q))],
   [/^assets\/([^/]+)$/, async ([id]) => { const a = await asset(id); return md.envelope(a, a.meta); }],
   [/^assets\/([^/]+)\/price$/, async ([id]) => { const a = await asset(id); const quote = await p().getQuote(a.id); return md.envelope(quote, a.meta); }],
+  // Chart contract (src/lib/charts/types.ts): bars + listing, native currency, time zone, status, source and as-of time.
+  [/^assets\/([^/]+)\/chart$/, async ([id], q) => {
+    if (!ID.test(id)) throw new NotFound();
+    const r = await getChartSeries(decodeURIComponent(id), q.range as ChartRange, q.resolution);
+    if (!r.ok) { if (r.error.code === 'NOT_FOUND') throw new NotFound(); if (r.error.code === 'UNSUPPORTED_RESOLUTION') throw new Unservable(r.error); throw new ProviderError('PROVIDER_ERROR', r.error.message); }
+    return md.envelope(r.series, { dataStatus: r.series.status, source: r.series.source, timezone: r.series.timezone, ...(r.series.asOf ? { timestamp: r.series.asOf } : {}) });
+  }],
   [/^assets\/([^/]+)\/ohlcv$/, async ([id], q) => { const a = await asset(id); const r = await md.getOHLCV(a.id, q.range as ChartRange); return md.envelope(r?.candles ?? null, { ...a.meta, ...(r ? {} : { dataStatus: 'UNAVAILABLE' as const }) }); }],
   [/^assets\/([^/]+)\/fundamentals$/, async ([id]) => { const a = await asset(id); return md.envelope(await p().getFundamentals(a.id), a.meta); }],
   [/^assets\/([^/]+)\/valuation$/, async ([id]) => { const a = await asset(id); return md.envelope(await p().getValuation(a.id), a.meta); }],
@@ -89,6 +101,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
       return NextResponse.json(await handler(m.slice(1), parsed.data), { headers: { 'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60' } });
     } catch (e) {
       if (e instanceof NotFound) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such resource.' } }, { status: 404 });
+      if (e instanceof Unservable) return NextResponse.json({ error: { code: e.detail.code, message: e.detail.message, supported: e.detail.supported } }, { status: 400 });
       const { status, body } = md.toApiError(e);
       log(status >= 500 ? 'error' : 'warn', 'api_error', { path: `/api/v1/${path}`, status, code: body.error.code });
       return NextResponse.json(body, { status });

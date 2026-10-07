@@ -1,3 +1,4 @@
+import { isDemoData } from '@/lib/config';
 import { getProvider, ProviderError } from '@/providers';
 import { INR_PER } from '@/providers/demo/seed';
 import { getLearnArticles } from '@/services/content';
@@ -12,7 +13,7 @@ import type { Asset, AssetClass, CalendarKind, ChartRange, DataMeta, Envelope, M
  */
 const p = () => getProvider();
 /** Meta for responses that are not market data (content, reference lists). Market-data responses pass their own. */
-export const nowMeta = (dataStatus: DataMeta['dataStatus'] = 'END_OF_DAY'): DataMeta => { const t = new Date().toISOString(); return { timestamp: t, ingestedAt: t, timezone: 'UTC', source: p().name, dataStatus }; };
+export const nowMeta = (dataStatus: DataMeta['dataStatus'] = isDemoData ? 'DEMO' : 'END_OF_DAY'): DataMeta => { const t = new Date().toISOString(); return { timestamp: t, ingestedAt: t, timezone: 'UTC', source: p().name, dataStatus }; };
 export function envelope<T>(data: T, meta?: Partial<DataMeta>, pagination?: Pagination): Envelope<T> { return { data, meta: { ...nowMeta(), ...meta }, ...(pagination ? { pagination } : {}) }; }
 export function paginate<T>(rows: T[], page = 1, pageSize = 25): { rows: T[]; pagination: Pagination } {
   const total = rows.length, totalPages = Math.max(1, Math.ceil(total / pageSize)), pg = Math.min(Math.max(1, page), totalPages);
@@ -79,7 +80,7 @@ const tradable = (a: Asset) => a.status !== 'CLOSED' && a.m.d1 != null;
 /** Price × volume in US dollars, so activity is comparable across currencies. */
 export const turnoverUsd = (a: Pick<Asset, 'price' | 'currency' | 'm'>) => (a.price == null || a.m.volume == null ? 0 : (a.price * a.m.volume * (INR_PER[a.currency] ?? 0)) / INR_PER.USD);
 /** Status for a module or response that mixes rows: the freshest row wins, matching how the UI labels mixed modules. */
-const FRESHNESS: DataMeta['dataStatus'][] = ['LIVE', 'DELAYED', 'STALE', 'END_OF_DAY', 'CLOSED', 'UNAVAILABLE', 'ERROR'];
+const FRESHNESS: DataMeta['dataStatus'][] = ['LIVE', 'DELAYED', 'DEMO', 'STALE', 'END_OF_DAY', 'CLOSED', 'UNAVAILABLE', 'ERROR'];
 export const freshest = (list: { meta: DataMeta }[]): DataMeta | null => [...list].sort((a, b) => FRESHNESS.indexOf(a.meta.dataStatus) - FRESHNESS.indexOf(b.meta.dataStatus))[0]?.meta ?? null;
 export function movers(list: Asset[], n = 5) {
   const live = list.filter(tradable);

@@ -9,7 +9,8 @@ import type { ReactNode } from 'react';
 import { AssetLogo } from '@/components/ui/asset-logo';
 import { DataStatus, statusLine } from '@/components/ui/data-status';
 import { Badge, Bar, Breadcrumbs, Change, EmptyState, Metric, MetricGrid, PageContainer, Panel } from '@/components/ui/primitives';
-import { ChartShell } from '@/features/charts/chart-shell';
+import { FinancialChart } from '@/features/charts/financial-chart';
+import { getChartSeries } from '@/services/chart-data';
 import { IdentityPanel } from '@/features/assets/identity-panel';
 import { ConnectionsPanel } from '@/features/assets/connections-panel';
 import { ModuleFoot } from '@/features/markets/widgets';
@@ -45,7 +46,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
     a.marketId ? md.getMarket(a.marketId) : null, safe(p.getFundamentals(a.id)), safe(p.getTechnicals(a.id)), safe(p.getDividends(a.id)), safe(p.getCorporateActions(a.id)),
     safe(p.getETFHoldings(a.id)), safe(p.getETFAllocations(a.id)), md.getNews({ assetId: a.id }), md.getResearch(), md.getAssets(), md.fxRates(), safe(p.getIdentity(a.id)),
   ]);
-  const connections = await md.getConnections(a).catch(() => []);
+  const [connections, chart] = await Promise.all([md.getConnections(a).catch(() => []), getChartSeries(a.id, '1Y')]);
   const docs = research.filter((d) => d.assetSlug === a.slug || (cls === 'index' && d.marketId === a.marketId && d.kind === 'markets'));
   const marketIndex = universe.find((x) => x.cls === 'index' && x.marketId === a.marketId && x.id !== a.id);
   const benchmark = cls === 'index' || !marketIndex ? null : { id: marketIndex.slug, label: marketIndex.name };
@@ -90,7 +91,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
       {a.status === 'UNAVAILABLE' && <div className="rounded-card border border-line2 bg-soft px-4 py-3"><b>Data unavailable from source.</b> <span className="text-slate2">Figures below are the last available values. {statusLine(a.meta)}.</span></div>}
       {a.status === 'STALE' && <div className="rounded-card border border-warn/30 bg-warn/5 px-4 py-3"><b>This quote is stale.</b> <span className="text-slate2">{statusLine(a.meta)}.</span></div>}
 
-      <div id="chart" className="scroll-mt-24"><ChartShell assetId={a.slug} label={a.symbol} currency={cls === 'index' ? 'points' : a.currency} benchmark={benchmark} volume={['stock', 'etf', 'reit'].includes(cls)} /></div>
+      <div id="chart" className="scroll-mt-24"><FinancialChart header="status" instrument={{ idOrSlug: a.slug, symbol: a.symbol, name: a.name }} initialSeries={chart.ok ? chart.series : null} benchmark={benchmark ? { idOrSlug: benchmark.id, label: benchmark.label } : null} defaultIndicators={['stock', 'etf', 'reit'].includes(cls) ? ['VOL'] : []} /></div>
 
       <Panel title="Overview" footer={foot}>
         <p className="mb-3 max-w-[76ch] text-slate2">{a.description}</p>

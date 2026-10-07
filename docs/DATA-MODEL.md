@@ -1,7 +1,11 @@
 # Data model
 
 ## TypeScript (src/lib/types.ts)
-- `DataStatus`: LIVE | DELAYED | END_OF_DAY | CLOSED | UNAVAILABLE | STALE | ERROR
+- `DataStatus`: LIVE | DELAYED | END_OF_DAY | CLOSED | UNAVAILABLE | STALE | ERROR | DEMO (demo provider values; never
+  shown as LIVE, DELAYED or END_OF_DAY)
+- `ChartSeries` (`src/lib/charts/types.ts`): the chart contract — instrument id, listing, native currency, unit, range,
+  resolution and supported resolutions, bars (UTC ms, OHLC, volume or null), status, session, source, time zone,
+  as-of, last price/change, precisions, quarantined count, `realtime: false` (`docs/CHARTS.md`).
 - `AssetClass`: stock | etf | index | fx | commodity | bond | reit | fund
 - `DataMeta`: timestamp, timezone, ingestedAt, source, dataStatus — on every market-data payload.
 - `Exchange`: mic, name, timezone, open, close, breakStart/End, preOpen, postClose, tradingDays, holidays, halfDays.

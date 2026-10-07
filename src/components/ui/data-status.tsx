@@ -1,10 +1,10 @@
 import { cn, dateTimeIST, timeIST } from '@/lib/format';
 import type { DataMeta, DataStatus as Status } from '@/lib/types';
 
-export const STATUS_LABEL: Record<Status, string> = { LIVE: 'Live', DELAYED: 'Delayed · 15 min', END_OF_DAY: 'End of day', CLOSED: 'Closed', UNAVAILABLE: 'Unavailable', STALE: 'Stale', ERROR: 'Error' };
-const TONE: Record<Status, string> = { LIVE: 'bg-status-live/10 text-status-live', DELAYED: 'bg-status-delayed/10 text-status-delayed', END_OF_DAY: 'bg-brand-soft text-status-eod', CLOSED: 'bg-hover text-status-closed', UNAVAILABLE: 'bg-hover text-status-unavailable', STALE: 'bg-status-stale/10 text-status-stale', ERROR: 'bg-status-error/10 text-status-error' };
+export const STATUS_LABEL: Record<Status, string> = { LIVE: 'Live', DELAYED: 'Delayed · 15 min', END_OF_DAY: 'End of day', CLOSED: 'Closed', UNAVAILABLE: 'Unavailable', STALE: 'Stale', ERROR: 'Error', DEMO: 'Demo data' };
+const TONE: Record<Status, string> = { LIVE: 'bg-status-live/10 text-status-live', DELAYED: 'bg-status-delayed/10 text-status-delayed', END_OF_DAY: 'bg-brand-soft text-status-eod', CLOSED: 'bg-hover text-status-closed', UNAVAILABLE: 'bg-hover text-status-unavailable', STALE: 'bg-status-stale/10 text-status-stale', ERROR: 'bg-status-error/10 text-status-error', DEMO: 'bg-warn/10 text-warn' };
 /** Each status has its own glyph shape, so it is distinguishable without colour. */
-const GLYPH: Record<Status, string> = { LIVE: '●', DELAYED: '▲', END_OF_DAY: '■', CLOSED: '○', UNAVAILABLE: '◌', STALE: '◐', ERROR: '◆' };
+const GLYPH: Record<Status, string> = { LIVE: '●', DELAYED: '▲', END_OF_DAY: '■', CLOSED: '○', UNAVAILABLE: '◌', STALE: '◐', ERROR: '◆', DEMO: '◇' };
 
 export function statusLine(meta: Pick<DataMeta, 'timestamp' | 'dataStatus'>): string {
   const t = meta.timestamp;
@@ -16,6 +16,7 @@ export function statusLine(meta: Pick<DataMeta, 'timestamp' | 'dataStatus'>): st
     case 'UNAVAILABLE': return `Data unavailable from source. Last available ${dateTimeIST(t)}`;
     case 'STALE': return `Last updated ${dateTimeIST(t)}. A newer value is overdue`;
     case 'ERROR': return `Request failed at ${timeIST(t)}`;
+    case 'DEMO': return `Demo data (simulated, not market prices), as of ${dateTimeIST(t)}`;
   }
 }
 export function StatusBadge({ status, className }: { status: Status; className?: string }) {

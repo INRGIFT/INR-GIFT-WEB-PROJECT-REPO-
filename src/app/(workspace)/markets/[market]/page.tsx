@@ -15,6 +15,8 @@ import { ExchangeCalendar } from '@/features/markets/exchange-calendar';
 import { dateShort, hhmm, num } from '@/lib/format';
 import { marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
+import { getChartSeries } from '@/services/chart-data';
+import { FinancialChart } from '@/features/charts/financial-chart';
 
 type Props = { params: Promise<{ market: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -27,6 +29,9 @@ export default async function MarketPage({ params }: Props) {
   const m = await md.getMarket((await params).market);
   if (!m) notFound();
   const [all, markets, news, calendar, rates] = await Promise.all([md.getAssets({ marketId: m.id }), md.getMarkets(), md.getNews({ marketId: m.id, limit: 5 }), md.getCalendar(), md.fxRates()]);
+  // The market's headline index on the shared financial chart (first listed index), when the source has one.
+  const headline = all.find((a) => a.cls === 'index');
+  const headlineChart = headline ? await getChartSeries(headline.id, '1Y') : null;
   const stocks = all.filter((a) => a.cls === 'stock');
   const listed = all.filter((a) => md.EQUITY_LIKE.includes(a.cls));
   const india = markets.find((x) => x.id === 'in')!;
@@ -44,6 +49,7 @@ export default async function MarketPage({ params }: Props) {
       {m.dataStatus === 'STALE' && <div className="rounded-card border border-warn/30 bg-warn/5 px-4 py-3"><b>Quotes for this market are stale.</b> <span className="text-slate2">{statusLine(m.meta)}.</span></div>}
       {m.session === 'HOLIDAY' && <div className="rounded-card border border-line2 bg-soft px-4 py-3"><b>Market holiday: {m.holidayName}.</b> <span className="text-slate2">Exchanges are closed today.</span></div>}
       <IndexStrip indices={all.filter((a) => a.cls === 'index')} markets={[m]} />
+      {headline && <FinancialChart variant="compact" defaultIndicators={[]} instrument={{ idOrSlug: headline.slug, symbol: headline.symbol, name: headline.name }} initialSeries={headlineChart?.ok ? headlineChart.series : null} />}
       <Panel title="Trading hours" footer={foot}>
         <SessionRail markets={m.id === 'in' ? [m] : [m, india]} now={new Date()} />
         <p className="mt-3 text-slate2">Regular session {hhmm(m.istOpen)} to {hhmm(m.istClose)} IST{m.exchanges[0].breakStart && `, with a midday break from ${m.exchanges[0].breakStart} to ${m.exchanges[0].breakEnd} local time`}.{m.currency !== 'INR' && ` Reference rate: 1 ${m.currency} ≈ ₹${num(rates[m.currency], rates[m.currency] < 1 ? 3 : 2)}.`}</p>

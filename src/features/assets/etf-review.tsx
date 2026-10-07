@@ -53,7 +53,7 @@ export async function EtfReview({ slug }: { slug: string }) {
       <PageHeader crumbs={[['Assets', '/assets'], ['ETFs', '/assets/etfs'], [a.symbol, assetHref(a)], ['Eight-step review']]} title={`${a.symbol}: eight-step ETF review`} lead={`${a.name}, examined step by step against the other ${peers.length} ETFs INRGIFT covers. This describes the fund; it does not say whether to hold it.`}
         actions={<><WatchButton asset={lite} /><AlertButton asset={lite} /><CompareButton asset={lite} /><SaveButton refType="asset" refId={`${a.id}:review`} title={`${a.symbol} eight-step review`} href={`${assetHref(a)}/review`} /></>} />
       <p className="flex flex-wrap items-center gap-3"><DataStatus meta={a.meta} /><Link href={assetHref(a)} className="link text-[13px]">Open the full {a.symbol} page with chart</Link></p>
-      {a.status !== 'LIVE' && a.status !== 'DELAYED' && a.status !== 'END_OF_DAY' && <Callout tone="warn" title="Figures may be out of date">{statusLine(a.meta)}.</Callout>}
+      {a.status !== 'LIVE' && a.status !== 'DELAYED' && a.status !== 'END_OF_DAY' && a.status !== 'DEMO' && <Callout tone="warn" title="Figures may be out of date">{statusLine(a.meta)}.</Callout>}
       <div className="grid items-start gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav aria-label="Review steps" className="lg:sticky lg:top-24"><ol className="scrollbar-none flex gap-1 overflow-x-auto lg:block lg:space-y-0.5">{STEPS.map((s, i) => <li key={s} className="shrink-0"><a href={`#step-${i + 1}`} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-slate2 hover:bg-hover hover:text-navy"><span className="num w-4 text-faint">{i + 1}</span>{s}</a></li>)}</ol></nav>
         <div className="space-y-4">

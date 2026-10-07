@@ -20,6 +20,7 @@ cash balances. No such table, type, component, nav item, CTA or copy. Alerts not
 | IA, routes, flows, states, responsive | `docs/UX-SYSTEM.md` |
 | Layers, folders, provider swap | `docs/ARCHITECTURE.md`, `docs/PROVIDERS.md` |
 | External services (NSE, Supabase, logos, email, domain) | `docs/CONNECTORS.md` |
+| Financial charts, KLineChart licence and notices | `docs/CHARTS.md`, `THIRD_PARTY_NOTICES.md` |
 | Types and SQL schema | `docs/DATA-MODEL.md` |
 | `/api/v1` contract | `docs/API-CONTRACT.md` |
 | Supabase auth, RLS, security | `docs/AUTH-SECURITY.md` |
@@ -43,7 +44,9 @@ npm run test:e2e     # Playwright journeys in e2e/ (E2E_BASE_URL to reuse a serv
 
 Next.js 15 App Router · React 19 · TypeScript strict · Tailwind CSS 3 (tokens in `tailwind.config.ts`) ·
 custom UI primitives (no shadcn dependency) · lucide-react · Supabase (`@supabase/ssr`) · zod · vitest · Playwright.
-Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; ask before adding one.
+Financial charts use **KLineChart** (`klinecharts`, Apache-2.0, pinned 10.0.3) through one component, `FinancialChart`, and the
+INRGIFT chart adapter (`docs/CHARTS.md`); keep `THIRD_PARTY_NOTICES.md`, `public/licenses/` and `/legal/open-source` in step with it.
+Small charts (sparklines, heatmap, bars) are hand-written SVG. No other runtime dependencies; ask before adding one.
 
 ## Access and providers (do not change without the owner)
 
@@ -69,7 +72,9 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 2. **Provider selection** happens only in `src/lib/config.ts` + `src/providers/index.ts`. No `if (demo)` in components.
 3. **Identity:** instruments are addressed by immutable `ins_######` ids internally and by slug in URLs. Never key on ticker.
 4. **Missing data:** `undefined` in `Asset.m` = not applicable, `null` = unavailable. Render `n/a` / `—`. Never a fake zero.
-5. **Every data module shows `DataStatus`** (badge + exact timestamp). Never an open-ended "Updating…".
+5. **Every data module shows `DataStatus`** (badge + exact timestamp). Never an open-ended "Updating…". Demo data is
+   `DEMO`, never LIVE (`demoLabelled` in `src/providers/index.ts`). Charts get bars only through `src/services/chart-data.ts`
+   (server) or `GET /api/v1/assets/:id/chart` (browser); never from a vendor in the browser, never simulated ticks.
 6. **Private data** goes through `WorkspaceRepo` (`src/features/workspace/repo.ts`). Never send `user_id` from the client;
    the column defaults to `auth.uid()` and RLS enforces it. Never import the service-role key in client code.
 7. **Metrics** are declared once in `src/lib/metrics.ts`; tables, screener and compare read that registry.

@@ -26,9 +26,10 @@ export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/co
 export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/internal', '/api/forms'];
 const METADATA_FILES = ['/robots.txt', '/sitemap.xml', '/sitemap', '/manifest.webmanifest', '/icon', '/apple-icon', '/opengraph-image', '/twitter-image', '/favicon.ico'];
 /** Files served from /public (brand, fonts, media, posters): marketing assets with no product data. Only root-level
- * files and these folders count, so a page path with a file-like suffix (/stocks/AAPL.png) stays protected. */
+ * files and these folders count, so a page path with a file-like suffix (/stocks/AAPL.png) stays protected.
+ * /licenses/ holds third-party licence and notice texts that must be readable by everyone the software reaches. */
 const FILE_EXT = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|webm|mp4|vtt|json|woff2?|ttf|otf|css|js|map|txt|xml|webmanifest)$/i;
-const FILE_DIRS = /^\/(?:brand|fonts|media)\/|^\/[^/]+$/;
+const FILE_DIRS = /^\/(?:brand|fonts|media|licenses)\/|^\/[^/]+$/;
 
 const under = (p: string, base: string) => (base === '/' ? p === '/' : p === base || p.startsWith(`${base}/`));
 /** The access class of a pathname (no query). */

@@ -12,6 +12,8 @@ import { assetHref, collectionHref, glossaryHref, marketHref, researchHref } fro
 import { pageMetadata } from '@/lib/seo';
 import { article, breadcrumbs, JsonLd } from '@/lib/structured-data';
 import type { Asset, ResearchChart, ResearchKind } from '@/lib/types';
+import { FinancialChart } from '@/features/charts/financial-chart';
+import { getChartSeries } from '@/services/chart-data';
 import { termsMentionedIn } from '@/services/content';
 import * as md from '@/services/market-data';
 
@@ -26,6 +28,7 @@ export default async function ResearchDocPage({ params }: Props) {
   if (!d) notFound();
   const [market, all, theme] = await Promise.all([d.marketId ? md.getMarket(d.marketId) : null, md.getResearch(), d.themeId ? md.getTheme(d.themeId) : null]);
   const subject = d.assetSlug ? await md.getAsset(d.assetCls, d.assetSlug) : null;
+  const subjectChart = subject ? await getChartSeries(subject.id, '1Y') : null;
   // Assets the note is about: the asset, the theme's constituents, or the market's largest covered names.
   let related: Asset[] = [];
   if (subject) related = [subject, ...(await md.getAssets({ cls: [subject.cls] })).filter((x) => x.id !== subject.id && (x.sector === subject.sector || x.etf?.strategy === subject.etf?.strategy)).slice(0, 4)];
@@ -56,8 +59,9 @@ export default async function ResearchDocPage({ params }: Props) {
           <article className="prose-doc rounded-card border border-line bg-white px-6 py-5">
             {d.sections.map((s) => <section key={s.heading} id={anchor(s.heading)} className="scroll-mt-24"><h2>{s.heading}</h2><p>{s.body}</p></section>)}
           </article>
+          {subject && <FinancialChart variant="compact" defaultIndicators={[]} instrument={{ idOrSlug: subject.slug, symbol: subject.symbol, name: subject.name }} initialSeries={subjectChart?.ok ? subjectChart.series : null} />}
           {d.charts?.map((c) => <ResearchChartPanel key={c.title} chart={c} />)}
-          {related.length > 0 && <Panel flush title={subject ? `${subject.symbol} and closest peers` : theme ? 'Assets in this theme' : 'Largest covered names'} sub="Live from the active data source" footer={asOf && <DataStatus meta={asOf} />}><AssetTable rows={related} columns={subject?.cls === 'etf' ? ['d1', 'y1', 'expenseRatio', 'aum'] : ['d1', 'm1', 'y1', 'pe']} initialSort={null} /></Panel>}
+          {related.length > 0 && <Panel flush title={subject ? `${subject.symbol} and closest peers` : theme ? 'Assets in this theme' : 'Largest covered names'} sub="From the active data source" footer={asOf && <DataStatus meta={asOf} />}><AssetTable rows={related} columns={subject?.cls === 'etf' ? ['d1', 'y1', 'expenseRatio', 'aum'] : ['d1', 'm1', 'y1', 'pe']} initialSort={null} /></Panel>}
           {d.interpretation && <section aria-labelledby="interpretation" className="rounded-card border border-line bg-white px-5 py-4"><h2 id="interpretation" className="text-lead font-bold">Interpretation</h2><p className="mt-1 max-w-[72ch] text-slate2">{d.interpretation}</p></section>}
           <section className="grid gap-4 rounded-card border border-line bg-soft px-5 py-4 text-[13px] text-slate2 md:grid-cols-2" aria-label="Limitations, methodology and sources">
             <div><h2 className="text-[15px] font-bold text-navy">Limitations</h2><ul className="mt-1 list-disc space-y-1 pl-4">{d.limitations?.map((l) => <li key={l}>{l}</li>)}</ul></div>

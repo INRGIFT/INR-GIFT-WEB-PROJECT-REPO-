@@ -5,21 +5,20 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, IconButton } from '@/components/ui/button';
 import { STATUS_LABEL } from '@/components/ui/data-status';
-import { EmptyState, ErrorState, Panel, Segmented, Skeleton, SkeletonRows } from '@/components/ui/primitives';
+import { EmptyState, ErrorState, Panel, SkeletonRows } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { MetricCell, Price } from '@/features/assets/asset-table';
-import { MultiLineChart, SERIES_STYLE, SeriesLegend, type Series } from '@/features/charts/multi-line-chart';
-import { CHART } from '@/features/charts/svg-chart';
-import { rebase } from '@/lib/indicators';
 import { readCompare, writeCompare } from '@/features/workspace/action-buttons';
 import { useWorkspace } from '@/features/workspace/workspace-context';
 import { cn } from '@/lib/format';
 import { METRICS } from '@/lib/metrics';
 import { assetHref, CLASS_LABEL } from '@/lib/routes';
-import type { Asset, Candle, ChartRange, MetricKey } from '@/lib/types';
+import type { Asset, MetricKey } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
+import { FinancialChart } from '@/features/charts/financial-chart';
+import { SERIES_STYLES } from '@/lib/charts/palette';
 
-const COLOURS = SERIES_STYLE.map(([c]) => c) as string[], DASH = SERIES_STYLE.map(([, d]) => d) as string[];
+const COLOURS = SERIES_STYLES.map((s) => s.color);
 const PERIODS = ['1M', '6M', 'YTD', '1Y', '3Y', '5Y'] as const;
 const SECTIONS: [string, MetricKey[]][] = [
   ['Performance', ['d1', 'm1', 'ytd', 'y1', 'y3', 'y5']], ['Risk', ['beta', 'volatility', 'maxDrawdown']], ['Valuation', ['marketCap', 'pe', 'fpe', 'pb', 'evEbitda']],
@@ -27,29 +26,11 @@ const SECTIONS: [string, MetricKey[]][] = [
 ];
 const BENCHMARKS = [['', 'No benchmark'], ['SP-500', 'S&P 500'], ['NIFTY-50', 'NIFTY 50']] as const;
 
-/** A series that failed (e.g. a provider error) is treated as missing rather than failing the whole chart. */
-const seriesData = (j: { data?: Candle[] | null }) => j.data ?? null;
-function useSeries(slugs: string[], range: ChartRange) {
-  const [state, setState] = useState<{ data: Record<string, Candle[] | null>; loading: boolean; error: boolean }>({ data: {}, loading: true, error: false });
-  const [tick, setTick] = useState(0);
-  const key = slugs.join(',');
-  useEffect(() => {
-    if (!key) { setState({ data: {}, loading: false, error: false }); return; }
-    let off = false;
-    setState((s) => ({ ...s, loading: true, error: false }));
-    Promise.all(key.split(',').map((s) => fetch(`/api/v1/assets/${encodeURIComponent(s)}/ohlcv?range=${range}`).then((r) => r.json()).then((j) => [s, seriesData(j)] as const)))
-      .then((rows) => { if (!off) setState({ data: Object.fromEntries(rows), loading: false, error: false }); }).catch(() => { if (!off) setState({ data: {}, loading: false, error: true }); });
-    return () => { off = true; };
-  }, [key, range, tick]);
-  return { ...state, reload: () => setTick((t) => t + 1) };
-}
-
 export function Compare() {
   const params = useSearchParams();
   const ws = useWorkspace();
   const toast = useToast();
   const [slugs, setSlugs] = useState<string[] | null>(null);
-  const [range, setRange] = useState<ChartRange>('1Y');
   const [bench, setBench] = useState('');
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (t: string) => setHidden((h) => { const n = new Set(h); if (n.has(t)) n.delete(t); else n.add(t); return n; });
@@ -58,9 +39,6 @@ export function Compare() {
   useEffect(() => { if (!slugs) return; writeCompare(slugs); window.history.replaceState(null, '', `/discover/compare${slugs.length ? `?s=${slugs.join(',')}` : ''}`); }, [slugs]);
 
   const assets = useMemo(() => (slugs && universe.data ? slugs.map((s) => universe.data!.find((a) => a.slug === s)).filter((a): a is Asset => Boolean(a)) : []), [slugs, universe.data]);
-  const series = useSeries([...assets.map((a) => a.slug), ...(bench ? [bench] : [])], range);
-  const lines: Series[] = [...assets.map((a, i) => ({ key: a.slug, label: a.symbol, colour: COLOURS[i], dash: DASH[i] })), ...(bench ? [{ key: bench, label: BENCHMARKS.find((b) => b[0] === bench)![1], colour: CHART.axis, dash: '1 4' }] : [])]
-    .map((l) => { const c = series.data[l.key]; return c && c.length > 1 ? { ...l, t: c.map((x) => x.t), v: rebase(c.map((x) => x.c)) } : null; }).filter((l): l is Series => l !== null);
   const save = async () => { if (!ws.requireAuth()) return; const title = assets.map((a) => a.symbol).join(' vs '); if (await ws.add('saved_comparisons', { name: title, instrument_ids: assets.map((a) => a.id) })) { ws.track('comparison', title, `/discover/compare?s=${slugs!.join(',')}`); toast('Comparison saved'); } };
   if (!slugs || (universe.loading && !universe.data)) return <Panel title="Compare"><SkeletonRows rows={8} /></Panel>;
   if (universe.error) return <ErrorState title="Compare could not load" action={<Button onClick={universe.reload}>Retry</Button>}>{universe.error}</ErrorState>;
@@ -75,12 +53,17 @@ export function Compare() {
       </div>
       {assets.length < 2 ? <div className="rounded-card border border-line bg-white"><EmptyState title={`Add ${assets.length ? 'one more asset' : 'two assets'} to compare`}>Use the selector above, or the compare button on any table row or asset page.</EmptyState></div> : (
         <>
-          <Panel title="Relative performance" sub="Rebased to 0% at the start of the period" tools={<div className="flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="cmp-bench">Benchmark</label><select id="cmp-bench" className="h-8 rounded-lg border border-line2 bg-white px-2 text-[13px]" value={bench} onChange={(e) => setBench(e.target.value)}>{BENCHMARKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select><Segmented size="sm" label="Period" value={range as (typeof PERIODS)[number]} onChange={(v) => setRange(v)} options={PERIODS.map((p) => [p, p] as const)} /></div>}>
-            <SeriesLegend series={lines} />
-            {series.error ? <ErrorState title="The chart could not load" action={<Button onClick={series.reload}>Retry</Button>} /> : series.loading && !lines.length ? <Skeleton className="h-[260px] w-full" /> : !lines.length ? <EmptyState title="No price history available">The source has no series for these assets over this period.</EmptyState> : (
-              <div className={cn('transition-opacity duration-panel', series.loading && 'opacity-50')}><MultiLineChart series={lines} range={range} label={`Rebased ${range} returns`} /></div>
-            )}
-          </Panel>
+          <section aria-labelledby="cmp-perf" className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 id="cmp-perf" className="text-[15px] font-bold">Relative performance</h2><span className="text-xs text-faint">Change from the start of the period, %</span>
+              <span className="flex-1" />
+              <label className="sr-only" htmlFor="cmp-bench">Benchmark</label>
+              <select id="cmp-bench" className="h-8 rounded-lg border border-line2 bg-white px-2 text-[13px]" value={bench} onChange={(e) => setBench(e.target.value)}>{BENCHMARKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            </div>
+            <FinancialChart key={`${assets.map((a) => a.slug).join(',')}|${bench}`} variant="compact" defaultRange="1Y" ranges={[...PERIODS]} defaultIndicators={[]}
+              instrument={{ idOrSlug: assets[0].slug, symbol: assets[0].symbol, name: assets[0].name }}
+              compareWith={[...assets.slice(1).map((a) => ({ idOrSlug: a.slug, label: a.symbol })), ...(bench ? [{ idOrSlug: bench, label: BENCHMARKS.find((b) => b[0] === bench)![1] }] : [])]} />
+          </section>
           <Panel flush title="Metrics" sub="Highest and lowest value in each row are marked. Higher is not automatically better." tools={<div role="group" aria-label="Show sections" className="flex flex-wrap gap-1">{['Identity', ...SECTIONS.map(([t]) => t)].map((t) => <button key={t} type="button" aria-pressed={!hidden.has(t)} onClick={() => toggle(t)} className={cn('rounded-md border px-2 py-0.5 text-caption font-medium transition-colors duration-micro', hidden.has(t) ? 'border-line2 text-faint line-through' : 'border-brand/40 bg-brand-soft text-brand-ink')}>{t}</button>)}</div>}>
             <div className="max-w-full overflow-x-auto">
               <table className="w-full border-collapse text-[13px]">

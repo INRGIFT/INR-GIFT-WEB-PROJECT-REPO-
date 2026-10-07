@@ -7,7 +7,7 @@ import { COMPANY, LEGAL_PATHS } from '@/lib/company';
 const COLS: [string, [string, string][]][] = [
   ['Product', [['Markets', '/markets'], ['Assets', '/assets'], ['Screener', '/discover/screener'], ['Heatmap', '/discover/heatmap'], ['Compare', '/discover/compare'], ['Research', '/research']]],
   ['Company', [['About', LEGAL_PATHS.about], ['Support', LEGAL_PATHS.support], ['Pricing', '/pricing'], ['FAQ', '/faq']]],
-  ['Legal', [['Terms and Conditions', LEGAL_PATHS.terms], ['Privacy Policy', LEGAL_PATHS.privacy], ['Risk Disclaimer', LEGAL_PATHS.risk], ['Cookie Policy', LEGAL_PATHS.cookies], ['Grievance Redressal', LEGAL_PATHS.grievance], ['Account Closure', LEGAL_PATHS.accountClosure]]],
+  ['Legal', [['Terms and Conditions', LEGAL_PATHS.terms], ['Privacy Policy', LEGAL_PATHS.privacy], ['Risk Disclaimer', LEGAL_PATHS.risk], ['Cookie Policy', LEGAL_PATHS.cookies], ['Grievance Redressal', LEGAL_PATHS.grievance], ['Account Closure', LEGAL_PATHS.accountClosure], ['Open-source notices', LEGAL_PATHS.openSource]]],
 ];
 /** Site footer: brand, research-only disclaimer, navigation, legal links and the published contact details. */
 export function SiteFooter() {

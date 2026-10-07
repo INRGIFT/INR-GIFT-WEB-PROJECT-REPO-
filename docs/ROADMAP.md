@@ -3,7 +3,14 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 169 unit/API tests, Playwright 118 + 6 skipped with SMS off / 122 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, build, GoDaddy source zip)
+## Done (typecheck, 197 unit/API tests, Playwright 128 + 6 skipped with SMS off, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, build, GoDaddy source zip)
+- **KLineChart financial charts (7 Oct 2026):** `klinecharts` 10.0.3 (Apache-2.0) behind one `FinancialChart` and an
+  INRGIFT adapter (`docs/CHARTS.md`): candles, bars, line, area, linear/log/percent scales, MA, EMA, Bollinger, Volume,
+  OBV, RSI, standard MACD, drawing tools, zoom and pan, keyboard crosshair, full screen, comparison lines. Chart
+  contract with listing, native currency, venue time zone, status, session, source and as-of; venue-calendar bars;
+  honest resolutions (aggregation only); no realtime. `GET /api/v1/assets/:id/chart`. Old SVG price charts removed.
+  `DEMO` data status everywhere for demo values. Notices: `THIRD_PARTY_NOTICES.md`, `public/licenses/klinecharts/`,
+  `/legal/open-source`.
 - **Master rebuild (7 Oct 2026):**
   - Sign-up step 2 is a **six-digit email code** (Supabase `verifyOtp`, type `email`; code email "Verify your INRGIFT
     email" through the hook and Resend). Wrong, expired, rate-limited and resend states. The code is never stored.
@@ -118,8 +125,8 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
    implement `NseInstrumentMap`; move editorial research/themes/calendar out of DemoProvider; ingestion persistence for `/api/internal/ingest`; entitlement checks.
 4. **Caching:** `(site)` routes are dynamic; add revalidated provider reads and Suspense streaming per module
    (boundaries inside pages, below `notFound()`, so 404 status is kept; see `docs/DECISIONS.md`).
-5. **Depth:** index constituents from the provider; MACD/ATR/VWAP; chart drawing tools, zoom and pan;
-   saved-screen history; table virtualization once the universe is large.
+5. **Depth:** index constituents from the provider; ATR/VWAP; saved drawings; saved-screen history; table
+   virtualization once the universe is large.
 6. **Dependency maintenance (deferred by the owner):** ESLint and the Next.js upgrade that clears the PostCSS
    advisory, as one separate pass.
 7. **Content:** lawyer-reviewed legal text and a named grievance officer; MP4 copies of tutorials for older Safari;

@@ -1,4 +1,7 @@
 import { dataStatusFor, istHours, lastClose, localTime, sessionState, statusTimestamp } from '@/lib/calendar';
+import { barOpenTimes, GLOBAL_VENUE } from '@/lib/charts/bars';
+import type { ChartResolution } from '@/lib/charts/types';
+import { recentSessions, zoned } from '@/lib/calendar';
 import { hash, rng, walk } from '@/lib/rng';
 import type { Allocations, Asset, AssetClass, CalendarEvent, Candle, ChartRange, DataMeta, DataStatus, Dividend, Exchange, Fundamentals, Holding, Market, MarketView, MetricKey, NewsItem, ResearchDoc, Technicals, Theme, InstrumentIdentity, Issuer, Listing, Security } from '@/lib/types';
 import type { AssetQuery, MarketDataProvider, NewsQuery, Quote } from '../provider';
@@ -9,7 +12,7 @@ const SOURCE = 'demo-provider';
 const M = new Map(MARKETS.map((m) => [m.id, m]));
 const r2 = (v: number) => Math.round(v * 100) / 100;
 /** Always-open venue used for FX and commodities, which trade around the clock on weekdays. */
-const GLOBAL_EX: Exchange = { mic: 'XGLB', name: 'Global OTC', timezone: 'UTC', open: '00:00', close: '23:59', tradingDays: [1, 2, 3, 4, 5], holidays: {} };
+const GLOBAL_EX: Exchange = GLOBAL_VENUE;
 
 type Base = Omit<Asset, 'status' | 'meta'> & { forced?: DataStatus };
 
@@ -86,7 +89,17 @@ const BASE = buildBase();
 const BY_ID = new Map(BASE.map((a) => [a.id, a]));
 const find = (idOrSlug: string, cls?: AssetClass) => BY_ID.get(idOrSlug) ?? BASE.find((a) => a.slug.toLowerCase() === idOrSlug.toLowerCase() && (!cls || a.cls === cls || (cls === 'etf' && a.cls === 'fund')));
 
-const RANGE: Record<ChartRange, [points: number, key: MetricKey, stepMin: number]> = { '1D': [78, 'd1', 5], '5D': [65, 'w1', 30], '1M': [22, 'm1', 1440 * 1.4], '3M': [64, 'm3', 1440 * 1.4], '6M': [126, 'm6', 1440 * 1.45], YTD: [190, 'ytd', 1440 * 1.45], '1Y': [252, 'y1', 1440 * 1.45], '3Y': [156, 'y3', 1440 * 7], '5Y': [260, 'y5', 1440 * 7], MAX: [300, 'y5', 1440 * 12] };
+/** Per range: the metric that sets the demo walk's total change, the bar resolution, and how far back it starts. */
+const RANGE: Record<ChartRange, [key: MetricKey, resolution: ChartResolution, since: (asOf: Date, ex: Exchange) => Date]> = {
+  '1D': ['d1', '5m', (t, ex) => recentSessions(ex, t, 1)[0]?.open ?? t],
+  '5D': ['w1', '30m', (t, ex) => recentSessions(ex, t, 5)[0]?.open ?? t],
+  '1M': ['m1', '1D', (t) => monthsBack(t, 1)], '3M': ['m3', '1D', (t) => monthsBack(t, 3)], '6M': ['m6', '1D', (t) => monthsBack(t, 6)],
+  YTD: ['ytd', '1D', (t, ex) => new Date(Date.UTC(Number(zoned(ex.timezone, t).date.slice(0, 4)), 0, 1))],
+  '1Y': ['y1', '1D', (t) => monthsBack(t, 12)], '3Y': ['y3', '1W', (t) => monthsBack(t, 36)], '5Y': ['y5', '1W', (t) => monthsBack(t, 60)], MAX: ['y5', '1M', (t) => monthsBack(t, 120)],
+};
+const monthsBack = (t: Date, n: number) => new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - n, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()));
+/** Share of a day's volume in one bar of each resolution (demo volumes only). */
+const VOLUME_SHARE: Partial<Record<ChartResolution, number>> = { '5m': 1 / 78, '30m': 1 / 13, '1D': 1, '1W': 5, '1M': 21 };
 
 export class DemoProvider implements MarketDataProvider {
   readonly name = SOURCE;
@@ -135,17 +148,24 @@ export class DemoProvider implements MarketDataProvider {
     const b = find(id);
     if (!b || b.price == null) return null;
     if (b.forced === 'ERROR') throw new ProviderError('PROVIDER_ERROR', `Price history request failed for ${b.symbol}.`);
-    const [n, key, stepMin] = RANGE[range];
+    const [key, resolution, since] = RANGE[range];
+    // Bars sit on the venue's own calendar (trading days, holidays, sessions, breaks) and end at the quote's as-of
+    // time: a closed market gets no new candle.
+    const ex = M.get(b.marketId)?.exchanges.find((e) => e.mic === b.mic) ?? M.get(b.marketId)?.exchanges[0] ?? GLOBAL_EX;
+    const asOf = new Date((await this.getAsset(id))!.meta.timestamp);
+    const times = barOpenTimes(ex, resolution, since(asOf, ex), asOf);
+    const n = times.length;
+    if (n < 2) return null;
     const chg = (b.m[key] ?? b.m.y1 ?? 5) * (range === 'MAX' ? 1.6 : 1);
     const sd = Math.abs(chg) / 100 / Math.sqrt(n) * 1.2 + 0.004;
     const closes = walk(b.id + range, n, chg, sd).map((x) => x * b.price!);
+    // Daily bars end on the quote: the last close is the price and the one before it the previous close.
+    if (resolution === '1D' && b.prevClose != null && n > 2) closes[n - 2] = b.prevClose;
     const r = rng(b.id + range + 'o');
-    const end = (await this.getAsset(id))!.meta.timestamp;
-    const endMs = Date.parse(end);
-    const baseVol = (b.m.volume ?? 1e6) / (range === '1D' ? 78 : 1);
+    const baseVol = (b.m.volume ?? 1e6) * (VOLUME_SHARE[resolution] ?? 1);
     return closes.map((c, i) => {
       const o = i ? closes[i - 1] : c * (1 + (r() - 0.5) * sd);
-      return { t: new Date(endMs - (n - 1 - i) * stepMin * 60000).toISOString(), o, h: Math.max(o, c) * (1 + r() * sd * 0.7), l: Math.min(o, c) * (1 - r() * sd * 0.7), c, v: Math.round(baseVol * (0.5 + r())) };
+      return { t: times[i].toISOString(), o, h: Math.max(o, c) * (1 + r() * sd * 0.7), l: Math.min(o, c) * (1 - r() * sd * 0.7), c, v: Math.round(baseVol * (0.5 + r())) };
     });
   }
   async getFundamentals(id: string): Promise<Fundamentals | null> {

@@ -12,6 +12,7 @@ const DOCS: [string, string, string][] = [
   ['Grievance Redressal', LEGAL_PATHS.grievance, 'How to raise a complaint and what happens next.'],
   ['Account Closure', LEGAL_PATHS.accountClosure, 'How to close your account.'],
   ['Refund Policy', '/legal/refund', 'INRGIFT is free today; no charges to refund.'],
+  ['Open-Source Software Notices', LEGAL_PATHS.openSource, 'Open-source software INRGIFT uses, with its licences and notices.'],
   ['Support', LEGAL_PATHS.support, 'Help with sign-in, your account, data and technical issues.'],
 ];
 export default function LegalIndex() {
