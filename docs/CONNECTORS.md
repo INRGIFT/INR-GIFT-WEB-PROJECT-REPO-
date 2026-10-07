@@ -7,7 +7,7 @@ Anything marked **unverified** could not be confirmed from an official page.
 | Area | Service | Code status | Live status |
 | --- | --- | --- | --- |
 | Domain | GoDaddy (registrar/DNS) | Nothing in code | Owner confirmed GoDaddy for domain; domain name not yet supplied |
-| Hosting | GoDaddy (owner confirmed) | `npm run package:godaddy` → standalone `server.js` bundle; `docs/DEPLOY.md` | Not deployed |
+| Hosting | GoDaddy (owner confirmed) | `npm run package:godaddy` → source zip (`deploy/inrgift-godaddy-source.zip`: package.json at root, no node_modules, no .next, no .env; GoDaddy runs npm install → npm run build → npm start); `docs/DEPLOY.md` | Not deployed |
 | Market data | NSE (designated provider) | `src/providers/nse` source adapter + provider; `MARKET_DATA_PROVIDER=nse` | Not connected: no licensed product, spec or credentials |
 | Database | Supabase Postgres, project `odiflbsoitgktylaksng` (ap-south-1, free plan) | Migrations 0001–0006 applied to the hosted project; RLS verified locally and live | Live; advisors clean (security) |
 | Authentication | Supabase Auth (`@supabase/ssr` 0.12) | Login, signup, email verification, phone OTP, TOTP, reset, logout, guard | Project connected; Site URL/redirects, templates, SMTP and SMS still to set in the dashboard |

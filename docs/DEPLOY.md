@@ -3,65 +3,110 @@
 GoDaddy provides both the domain and the hosting. INRGIFT is a Next.js 15 server app: it needs a running Node.js
 process because of middleware, route handlers and server rendering. Static-only hosting will not work.
 
+## How the GoDaddy deployment works
+
+GoDaddy Node.js Hosting receives a **source zip** and does the rest:
+
+```
+upload inrgift-godaddy-source.zip → GoDaddy: npm install → npm run build (next build) → npm start (next start)
+```
+
+- The zip root contains `package.json` and `package-lock.json`. There is no nested project folder.
+- The zip **never contains `node_modules`**. GoDaddy installs the dependencies itself.
+  Uploading a `node_modules` tree, or a prebuilt standalone bundle that carries one, collides with GoDaddy's install and
+  fails with `npm error code ENOTEMPTY ... rmdir '/app/node_modules/...'`.
+- The zip never contains `.next`, `.env` files or secrets. Secrets are set as environment variables in GoDaddy (and in
+  the Supabase dashboard), never committed and never packaged.
+- `next start` listens on the `PORT` environment variable that GoDaddy provides (default 3000). No port is hard-coded.
+- Everything `next build` needs (TypeScript, Tailwind, PostCSS, type packages) is in `dependencies`. The build
+  therefore works even if GoDaddy installs with production settings and skips `devDependencies`.
+- `engines.node` is `20.x`.
+
 ## 1. Choose the GoDaddy plan
 
 | Plan | Works? | Notes |
 | --- | --- | --- |
-| cPanel Web Hosting with **Setup Node.js App** | Yes, if the plan offers Node.js 18.18+ (20 LTS recommended) | Upload the standalone bundle; startup file `server.js` |
-| VPS / Dedicated | Yes | Run `node server.js` under a process manager (pm2 or systemd) behind nginx or Apache with TLS |
+| Node.js Hosting / cPanel with a Node.js app | Yes, with Node.js 20 | Upload the source zip; GoDaddy installs, builds and starts |
+| VPS / Dedicated | Yes | Unzip the same source zip, then `npm ci && npm run build && npm start` under pm2 or systemd behind nginx/Apache with TLS |
 | Website Builder / Managed WordPress | No | No Node.js runtime |
 
-To check the plan: cPanel → search for "Node.js". If **Setup Node.js App** is listed, the plan supports Node.js.
-GoDaddy retires older Node versions over time ([GoDaddy help](https://www.godaddy.com/en-in/help/retiring-older-versions-of-nodejs-and-ruby-42764)),
-so pick the newest one offered.
+GoDaddy retires older Node versions over time ([GoDaddy help](https://www.godaddy.com/en-in/help/retiring-older-versions-of-nodejs-and-ruby-42764)).
+Choose Node.js 20.
 
-## 2. Build the bundle
+## 2. Build the source zip
 
-On any machine with Node 20:
+Commit your changes first. The zip is made from the committed tree, and the script refuses uncommitted edits in the
+packaged paths.
 
 ```bash
-npm ci
-npm run package:godaddy
+npm run package:godaddy    # → deploy/inrgift-godaddy-source.zip, then validates it
+npm run validate:godaddy   # re-run the validation on an existing zip
 ```
 
-This writes two files to `deploy/`:
+The script uses `git archive` on `HEAD` and includes only what the production build reads:
 
-| File | For | Contents |
-| --- | --- | --- |
-| `inrgift-godaddy.zip` (~8 MB) | cPanel **Setup Node.js App** | `server.js`, `.next/`, `public/`, a runtime-only `package.json` (7 dependencies pinned to the build's versions). **No `node_modules`.** |
-| `inrgift-standalone.zip` (~33 MB) | VPS / dedicated | The same plus the traced `node_modules`; run `node server.js`, no install step. |
+- `package.json` and `package-lock.json`
+- `next.config.mjs`, `tsconfig.json`, `postcss.config.mjs` and `tailwind.config.ts`
+- `README.md`
+- `src/` and `public/`
 
-Neither zip contains environment values; they are set on the host (step 4).
+Tests, e2e, docs, SQL migrations and scripts stay in the repository. Untracked files cannot enter the zip:
+`node_modules`, `.next`, `.env*`, test output and caches.
 
-## 3. cPanel → Setup Node.js App
+`scripts/validate-godaddy-zip.sh` fails the run if any of these is true:
+- `package.json` or `package-lock.json` is missing from the root
+- the files sit in a nested project folder
+- the zip contains `node_modules`, `.next`, `.env*`, key or credential files, test output, caches, or secret values
+- `package.json` lacks a name, version, `next build`, `next start`, `engines.node` or `next` as a dependency
+- the start script hard-codes a port
 
-cPanel keeps an app's packages in its own virtual environment and links `node_modules` into the application root.
-Never upload a `node_modules` folder there. A bundled one collides with cPanel's and makes **Run NPM Install** fail
-with `npm error code ENOTEMPTY ... rmdir '.../node_modules/...'`.
+## 3. Upload to GoDaddy
 
-1. **Create application:**
-   - Node.js version: the newest available, at least 18.18 (20 or 22 recommended).
-   - Application mode: Production.
-   - Application root: for example `inrgift`.
-   - Application URL: the domain.
-   - Application startup file: `server.js`.
-2. With File Manager, upload `deploy/inrgift-godaddy.zip` to the application root and **Extract** it there.
-   `server.js` and `package.json` must sit directly in the application root.
-3. Add the environment variables from step 4 in the app's **Environment variables** section and **Save**.
-4. Click **Run NPM Install**. It installs `next`, `react` and the other runtime packages (about 35 packages, under a
-   minute).
-5. Click **Restart**, then open the domain.
+1. In the GoDaddy Node.js app settings:
+   - Node.js version: **20**.
+   - Mode: production.
+   - Build command (if asked): `npm run build`.
+   - Start command (if asked): `npm start`.
+   - If the screen asks for an application startup file instead of a start command, see "Remaining GoDaddy
+     questions" below.
+2. Add the environment variables from step 4 **before the first build**. `NEXT_PUBLIC_*` values are compiled in
+   during `npm run build`.
+3. Upload `deploy/inrgift-godaddy-source.zip` and extract it so `package.json` sits directly in the application
+   root.
+4. Let GoDaddy run the install and the build (or click **Run NPM Install**, then run the build), then start or
+   restart the app.
 
-### If Run NPM Install failed with ENOTEMPTY
-This happens when an earlier upload put a `node_modules` folder in the application root (the older bundle did).
-1. In **Setup Node.js App**, click **Stop App**.
-2. In File Manager, open the application root, turn on **Show Hidden Files** (Settings), and delete everything
-   there, including `node_modules`, `.next`, `server.js`, `package.json` and `public`.
-3. If the error persists, delete the application in **Setup Node.js App** and create it again with the same
-   settings. This also clears cPanel's virtual environment (its npm cache sits outside the root).
-4. Follow steps 2–5 above with `inrgift-godaddy.zip`.
+**Upload only** `inrgift-godaddy-source.zip`.
+
+**Never upload:**
+- `node_modules`
+- `.next`
+- `.env` or `.env.local`
+- the whole repository folder
+- an older `inrgift-standalone.zip` or `inrgift-godaddy.zip` (both carried build output)
+
+### If an earlier upload failed with ENOTEMPTY
+The application root still holds the `node_modules` tree from the old upload.
+1. Stop the app.
+2. In File Manager, open the application root and turn on **Show Hidden Files**. Delete everything there,
+   including `node_modules` and `.next`.
+3. If the error persists, delete the Node.js application and create it again with the same settings. This also clears
+   GoDaddy's own install environment.
+4. Upload the source zip again (step 3).
+
+### Remaining GoDaddy questions (account-specific, not application code)
+- **Startup file:** some cPanel "Setup Node.js App" screens ask for a startup *file* rather than a start *command*,
+  and launch it with Node directly. Next.js has no such file in a normal build. If your screen only accepts a file,
+  tell engineering. A one-file launcher (`require('next/dist/bin/next')` with `start`) can be added. It is not added
+  pre-emptively.
+- **Build step:** if the plan runs only `npm install` and never `npm run build`, run the build from the app's
+  terminal or "Run JS script" option (`build`) before starting. `next start` refuses to start without a build.
+- **Memory:** `next build` needs roughly 1–2 GB of RAM. Shared plans with less memory can kill the build. A VPS
+  avoids this.
 
 ## 4. Environment variables (production)
+
+Set these in GoDaddy's environment variables screen, never in a file inside the zip.
 
 | Variable | Value |
 | --- | --- |
@@ -75,9 +120,9 @@ This happens when an earlier upload put a `node_modules` folder in the applicati
 | `INGEST_SECRET` | A long random string, only if `/api/internal/ingest` is used |
 | `SITE_INDEXABLE` | Leave empty. Demo data is never indexed. |
 
-`NEXT_PUBLIC_*` values are compiled into the browser bundle at build time. Set them in the shell (or a
-`.env.production.local` file) on the machine that runs `npm run package:godaddy` as well as in cPanel. Never set
-`NEXT_PUBLIC_AUTH_MODE` in production.
+`NEXT_PUBLIC_*` values are compiled in during `npm run build`, which runs on GoDaddy. They must be set there before
+the build, and changing one requires a rebuild. Never set `NEXT_PUBLIC_AUTH_MODE` in production. Never add the
+Supabase service-role or secret key to the app.
 
 ## 5. Domain and TLS (GoDaddy DNS)
 

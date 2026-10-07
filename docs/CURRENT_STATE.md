@@ -51,5 +51,5 @@ not connected. `docs/RELEASE_READINESS.md` lists the gates.
   - no overflow at 375, 390, 768, 1024, 1280 and 1440 px
   - reduced motion
   - failure cases
-- GoDaddy standalone bundle: built, unpacked and booted. Pages, a 404, the API, health, media and security headers
-  were checked over HTTP.
+- GoDaddy source zip: built from HEAD and validated (no node_modules, .next or .env; package.json at root).
+  A clean extract installed, built and started on `PORT`, and pages, a 404, the API and health were checked over HTTP.

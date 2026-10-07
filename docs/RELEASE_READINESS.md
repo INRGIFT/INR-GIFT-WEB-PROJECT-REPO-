@@ -10,8 +10,9 @@ necessary, not sufficient. The product currently serves demo data, and several l
 | Typecheck, unit/API tests (51), build | Pass | — |
 | Playwright (64: journeys, routes, 404s, axe, six widths, reduced motion, failure cases) | Pass, demo mode | — |
 | Migrations + RLS (`npm run test:db`) | Pass on local Postgres; live project on 0001–0006 | — |
-| GoDaddy bundle: clean extract → `npm install` → `node server.js` serves pages, 404, API, health | Pass locally (simulated cPanel flow) | — |
-| Rebuild the bundle with `NEXT_PUBLIC_SITE_URL` set to the real domain (canonical and share URLs) | Open, needs the domain | Owner + engineering |
+| GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
+| `NEXT_PUBLIC_SITE_URL` set in GoDaddy before the build (canonical and share URLs) | Open, needs the domain | Owner |
+| GoDaddy runs the build step and has the memory for `next build` (DEPLOY.md, remaining GoDaddy questions) | Unverified on the real account | Owner |
 | Domain, DNS, TLS and GoDaddy Node.js app created | Open | Owner |
 | Host environment variables (Supabase URL and publishable key, `NEXT_PUBLIC_SITE_URL`, Logo.dev key) | Open | Owner |
 | `NEXT_PUBLIC_AUTH_MODE` is **not** `demo` on the public host | Must verify at deploy | Owner + engineering |

@@ -34,13 +34,13 @@ Status against the full-web build brief (Oct 2026).
 | Event / Dataset structured data | Deferred | Would describe demo data as real |
 | Accessibility | Partial | Axe (WCAG 2 A/AA) clean on 12 pages; no manual screen-reader pass yet |
 | Performance | Partial | Pages render dynamically; caching/ISR is on the roadmap; no Lighthouse run |
-| Security headers incl. CSP | Built | `next.config.mjs`; checked on the standalone bundle; `'unsafe-inline'` noted in DECISIONS |
+| Security headers incl. CSP | Built | `next.config.mjs`; checked on a production build; `'unsafe-inline'` noted in DECISIONS |
 | Analytics events | Partial | 16 typed events wired and consent-gated; no vendor (External) |
 | Observability | Partial | JSON logs, `/api/health`, `reportError`; no vendor reporter (External) |
 | Useful 404s with real status | Built | e2e asserts 404 on unknown stock, market, research and path |
 | Responsive at 375/390/768/1024/1280/1440 | Built | e2e overflow test at all six widths |
 | Tests: a11y, reduced motion, failure cases, critical journey | Built | 64 Playwright tests, 51 unit/API tests |
-| GoDaddy packaging | Built | Bundle built, unpacked, booted and probed; host setup is External |
+| GoDaddy packaging | Built | Validated source zip; local install → build → start verified; GoDaddy account setup is External |
 | Live market data (NSE) | External | Adapter built, not connected; no endpoints invented |
 | Legal text, grievance officer | External | Labelled drafts; lawyer review required |
 | Server-side alert job | Partial | Alerts are evaluated in the browser; scheduled job not built |

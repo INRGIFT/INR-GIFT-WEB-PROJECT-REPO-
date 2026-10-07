@@ -31,7 +31,8 @@ function csp() {
 /** @type {import('next').NextConfig} */
 export default {
   reactStrictMode: true,
-  // NEXT_OUTPUT=standalone produces .next/standalone/server.js for GoDaddy cPanel "Setup Node.js App" (docs/DEPLOY.md).
+  // Optional: NEXT_OUTPUT=standalone produces .next/standalone/server.js for a self-managed server. GoDaddy uses the
+  // normal build from the source zip (npm run build, npm start; docs/DEPLOY.md).
   ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
   async headers() { return [{ source: '/:path*', headers: securityHeaders() }]; },

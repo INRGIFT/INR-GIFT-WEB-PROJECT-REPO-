@@ -3,7 +3,7 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 51 unit/API tests, 64 Playwright tests on desktop and Pixel 7, local and live RLS checks, build, standalone bundle)
+## Done (typecheck, 51 unit/API tests, 64 Playwright tests on desktop and Pixel 7, local and live RLS checks, build, GoDaddy source zip)
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -39,9 +39,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
   images, emails); `docs/BRAND_ASSET_INVENTORY.md`.
 - **Supabase live:** project `odiflbsoitgktylaksng` (ap-south-1) with migrations 0001–0006; security advisors clean;
   live RLS check passed. App reads it when `NEXT_PUBLIC_SUPABASE_*` are set (`.env.local` locally).
-- **GoDaddy deployment:** `npm run package:godaddy` builds `inrgift-godaddy.zip` (cPanel: no node_modules, pinned
-  runtime package.json, then Run NPM Install; fixes the ENOTEMPTY install failure) and `inrgift-standalone.zip` (VPS).
-  Both verified to install/boot from a clean folder;
+- **GoDaddy deployment:** `npm run package:godaddy` builds the source zip (`deploy/inrgift-godaddy-source.zip`: package.json at root, no node_modules, no .next, no .env; GoDaddy runs npm install → npm run build → npm start). Validated by
+  `scripts/validate-godaddy-zip.sh`. Verified locally: clean extract → `npm ci --omit=dev` → `npm run build` →
+  `npm start` on `PORT`. Earlier standalone bundles shipped node_modules and caused GoDaddy's npm ENOTEMPTY failure.
   `docs/DEPLOY.md`.
 - **Product gaps closed:** design tokens (status, focus, type scale, control heights, breakpoints); sidebar groups per
   spec; heatmap Colour metric + Period + "How to read this heatmap"; screener strict and field-to-field comparisons,

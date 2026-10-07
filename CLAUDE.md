@@ -34,7 +34,7 @@ npm run dev          # http://localhost:3000, runs with no env vars (demo data +
 npm run typecheck    # must pass before every commit
 npm test             # vitest
 npm run test:db      # all migrations + RLS tests on a throwaway local Postgres
-npm run package:godaddy  # standalone server.js bundle for GoDaddy cPanel Node.js (docs/DEPLOY.md)
+npm run package:godaddy  # GoDaddy source zip from HEAD, validated (no node_modules/.next/.env) (docs/DEPLOY.md)
 npm run build        # must pass before every commit
 npm run test:e2e     # Playwright journeys in e2e/ (E2E_BASE_URL to reuse a server, PW_CHROMIUM_PATH for a local Chromium)
 ```
@@ -80,5 +80,5 @@ format, heatmap, screener, compare, identity model, SEO, a route registry, CSP, 
 content library (44 guides, 36 terms) and eight recorded tutorials. It is not production-ready: see
 `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`. Official brand files are
 integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006, `.env.local`); GoDaddy
-deployment is packaged (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
+deployment is a validated source zip that GoDaddy installs and builds (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
 `NEXT_PUBLIC_AUTH_MODE=demo`. Start with `docs/ROADMAP.md`.
