@@ -26,6 +26,11 @@ link or agreement is part of INRGIFT (see "Licence" for the one notice KLineChar
   verbatim, and links to the licence texts. Linked from the footer, the legal index and every chart's footer.
 - `tests/charts.test.ts` fails if the installed version, licence or notice files drift from these copies.
 
+The production build's minifier drops the `@license` comment banner from the shipped KLineChart chunk (checked on
+the 7 Oct 2026 build). The licence and NOTICE are delivered alongside instead, at `/licenses/klinecharts/` and on
+`/legal/open-source` (Apache 2.0, sections 4(a) and 4(d), for code distributed in compiled form). If counsel wants the
+banner inside the JavaScript file as well, keep license comments in the minifier settings or add a post-build step.
+
 KLineChart's NOTICE credits *TradingView Lightweight Charts* and the package ships that project's Apache 2.0 licence.
 Apache 2.0 section 4(d) requires keeping NOTICE attribution notices, so INRGIFT reproduces it as plain text on the
 notices page and in `THIRD_PARTY_NOTICES.md`. No TradingView logo, link, badge or terms appear anywhere in the product.
@@ -88,7 +93,8 @@ one asset, and the Compare page (comparison lines). The screener's "Chart" actio
 Public pages may show a chart only from series the server prepared under the public display policy
 (`src/features/home/snapshot.ts`): the homepage hero passes NIFTY 50 for 1M, 1Y and 5Y as `preloaded`, and its period
 switch uses those without any request (the chart API stays protected). The hero variant shows no toolbar beyond the
-period switch and no link to the protected methodology page.
+period switch and no link to the protected methodology page. Because those bars travel inside the page, the homepage
+rounds them to the precision the chart displays (`compactBars`), which keeps the HTML small.
 
 Fit: each series is drawn whole. The right margin is set to 16 px (`setOffsetRightDistance`); KLineChart's 80 px
 default had pushed a period's first bars off the left edge.

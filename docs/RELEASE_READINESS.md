@@ -7,7 +7,7 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (217), builds (no env, demo, demo with SMS on) | Pass | — |
+| Typecheck, unit/API tests (218), builds (no env, demo, demo with SMS on) | Pass | — |
 | Migration 0008 (GIFT ID) applied alone to the live project; Supabase Email OTP length 6, expiry 3600 s | Open (`docs/DEPLOY.md`) | Owner |
 | Real sign-up with the six-digit email code on the deployed site | Open; needs Resend + hook | Owner + engineering |
 | Live `/login` uses Supabase (runtime settings fix) | Fixed in code; live site needs a redeploy of the new zip | Owner |

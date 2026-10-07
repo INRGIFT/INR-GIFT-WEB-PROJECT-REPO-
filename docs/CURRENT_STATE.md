@@ -72,7 +72,7 @@ exercised with real keys yet, and migration 0007 is not yet applied to the live 
 
 ## Verification on this commit
 - `npm run typecheck`: passes.
-- `npm test`: 217 tests in 18 files pass. `npm run test:db`: migrations 0001–0008 with RLS and the GIFT ID checks
+- `npm test`: 218 tests in 18 files pass. `npm run test:db`: migrations 0001–0008 with RLS and the GIFT ID checks
   (and 0001–0006 + 0008 without 0007, with backfill) pass on a throwaway local Postgres.
 - `npm run build`: passes with no env, as a demo build, and as a demo build with the SMS second factor on.
 - Playwright on demo builds, desktop Chrome and Pixel 7: SMS off 144 pass + 6 SMS-only skipped; SMS on 148 + 2 skipped.

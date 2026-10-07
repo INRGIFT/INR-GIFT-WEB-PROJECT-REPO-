@@ -7,7 +7,7 @@ import { asOfText } from '@/features/charts/chart-status';
 import { HomeNews } from '@/features/home/home-news';
 import { heroFacts, weekdays } from '@/features/home/hero';
 import { ruleText } from '@/features/home/previews';
-import { getHomeSnapshot, HERO_RANGES, HOME_VIDEO_IDS, publicDataMode, settle, STRIP } from '@/features/home/snapshot';
+import { compactBars, getHomeSnapshot, HERO_RANGES, HOME_VIDEO_IDS, publicDataMode, settle, STRIP } from '@/features/home/snapshot';
 import { istHours, spansOf, unionSpans } from '@/features/home/world-markets';
 import { DEFAULT_TREE, isGroup, type Node, type Rule } from '@/features/screener/logic';
 import { ProviderError } from '@/services/providers/http';
@@ -52,6 +52,14 @@ describe('homepage snapshot (demo provider)', () => {
       expect(s.bars.length).toBeGreaterThan(1);
     }
     expect(hero!.asset.status).toBe('DEMO');
+  });
+  it('hero bars are rounded to the displayed precision only (same candles, smaller page)', async () => {
+    const snap = await getHomeSnapshot(new Date(), 'demo');
+    const year = snap.hero.ok ? snap.hero.value!.series.find((s) => s.range === '1Y')! : null;
+    expect(year!.pricePrecision).toBe(2);
+    for (const b of year!.bars) for (const v of [b.o, b.h, b.l, b.c]) expect(Math.round(v * 100) / 100).toBe(v);
+    const raw = { ...year!, bars: [{ t: 1, o: 1.23456, h: 2.34567, l: 0.98765, c: 1.5, v: 1234.6 }] };
+    expect(compactBars(raw).bars[0]).toEqual({ t: 1, o: 1.23, h: 2.35, l: 0.99, c: 1.5, v: 1235 });
   });
   it('hero facts come from the same snapshot: status, exchange, currency, source, session and a 52-week range', async () => {
     const snap = await getHomeSnapshot(new Date(), 'demo');

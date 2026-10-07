@@ -74,10 +74,20 @@ export interface HomeSnapshot {
   research: Settled<ResearchDoc[]>;
 }
 
+/**
+ * The hero's bars travel inside the page, so they are rounded to the precision the chart displays (two decimals for
+ * NIFTY 50): the same candles, a fraction of the bytes. Volume is whole units. Nothing else in the series changes.
+ */
+export function compactBars(s: ChartSeries): ChartSeries {
+  const f = 10 ** s.pricePrecision;
+  const r = (v: number) => Math.round(v * f) / f;
+  return { ...s, bars: s.bars.map((b) => ({ t: b.t, o: r(b.o), h: r(b.h), l: r(b.l), c: r(b.c), v: b.v == null ? null : Math.round(b.v) })) };
+}
+
 async function loadHero(now: Date): Promise<HeroSnapshot | null> {
   for (const slug of HERO_CANDIDATES) {
     const results = await Promise.all(HERO_RANGES.map((r) => getChartSeries(slug, r, undefined, now)));
-    const series = results.flatMap((r) => (r.ok && r.series.bars.length > 1 ? [r.series] : []));
+    const series = results.flatMap((r) => (r.ok && r.series.bars.length > 1 ? [compactBars(r.series)] : []));
     if (!series.length) continue;
     const asset = await md.getAsset(undefined, slug);
     if (!asset) continue;

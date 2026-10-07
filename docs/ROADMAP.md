@@ -3,7 +3,7 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 217 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+## Done (typecheck, 218 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
 - **Homepage redesign (7 Oct 2026, owner's "premium financial intelligence brand" brief):** hero "INVEST BEYOND
   BORDERS." with Explore Markets / Get Started and a KLineChart NIFTY 50 chart (1M, 1Y, 5Y prepared on the server)
   plus six facts (market status, exchange, currency, data source, session, research snapshot); global market snapshot
