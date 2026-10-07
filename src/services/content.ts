@@ -4,37 +4,12 @@
  * queries changes nothing else. Shapes are the CMS content models.
  */
 
-export const LEARN: { slug: string; section: string; title: string; summary: string; body: string[] }[] = [
-  { slug: 'what-is-a-stock', section: 'Investing basics', title: 'What a share of stock is', summary: 'Ownership, price and why the two are different things.', body: ['A share is a fractional claim on a company: its assets, its earnings and a vote on how it is run. The share price is what the last buyer paid, which reflects expectations about the future more than a tally of what the company owns today.', 'Market capitalisation is price multiplied by shares outstanding. It lets you compare the size of companies that have very different share prices.'] },
-  { slug: 'etf-basics', section: 'ETFs', title: 'How an ETF works', summary: 'A fund that trades like a share and usually tracks an index.', body: ['An exchange-traded fund pools money to hold a basket of securities and issues shares that trade on an exchange through the day. Most track an index, so their job is to match it at low cost rather than beat it.', 'Three numbers do most of the work when you read an ETF: the expense ratio (what you pay each year), assets under management (how large it is) and tracking difference (how far its return lags the index).'] },
-  { slug: 'reading-valuation', section: 'Fundamental analysis', title: 'Reading valuation multiples', summary: 'P/E, forward P/E, P/B and EV/EBITDA, and what each compares.', body: ['A multiple divides price by something the business produces. Price to earnings compares price with profit per share; forward P/E uses expected profit; price to book compares price with accounting net assets; EV/EBITDA compares the value of the whole firm, debt included, with operating cash earnings.', 'Multiples only mean something next to a comparison: the company’s own history, its sector, or its growth rate. A high multiple on fast growth can be cheaper than a low multiple on shrinking profits.'] },
-  { slug: 'technical-indicators', section: 'Technical analysis', title: 'Moving averages and RSI', summary: 'What trend and momentum indicators measure, and what they do not.', body: ['A moving average smooths price over a window, such as 50 or 200 days, to show direction. Price above both averages is commonly read as an uptrend. The relative strength index measures the balance of recent gains and losses on a 0 to 100 scale; readings above 70 or below 30 mark unusually strong or weak stretches.', 'Indicators summarise what price has already done. They describe conditions and do not predict outcomes.'] },
-  { slug: 'understanding-risk', section: 'Risk', title: 'Volatility, beta and drawdown', summary: 'Three ways to describe how rough the ride has been.', body: ['Volatility measures how widely returns vary. Beta measures how much an asset has tended to move when its home index moves: 1.0 means in step, above 1.0 means more. Maximum drawdown is the largest peak-to-trough fall over a period.', 'Each answers a different question, so read them together. A low-beta asset can still suffer a deep drawdown.'] },
-  { slug: 'global-markets-from-india', section: 'Global markets', title: 'Following global markets from India', summary: 'Sessions, time zones and why IST matters.', body: ['Markets open in sequence around the world. On a typical day in India, Asian markets trade through the morning, Europe opens after midday and the United States opens in the evening, close to 19:00 or 20:00 IST depending on daylight saving time.', 'INRGIFT shows every session on an IST axis so you can see what is open now and what opens next without converting time zones.'] },
-  { slug: 'currency-and-returns', section: 'Currencies', title: 'How currency changes your return', summary: 'The asset return and the exchange rate both count.', body: ['If a US share rises 10% and the dollar rises 3% against the rupee, a rupee-based holder’s return is about 13.3%. If the dollar falls instead, part of the gain is lost.', 'This is why INRGIFT shows approximate INR values and the reference USD/INR rate beside foreign assets.'] },
-  { slug: 'gift-city', section: 'Global markets', title: 'What GIFT City is', summary: 'India’s international financial services centre in Gujarat.', body: ['Gujarat International Finance Tec-City hosts an International Financial Services Centre where exchanges such as NSE IX operate in foreign currency for long hours. GIFT Nifty, a futures contract on the NIFTY 50, trades there and is widely watched as an early indication for the Indian market.', 'INRGIFT lists NSE IX among India’s venues and shows GIFT Nifty alongside the domestic indices.'] },
-];
-
-export const GLOSSARY: { term: string; definition: string; formula?: string; why: string; related: string[] }[] = [
-  { term: 'Assets under management (AUM)', definition: 'The total market value of everything a fund holds.', why: 'Larger funds tend to trade with tighter spreads and are less likely to close.', related: ['Expense ratio', 'ETF'] },
-  { term: 'Beta', definition: 'How much an asset has moved relative to a benchmark index.', formula: 'Covariance(asset, index) ÷ Variance(index)', why: 'Shows whether an asset has amplified or dampened market moves.', related: ['Volatility', 'Maximum drawdown'] },
-  { term: 'Dividend yield', definition: 'Annual dividends per share as a percentage of the share price.', formula: 'Annual dividend per share ÷ Price × 100', why: 'Lets you compare income across assets with different prices.', related: ['Ex-dividend date'] },
-  { term: 'Duration', definition: 'A bond’s sensitivity to interest-rate changes, in years.', why: 'A bond with a duration of 8 falls roughly 8% in price if yields rise one percentage point.', related: ['Yield to maturity', 'Coupon'] },
-  { term: 'ETF', definition: 'An exchange-traded fund: a pooled fund whose shares trade on an exchange.', why: 'Offers diversified exposure in one instrument, usually at low cost.', related: ['Expense ratio', 'Tracking difference'] },
-  { term: 'EV / EBITDA', definition: 'Enterprise value divided by earnings before interest, tax, depreciation and amortisation.', formula: '(Market cap + Debt − Cash) ÷ EBITDA', why: 'Compares companies with different debt levels on a like-for-like basis.', related: ['P/E ratio'] },
-  { term: 'Ex-dividend date', definition: 'The first day a share trades without the right to the next dividend.', why: 'You must own the share before this date to receive the payment.', related: ['Dividend yield'] },
-  { term: 'Expense ratio', definition: 'The annual cost of a fund as a percentage of assets.', why: 'Costs compound: a small difference becomes large over many years.', related: ['ETF', 'Tracking difference'] },
-  { term: 'FFO', definition: 'Funds from operations: a REIT’s net income with property depreciation added back.', formula: 'Net income + Depreciation − Gains on property sales', why: 'A better measure of a REIT’s recurring cash earnings than net income.', related: ['REIT'] },
-  { term: 'Market capitalisation', definition: 'The total market value of a company’s shares.', formula: 'Share price × Shares outstanding', why: 'The standard measure of company size.', related: ['P/E ratio'] },
-  { term: 'Maximum drawdown', definition: 'The largest peak-to-trough fall over a period.', why: 'Shows the worst loss a holder would have sat through.', related: ['Volatility', 'Beta'] },
-  { term: 'P/E ratio', definition: 'Share price divided by earnings per share.', formula: 'Price ÷ Earnings per share', why: 'Shows how much the market pays for each unit of profit.', related: ['EV / EBITDA', 'Market capitalisation'] },
-  { term: 'REIT', definition: 'A real estate investment trust: a company that owns income-producing property and distributes most of its income.', why: 'Gives listed, liquid exposure to property.', related: ['FFO', 'Dividend yield'] },
-  { term: 'ROIC', definition: 'Return on invested capital: operating profit after tax relative to the capital used to earn it.', formula: 'NOPAT ÷ (Debt + Equity)', why: 'Shows how efficiently a business turns capital into profit.', related: ['P/E ratio'] },
-  { term: 'RSI', definition: 'Relative strength index: a 0 to 100 momentum measure based on recent gains and losses.', why: 'Flags unusually strong or weak recent price action.', related: ['Volatility'] },
-  { term: 'Tracking difference', definition: 'The gap between a fund’s return and its index’s return.', why: 'The real cost of holding an index fund, after fees and frictions.', related: ['Expense ratio', 'ETF'] },
-  { term: 'Volatility', definition: 'How widely an asset’s returns vary, usually annualised standard deviation.', why: 'A common measure of how uncertain returns have been.', related: ['Beta', 'Maximum drawdown'] },
-  { term: 'Yield to maturity', definition: 'The annual return on a bond if held to maturity and all payments are made.', why: 'Lets you compare bonds with different prices and coupons.', related: ['Duration', 'Coupon'] },
-];
+// Learn articles and glossary terms live in ./content/* with a CMS-ready model (status, author, reviewer, dates).
+import { GLOSSARY_TERMS } from './content/glossary';
+import { LEARN_ARTICLES } from './content/learn';
+import { LEARN_GUIDES } from './content/learn-guides';
+import { PUBLISHED_ONLY, type GlossaryTerm, type LearnArticle } from './content/types';
+export type { ContentStatus, ContentType, GlossaryTerm, LearnArticle, LearnSection } from './content/types';
 
 export const FAQ: { category: string; q: string; a: string }[] = [
   { category: 'Account', q: 'Do I need an account to use INRGIFT?', a: 'No. Markets, assets, the screener, compare and research are open. An account adds watchlists, alerts, saved screens, saved comparisons and notes.' },
@@ -84,20 +59,26 @@ export const VIDEOS: VideoItem[] = [
 ];
 
 /* ------------------------------- Content access (CMS seam) ------------------------------- */
-export type LearnArticle = (typeof LEARN)[number];
-export type GlossaryTerm = (typeof GLOSSARY)[number] & { slug: string };
 export type FaqItem = (typeof FAQ)[number];
 export type LegalDoc = { slug: string; title: string; sections: [string, string][] };
-const slugOf = (s: string) => s.toLowerCase().normalize('NFKD').replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const TERMS: GlossaryTerm[] = GLOSSARY.map((t) => ({ ...t, slug: slugOf(t.term) }));
+const LEARN_ALL: LearnArticle[] = [...LEARN_ARTICLES, ...LEARN_GUIDES].filter((a) => PUBLISHED_ONLY(a.status));
+const TERMS: GlossaryTerm[] = GLOSSARY_TERMS.filter((t) => PUBLISHED_ONLY(t.status));
+const names = (t: GlossaryTerm) => [t.term.replace(/ \(.*\)$/, ''), ...(t.aliases ?? [])];
+/** Plain text of an article, for reading time, glossary detection and search. */
+export const articleText = (a: LearnArticle) => [a.title, a.summary, ...a.keyPoints, ...a.sections.flatMap((s) => [s.heading, ...s.paragraphs, ...(s.list ?? []), s.example ?? ''])].join(' ');
 
-export async function getLearnArticles(): Promise<LearnArticle[]> { return LEARN; }
-export async function getLearnArticle(slug: string): Promise<LearnArticle | null> { return LEARN.find((a) => a.slug === slug) ?? null; }
+export async function getLearnArticles(): Promise<LearnArticle[]> { return LEARN_ALL; }
+export async function getLearnArticle(slug: string): Promise<LearnArticle | null> { return LEARN_ALL.find((a) => a.slug === slug) ?? null; }
 export async function getGlossary(): Promise<GlossaryTerm[]> { return [...TERMS].sort((a, b) => a.term.localeCompare(b.term)); }
 export async function getTerm(slug: string): Promise<GlossaryTerm | null> { return TERMS.find((t) => t.slug === slug) ?? null; }
-/** Glossary terms whose name appears in a piece of text, for internal linking from articles and research. */
-export async function termsMentionedIn(text: string, limit = 6): Promise<GlossaryTerm[]> { const t = text.toLowerCase(); return TERMS.filter((x) => t.includes(x.term.toLowerCase().replace(/ \(.*\)/, ''))).slice(0, limit); }
-export const termSlug = (name: string) => TERMS.find((t) => t.term === name)?.slug ?? slugOf(name);
+/** Glossary terms whose name or alias appears as a whole word in a piece of text, for internal linking. */
+export async function termsMentionedIn(text: string, limit = 6): Promise<GlossaryTerm[]> {
+  const t = ` ${text.toLowerCase()} `;
+  const esc = (s: string) => s.toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  return TERMS.filter((x) => names(x).some((n) => new RegExp(`[^a-z0-9]${esc(n)}[^a-z0-9]`).test(t))).slice(0, limit);
+}
+/** Slug for a term name or alias. */
+export const termSlug = (name: string) => TERMS.find((t) => names(t).some((n) => n.toLowerCase() === name.toLowerCase()) || t.term === name)?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 export async function getFaq(): Promise<FaqItem[]> { return FAQ; }
 export async function getPlans() { return PLANS; }
 export async function getLegalDocs(): Promise<LegalDoc[]> { return Object.entries(LEGAL).map(([slug, d]) => ({ slug, ...d })); }

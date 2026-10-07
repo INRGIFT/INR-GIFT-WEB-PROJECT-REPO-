@@ -20,7 +20,7 @@ const TITLES: Record<string, [string, string]> = {
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
 type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string; type?: string }> };
-export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, { category }] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: category ? 'faceted' : 'index' }) : { title: 'Not found' }; }
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, { category }] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: category ? 'faceted' : 'index' }) : notFound(); }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 const cell = 'num whitespace-nowrap border-b border-line px-4 py-2 text-right';
@@ -67,9 +67,11 @@ export default async function ResourcePage({ params, searchParams }: Props) {
     const terms = await getGlossary();
     body = <><JsonLd data={definedTermSet(terms)} /><GlossaryList terms={terms} /></>;
   } else {
-    const [markets, video] = await Promise.all([md.getMarkets(), getVideoFor('page:data')]);
+    const [markets, video, learnAll] = await Promise.all([md.getMarkets(), getVideoFor('page:data'), getLearnArticles()]);
+    const methods = learnAll.filter((l) => l.type === 'methodology');
     body = (<>
       {video && <TutorialDisclosure video={video} label="Watch: how to read data status" />}
+      <Panel title="Methodology library" sub={`${methods.length} documents`} flush><ul className="grid md:grid-cols-2">{methods.map((l) => <li key={l.slug}><Link href={learnHref(l.slug)} className="row-link py-2.5"><span className="block font-semibold">{l.title}</span><span className="line-clamp-1 text-xs text-slate2">{l.summary}</span></Link></li>)}</ul></Panel>
       <Panel title="Data status" flush footer="Every market-data module carries one of these, with an exact timestamp. Hover or focus a status to see its source."><Table head={['Status', 'Meaning', 'What you see']}>{STATUS_HELP.map(([s, m, w]) => <tr key={s}><td className="border-b border-line px-4 py-2.5"><StatusBadge status={s} /><span className="sr-only">{STATUS_LABEL[s]}</span></td><td className="border-b border-line px-4 py-2.5 text-right text-slate2 sm:text-left">{m}</td><td className="border-b border-line px-4 py-2.5 text-right text-slate2">{w}</td></tr>)}</Table></Panel>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <article className="prose-doc rounded-card border border-line bg-white px-5 py-4">

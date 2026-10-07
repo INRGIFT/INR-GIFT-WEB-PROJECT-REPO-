@@ -26,7 +26,7 @@ import { AssetTable, Price } from './asset-table';
 
 export async function assetMetadata(cls: AssetClass, slug: string): Promise<Metadata> {
   const a = await md.getAsset(cls, slug);
-  if (!a) return { title: 'Not found' };
+  if (!a) notFound();
   return pageMetadata({ title: assetTitle(a), index: assetQuality(a).indexable ? 'index' : 'noindex', description: `${a.description} Performance, ${cls === 'stock' ? 'valuation, fundamentals' : 'risk'}, research and India context on INRGIFT. ${isDemoData ? 'Demo data, clearly labelled.' : ''}`.trim(), path: assetHref(a) });
 }
 const M = ({ a, k, label }: { a: Asset; k: MetricKey; label?: string }) => { const f = fmtMetric(k, a.m[k]); return <Metric label={label ?? METRICS[k].short} value={f.text} hint={f.state === 'unavailable' ? 'Unavailable from source' : f.state === 'na' ? 'Not applicable' : METRICS[k].label} />; };

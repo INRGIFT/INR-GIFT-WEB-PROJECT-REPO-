@@ -24,7 +24,7 @@ const top = (page, selector) => page.evaluate((s) => { const el = document.query
 
 /** Each step: the caption shown while it plays, and the actions. Captions only describe what is on screen. */
 const TUTORIALS = {
-  'product-walkthrough': { title: 'A tour of INRGIFT', start: '/', steps: [
+  'product-walkthrough': { title: 'INRGIFT in 60 seconds', start: '/', steps: [
     ['INRGIFT is a research view of global markets, built from India.', async (p) => { await wait(2600); }],
     ['Trading sessions are shown on India time, with each market’s status.', async (p) => { await smooth(p, 260); await wait(1600); }],
     ['Markets lists every covered exchange with its session and index.', async (p) => { await to(p, '/markets'); await wait(1800); }],
@@ -32,6 +32,14 @@ const TUTORIALS = {
     ['The screener filters stocks, ETFs and REITs on more than thirty metrics.', async (p) => { await to(p, '/discover/screener'); await wait(2200); }],
     ['Compare puts up to four assets side by side on one rebased chart.', async (p) => { await to(p, '/discover/compare?s=AAPL,MSFT,NVDA'); await wait(2400); }],
     ['Research notes describe the data, with sources, limitations and method.', async (p) => { await to(p, '/research'); await wait(2400); }],
+  ] },
+  'universal-search': { title: 'Universal search', start: '/markets', steps: [
+    ['Press / or Ctrl+K on any page to open universal search.', async (p) => { await wait(600); await p.keyboard.press('Control+k'); await wait(1400); }],
+    ['Recent searches and suggestions appear before you type.', async (p) => { await wait(1600); }],
+    ['Type a market, exchange, sector or company. Results are grouped by kind.', async (p) => { await p.keyboard.type('techno', { delay: 140 }); await wait(1800); }],
+    ['Arrow keys move through results; Enter opens one.', async (p) => { for (let i = 0; i < 3; i++) { await p.keyboard.press('ArrowDown'); await wait(350); } await wait(600); }],
+    ['A ticker works too: here is Reliance on NSE.', async (p) => { await p.keyboard.press('Control+a'); await p.keyboard.type('RELIANCE', { delay: 110 }); await wait(1400); await p.keyboard.press('Enter'); await p.waitForLoadState('networkidle'); await wait(1600); }],
+    ['No match? Search suggests the screener, markets and collections instead.', async (p) => { await p.keyboard.press('Control+k'); await wait(500); await p.keyboard.type('zzzz', { delay: 120 }); await wait(2000); await p.keyboard.press('Escape'); await wait(500); }],
   ] },
   'research-an-asset': { title: 'Research any asset in a minute', start: '/', steps: [
     ['Start anywhere: press / to open universal search.', async (p) => { await wait(800); await p.keyboard.press('/'); await wait(1200); }],

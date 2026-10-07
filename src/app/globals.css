@@ -32,7 +32,8 @@
   /* Scroll containers contain their absolutely positioned descendants (e.g. sr-only labels in table cells). */
   .overflow-x-auto, .overflow-auto { position: relative; }
   .skeleton { @apply rounded-md animate-shimmer; background: linear-gradient(90deg, #EEF2F7 25%, #E5EAF1 37%, #EEF2F7 63%); background-size: 200% 100%; }
-  .link { @apply text-brand-ink underline-offset-2 hover:underline; }
+  /* Links in running text are underlined, so they are distinguishable without colour (WCAG 1.4.1). */
+  .link { @apply text-brand-ink underline decoration-brand/35 underline-offset-2 transition-colors hover:decoration-brand; }
   .field { @apply h-10 w-full rounded-ctl border border-line2 bg-white px-3 text-sm text-navy transition-[border-color,box-shadow] duration-150 placeholder:text-faint hover:border-faint focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-faint aria-[invalid=true]:border-down aria-[invalid=true]:focus:ring-down/20; }
   .label { @apply mb-1.5 block text-[13px] font-semibold text-navy; }
   .hint { @apply mt-1.5 text-xs text-faint; }

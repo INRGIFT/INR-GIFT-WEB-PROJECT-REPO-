@@ -33,7 +33,7 @@ test('public research flow: search, asset, chart, compare, heatmap, screener', a
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Every market');
   await page.keyboard.press('/');
-  await page.getByPlaceholder(/Search companies/).fill('AAPL');
+  await page.getByRole('combobox', { name: /Search assets/ }).fill('AAPL');
   await expect(page.getByRole('listbox', { name: 'Search results' }).getByRole('option').first()).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/stocks\/AAPL/);

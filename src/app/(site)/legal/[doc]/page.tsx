@@ -10,7 +10,7 @@ import { getLegalDoc, getLegalDocs } from '@/services/content';
 
 type Props = { params: Promise<{ doc: string }> };
 export async function generateStaticParams() { return (await getLegalDocs()).map((d) => ({ doc: d.slug })); }
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const d = await getLegalDoc((await params).doc); return d ? pageMetadata({ title: d.title, description: `${d.title} for INRGIFT, the global market research platform.`, path: `/legal/${d.slug}` }) : { title: 'Not found' }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const d = await getLegalDoc((await params).doc); return d ? pageMetadata({ title: d.title, description: `${d.title} for INRGIFT, the global market research platform.`, path: `/legal/${d.slug}` }) : notFound(); }
 export default async function LegalPage({ params }: Props) {
   const { doc } = await params;
   const [d, all] = await Promise.all([getLegalDoc(doc), getLegalDocs()]);

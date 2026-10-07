@@ -49,7 +49,7 @@ export function SiteHeader({ openCount, demo }: { openCount: number; demo: boole
             );
           })}
         </nav>
-        <button type="button" onClick={openSearch} className="mx-auto flex h-search min-w-0 max-w-[460px] flex-1 lg:min-w-[200px] items-center gap-2 rounded-ctl border border-line2 bg-bg px-3 text-faint transition-colors duration-micro hover:border-brand" aria-label="Search everything" aria-keyshortcuts="/ Control+K Meta+K">
+        <button type="button" onClick={openSearch} className="mx-auto flex h-search min-w-0 max-w-[460px] flex-1 xl:min-w-[200px] items-center gap-2 rounded-ctl border border-line2 bg-bg px-3 text-faint transition-colors duration-micro hover:border-brand" aria-label="Search everything" aria-keyshortcuts="/ Control+K Meta+K">
           <Search size={16} className="shrink-0" /><span className="flex-1 truncate text-left">Search assets, markets, research…</span><span className="hidden items-center gap-1 xl:flex"><Kbd>⌘</Kbd><Kbd>K</Kbd></span>
         </button>
         <div className="flex shrink-0 items-center gap-1">

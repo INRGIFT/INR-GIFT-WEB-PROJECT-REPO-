@@ -19,6 +19,7 @@ import * as md from '@/services/market-data';
 type Props = { params: Promise<{ market: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await md.getMarket((await params).market);
+  if (!m) notFound();
   const covered = m ? (await md.getAssets({ marketId: m.id })).length : 0;
   return m ? pageMetadata({ index: marketQuality(m, covered).indexable ? 'index' : 'noindex', title: `${m.name} Stock Market: Indices, Sectors & Trading Hours in IST`, description: `${m.name} market overview: ${m.exchanges.map((e) => e.name).join(', ')} trading hours in IST, headline indices, sector performance, movers and ${m.currency}/INR context.`, path: marketHref(m.slug) }) : { title: 'Market not found' };
 }

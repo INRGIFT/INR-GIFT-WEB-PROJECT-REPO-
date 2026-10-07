@@ -18,7 +18,7 @@ import * as md from '@/services/market-data';
 const KIND_LABEL: Record<ResearchKind, string> = { stocks: 'Stock research', etfs: 'ETF research', markets: 'Market research', themes: 'Theme research', sectors: 'Sector research', countries: 'Country research' };
 const anchor = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 type Props = { params: Promise<{ kind: string; slug: string }> };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind, slug } = await params; const d = await md.getResearchDoc(kind as ResearchKind, slug); return d ? pageMetadata({ title: d.title, description: d.summary, path: researchHref(d), type: 'article', publishedTime: d.publishedAt }) : { title: 'Not found' }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const { kind, slug } = await params; const d = await md.getResearchDoc(kind as ResearchKind, slug); return d ? pageMetadata({ title: d.title, description: d.summary, path: researchHref(d), type: 'article', publishedTime: d.publishedAt }) : notFound(); }
 
 export default async function ResearchDocPage({ params }: Props) {
   const { kind, slug } = await params;

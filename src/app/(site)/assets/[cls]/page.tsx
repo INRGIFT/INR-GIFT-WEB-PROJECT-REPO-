@@ -10,7 +10,7 @@ import * as md from '@/services/market-data';
 
 type Props = { params: Promise<{ cls: string }> };
 const LEAD: Record<string, string> = { stocks: 'Listed companies across every covered market. Filter by region, market or sector, then open any row for research.', etfs: 'Exchange-traded funds with cost, size, yield and holdings.', indices: 'Headline equity benchmarks, grouped by the market they describe.', fx: 'Spot reference rates. INR pairs first, then the majors.', commodities: 'Benchmark prices for metals and energy, with their reference contracts.', bonds: 'Ten-year government benchmarks: price, yield, coupon and duration.', reits: 'Listed property trusts with yield, FFO yield and occupancy.', funds: 'Mutual funds and other pooled vehicles.' };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { cls } = await params; const c = DIRECTORY_CLASS[cls]; return c ? pageMetadata({ title: `Global ${CLASS_LABEL[c].many.toLowerCase()} directory`, description: LEAD[cls], path: `/assets/${cls}` }) : { title: 'Not found' }; }
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const { cls } = await params; const c = DIRECTORY_CLASS[cls]; return c ? pageMetadata({ title: `Global ${CLASS_LABEL[c].many.toLowerCase()} directory`, description: LEAD[cls], path: `/assets/${cls}` }) : notFound(); }
 
 export default async function DirectoryPage({ params }: Props) {
   const { cls: seg } = await params;

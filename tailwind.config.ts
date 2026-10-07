@@ -9,13 +9,13 @@ const config: Config = {
     extend: {
       colors: {
         brand: { DEFAULT: '#245BFE', ink: '#1B46C9', soft: '#EAF0FF' },
-        navy: '#071A33', slate2: '#4A5770', faint: '#6F7C93',
+        navy: '#071A33', slate2: '#4A5770', faint: '#5F6B84',
         bg: '#F7F9FC', soft: '#F2F5F9', hover: '#EEF2F7', line: '#E5EAF1', line2: '#D7DEE8',
-        up: '#0B7F56', down: '#C2352B', warn: '#9A6408', saffron: '#E8862A',
+        up: '#0A7350', down: '#C2352B', warn: '#8A5A07', saffron: '#E8862A',
         /** Brand library colours (logo artwork itself is never recoloured; see docs/BRAND_ASSET_INVENTORY.md). */
         ice: '#DCE8FF', ink: '#0B0E14', focus: '#245BFE',
         /** Data-status tokens: one hue per status; every badge also carries a distinct glyph. */
-        status: { live: '#0B7F56', delayed: '#9A6408', eod: '#1B46C9', closed: '#4A5770', unavailable: '#6F7C93', stale: '#9A6408', error: '#C2352B' },
+        status: { live: '#0A7350', delayed: '#8A5A07', eod: '#1B46C9', closed: '#4A5770', unavailable: '#5F6B84', stale: '#8A5A07', error: '#C2352B' },
       },
       /** Type scale (px): micro 11 · caption 12 · ui 13 · body 14 · lead 15 · h4 17 · h3 20 · h2 24 · h1 34 · display 48. */
       fontSize: { micro: ['11px', '1.4'], caption: ['12px', '1.45'], ui: ['13px', '1.5'], body: ['14px', '1.55'], lead: ['15px', '1.6'], h4: ['17px', '1.35'], h3: ['20px', '1.3'], h2: ['24px', '1.25'], h1: ['34px', '1.15'], display: ['48px', '1.08'] },

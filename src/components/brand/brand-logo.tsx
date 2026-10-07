@@ -27,8 +27,8 @@ export function Logo({ light, compact, className }: { light?: boolean; compact?:
   return (
     <Link href="/" aria-label="INRGIFT home" className={cn('flex shrink-0 items-center rounded-md', className)}>
       {compact ? <BrandMark lockup="emblem" tone={tone} height={36} decorative /> : (<>
-        <BrandMark lockup="emblem" tone={tone} height={36} decorative className="lg:hidden" />
-        <BrandMark lockup="horizontal" tone={tone} height={56} decorative className="hidden lg:block" />
+        <BrandMark lockup="emblem" tone={tone} height={36} decorative className="xl:hidden" />
+        <BrandMark lockup="horizontal" tone={tone} height={56} decorative className="hidden xl:block" />
       </>)}
     </Link>
   );
