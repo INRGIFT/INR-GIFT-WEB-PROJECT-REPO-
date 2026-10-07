@@ -9,12 +9,15 @@ import { CLASS_LABEL, DIRECTORY_CLASS } from '@/lib/routes';
 import type { Region } from '@/lib/types';
 import * as md from '@/services/market-data';
 import { JsonLd, organization, website } from '@/lib/structured-data';
+import { SITE } from '@/lib/seo';
+import { VideoModule } from '@/features/media/video-module';
+import { getVideos } from '@/services/content';
 
 const REGIONS: Region[] = ['North America', 'Latin America', 'Europe', 'Asia-Pacific', 'Middle East', 'Africa'];
 const HEADLINE = ['SP-500', 'NASDAQ-COMPOSITE', 'NIFTY-50', 'GIFT-NIFTY', 'FTSE-100', 'DAX', 'NIKKEI-225', 'HANG-SENG', 'TAIEX', 'DOW-JONES'];
 
 export default async function HomePage() {
-  const [markets, all, themes, research, news, calendar, rates] = await Promise.all([md.getMarkets(), md.getAssets(), md.getThemes(), md.getResearch(), md.getNews({ limit: 5 }), md.getCalendar(), md.fxRates()]);
+  const [videos, markets, all, themes, research, news, calendar, rates] = await Promise.all([getVideos().then((v) => ['product-walkthrough', 'heatmap-drill-down', 'build-a-screen'].map((id) => v.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x))), md.getMarkets(), md.getAssets(), md.getThemes(), md.getResearch(), md.getNews({ limit: 5 }), md.getCalendar(), md.fxRates()]);
   const equities = all.filter((a) => md.EQUITY_LIKE.includes(a.cls));
   const stocks = all.filter((a) => a.cls === 'stock');
   const indices = HEADLINE.map((s) => all.find((a) => a.slug === s)!).filter(Boolean);
@@ -22,17 +25,28 @@ export default async function HomePage() {
   const today = now.toISOString().slice(0, 10);
   const upcoming = calendar.filter((e) => e.date >= today).slice(0, 6);
   return (
+    <>
+    <section aria-labelledby="hero-title" className="relative overflow-hidden bg-navy text-white">
+      {/* Quiet grid of longitude lines: the only decoration, drawn in CSS so it costs nothing to load. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[.07] [background-image:linear-gradient(to_right,white_1px,transparent_1px)] [background-size:calc(100%/12)_100%]" />
+      <div className="relative mx-auto grid max-w-page items-center gap-8 px-4 py-10 md:px-6 md:py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:px-8">
+        <div className="animate-fade-up">
+          <p className="text-ui font-semibold uppercase tracking-[.22em] text-ice">{SITE.slogan}</p>
+          <h1 id="hero-title" className="mt-3 text-[34px] font-extrabold leading-[1.08] md:text-display">{SITE.promise}</h1>
+          <p className="mt-3 text-lead text-white/75">{SITE.tagline}. Stocks, ETFs, indices, currencies, commodities, bonds and REITs across {markets.length} markets, read in IST and rupees.</p>
+          <HomeSearch />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <ButtonLink href="/markets" variant="primary">Explore markets</ButtonLink>
+            <ButtonLink href="/discover" className="border-white/25 bg-white/5 text-white hover:border-white/50 hover:bg-white/10">Discover</ButtonLink>
+            <span className="mx-1 hidden h-5 w-px bg-white/20 sm:block" aria-hidden />
+            {[['Apple', '/stocks/AAPL'], ['NIFTY 50', '/indices/NIFTY-50'], ['USD/INR', '/fx/USD-INR'], ['Gold', '/commodities/GOLD']].map(([l, h]) => <Link key={h} href={h} className="rounded-lg px-2 py-1 text-ui font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline">{l}</Link>)}
+          </div>
+        </div>
+        <div className="rounded-card border border-white/10 bg-white p-4 text-navy shadow-pop"><h2 className="mb-2.5 text-lead font-bold">Trading sessions on India time</h2><SessionRail markets={['us', 'uk', 'de', 'jp', 'hk', 'in'].map((id) => markets.find((m) => m.id === id)!)} now={now} /></div>
+      </div>
+    </section>
     <PageContainer>
       <JsonLd data={[organization(), website()]} />
-      <section className="grid items-end gap-6 pt-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div>
-          <p className="text-[13px] font-semibold text-brand-ink">Global market intelligence from India</p>
-          <h1 className="mt-1.5 text-[34px] font-extrabold leading-[1.08] md:text-[46px]">Every market. Every asset. One research view.</h1>
-          <HomeSearch />
-          <div className="mt-3 flex flex-wrap gap-2">{[['Apple', '/stocks/AAPL'], ['NVIDIA', '/stocks/NVDA'], ['NIFTY 50', '/indices/NIFTY-50'], ['Toyota', '/stocks/7203'], ['Gold', '/commodities/GOLD'], ['USD/INR', '/fx/USD-INR']].map(([l, h]) => <Link key={h} href={h} className="rounded-lg border border-line2 bg-white px-2.5 py-1 text-[13px] font-medium transition-colors hover:border-brand hover:text-brand-ink">{l}</Link>)}</div>
-        </div>
-        <div className="rounded-card border border-line bg-white p-4 shadow-card"><h2 className="mb-2.5 text-[15px] font-bold">Trading sessions on India time</h2><SessionRail markets={['us', 'uk', 'de', 'jp', 'hk', 'in'].map((id) => markets.find((m) => m.id === id)!)} now={now} /></div>
-      </section>
 
       <nav aria-label="Market status by region" className="grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
         {REGIONS.map((r) => { const ms = markets.filter((m) => m.region === r), open = ms.filter((m) => m.session === 'OPEN').length; return <Link key={r} href={`/markets?region=${encodeURIComponent(r)}`} className="bg-white px-3.5 py-2.5 transition-colors hover:bg-bg"><span className="block font-semibold">{r}</span><span className={`text-xs ${open ? 'text-up' : 'text-slate2'}`}>{open === ms.length ? '● All open' : open ? `◐ ${open} of ${ms.length} open` : '○ Closed'}</span></Link>; })}
@@ -71,6 +85,12 @@ export default async function HomePage() {
         <p className="mt-1 max-w-[80ch] text-slate2">Every session is shown in IST, every price can be shown in rupees, and foreign returns come with the exchange rate that shapes them. Reference rate today: USD/INR {num(rates.USD, 2)}. GIFT Nifty, traded at NSE IX in GIFT City, sits beside the domestic indices.</p>
         <div className="mt-3 flex flex-wrap gap-2"><ButtonLink href="/markets/India" size="sm">India market</ButtonLink><ButtonLink href="/fx/USD-INR" size="sm">USD/INR</ButtonLink><ButtonLink href="/resources/learn" size="sm">How currency changes returns</ButtonLink></div>
       </section>
+      {videos.length > 0 && (
+        <Section title="See INRGIFT in action" link={['All tutorials', '/resources/learn']}>
+          <div className="grid gap-4 md:grid-cols-3">{videos.map((v) => <VideoModule key={v.id} video={v} compact />)}</div>
+        </Section>
+      )}
     </PageContainer>
+    </>
   );
 }

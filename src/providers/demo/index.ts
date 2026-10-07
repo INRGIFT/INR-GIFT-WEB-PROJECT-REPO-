@@ -156,7 +156,7 @@ export class DemoProvider implements MarketDataProvider {
     const rev0 = capUsd / (2 + r() * 6);
     const shares = b.m.marketCap / ((b.price! * INR_PER[b.currency]) / INR_PER.USD);
     const yearNow = this.clock().getUTCFullYear();
-    const years = [4, 3, 2, 1, 0].map((back) => { const revenue = (rev0 / Math.pow(1 + growth * (0.6 + r() * 0.5), back)) * 1e9; const netIncome = revenue * margin * (1 - back * 0.03 * r()); return { year: yearNow - back, revenue, netIncome, eps: netIncome / shares }; });
+    const years = [4, 3, 2, 1, 0].map((back) => { const revenue = (rev0 / Math.pow(1 + growth * (0.6 + r() * 0.5), back)) * 1e9; const netIncome = revenue * margin * (1 - back * 0.03 * r()); const operatingCashFlow = netIncome * (1.05 + r() * 0.35); return { year: yearNow - back, revenue, netIncome, eps: netIncome / shares, operatingCashFlow, capex: revenue * (0.03 + r() * 0.09) }; });
     return { currency: 'USD', years, nextEarnings: new Date(this.clock().getTime() + (5 + (hash(b.id) % 40)) * 86400000).toISOString().slice(0, 10) };
   }
   async getValuation(id: string) { const b = find(id); if (!b) return null; const { pe, fpe, pb, evEbitda, dividendYield } = b.m; return { pe, fpe, pb, evEbitda, dividendYield }; }
@@ -197,9 +197,17 @@ export class DemoProvider implements MarketDataProvider {
   getREITs() { return this.listAssets({ cls: ['reit'] }); }
   async getNews(q: NewsQuery = {}): Promise<NewsItem[]> {
     const now = this.clock().getTime();
-    const all = NEWS.map(([slug, category, text], i): NewsItem => { const a = find(slug)!; return { id: `news_${i + 1}`, headline: `${a.name}: ${text}`, publisher: 'INRGIFT Demo Wire', publishedAt: new Date(now - (i * 97 + 23) * 60000).toISOString(), category, assetSlug: a.slug, assetCls: a.cls, assetSymbol: a.symbol, marketId: a.marketId, url: `/${a.cls === 'etf' ? 'etfs' : 'stocks'}/${a.slug}` }; });
+    const sectors = new Set(BASE.map((a) => a.sector).filter(Boolean));
+    const company = NEWS.map(([slug, category, text], i): NewsItem => { const a = find(slug)!; const kind = a.cls === 'etf' ? 'etf' : sectors.has(category) ? 'sector' : 'company'; return { id: `news_${i + 1}`, kind, headline: `${a.name}: ${text}`, summary: `${text}. Price ${(a.m.d1 ?? 0) >= 0 ? 'up' : 'down'} ${Math.abs(a.m.d1 ?? 0).toFixed(1)}% on the day in the demo dataset; see the ${a.symbol} page for the data behind the story.`, publisher: 'INRGIFT Demo Wire', publishedAt: new Date(now - (i * 97 + 23) * 60000).toISOString(), category, assetSlug: a.slug, assetCls: a.cls, assetSymbol: a.symbol, marketId: a.marketId, url: `/${a.cls === 'etf' ? 'etfs' : 'stocks'}/${a.slug}` }; });
+    // Market wraps are computed from the demo index moves, so the headline always matches the data on screen.
+    const wraps = MARKETS.map((m) => ({ m, idx: BASE.find((a) => a.cls === 'index' && a.marketId === m.id) })).filter((x) => x.idx).slice(0, 8).map(({ m, idx }, i): NewsItem => {
+      const list = BASE.filter((a) => a.marketId === m.id && a.cls === 'stock'); const up = list.filter((a) => (a.m.d1 ?? 0) > 0).length; const d = idx!.m.d1 ?? 0;
+      return { id: `news_m${i}`, kind: 'market', headline: `${m.name}: ${idx!.name} ${d >= 0 ? 'higher' : 'lower'} by ${Math.abs(d).toFixed(2)}%`, summary: `${up} of ${list.length} covered ${m.name} stocks rose on the session. Local-currency figures from the demo dataset.`, publisher: 'INRGIFT Demo Wire', publishedAt: new Date(now - (i * 61 + 11) * 60000).toISOString(), category: 'Markets', marketId: m.id, url: `/markets/${m.slug}` };
+    });
+    const macro = MACRO.map(([days, title, detail, marketId], i): NewsItem => ({ id: `news_x${i}`, kind: 'macro', headline: `On the calendar: ${title}`, summary: `${detail}, scheduled in ${days} day${days === 1 ? '' : 's'}. Dates come from the INRGIFT calendar.`, publisher: 'INRGIFT Demo Wire', publishedAt: new Date(now - (i * 173 + 47) * 60000).toISOString(), category: 'Macro', marketId, url: '/resources/calendar' }));
+    const all = [...company, ...wraps, ...macro].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     const assetSlug = q.assetId ? find(q.assetId)?.slug : undefined;
-    return all.filter((n) => (!q.assetId || n.assetSlug === assetSlug) && (!q.marketId || n.marketId === q.marketId) && (!q.category || n.category === q.category)).slice(0, q.limit ?? 50);
+    return all.filter((n) => (!q.assetId || n.assetSlug === assetSlug) && (!q.marketId || n.marketId === q.marketId) && (!q.category || n.category === q.category) && (!q.kind || n.kind === q.kind)).slice(0, q.limit ?? 50);
   }
   async getMarket(idOrSlug: string) { const m = MARKETS.find((x) => x.id === idOrSlug.toLowerCase() || x.slug.toLowerCase() === idOrSlug.toLowerCase()); return m ? this.marketView(m, this.clock()) : null; }
   async getMarketSessions() { const now = this.clock(); return MARKETS.map((m) => this.marketView(m, now)); }

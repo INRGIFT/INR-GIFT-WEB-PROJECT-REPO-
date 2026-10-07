@@ -10,6 +10,7 @@ import { DataStatus, statusLine } from '@/components/ui/data-status';
 import { Badge, Bar, Breadcrumbs, Change, EmptyState, Metric, MetricGrid, PageContainer, Panel } from '@/components/ui/primitives';
 import { ChartShell } from '@/features/charts/chart-shell';
 import { IdentityPanel } from '@/features/assets/identity-panel';
+import { ConnectionsPanel } from '@/features/assets/connections-panel';
 import { ModuleFoot } from '@/features/markets/widgets';
 import { AlertButton, CompareButton, SaveButton, TrackView, WatchButton } from '@/features/workspace/action-buttons';
 import { AssetNotes } from '@/features/workspace/asset-notes';
@@ -44,6 +45,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
     a.marketId ? md.getMarket(a.marketId) : null, safe(p.getFundamentals(a.id)), safe(p.getTechnicals(a.id)), safe(p.getDividends(a.id)), safe(p.getCorporateActions(a.id)),
     safe(p.getETFHoldings(a.id)), safe(p.getETFAllocations(a.id)), md.getNews({ assetId: a.id }), md.getResearch(), md.getAssets(), md.fxRates(), safe(p.getIdentity(a.id)),
   ]);
+  const connections = await md.getConnections(a).catch(() => []);
   const docs = research.filter((d) => d.assetSlug === a.slug || (cls === 'index' && d.marketId === a.marketId && d.kind === 'markets'));
   const marketIndex = universe.find((x) => x.cls === 'index' && x.marketId === a.marketId && x.id !== a.id);
   const benchmark = cls === 'index' || !marketIndex ? null : { id: marketIndex.slug, label: marketIndex.name };
@@ -104,6 +106,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
         </MetricGrid>
       </Panel>
       {identity && <IdentityPanel identity={identity} current={a.id} />}
+      <ConnectionsPanel groups={connections} />
 
       <Panel title="Performance" footer={foot} flush>
         <div className="grid grid-cols-3 gap-px bg-line sm:grid-cols-5 lg:grid-cols-9">{(['d1', 'w1', 'm1', 'm3', 'm6', 'ytd', 'y1', 'y3', 'y5'] as MetricKey[]).map((k) => <div key={k} className="bg-white px-3 py-3 text-center"><p className="text-xs text-faint">{METRICS[k].short}</p><p className="mt-0.5 text-[13px] font-semibold">{a.m[k] === undefined ? <span className="text-faint" title="Not applicable">n/a</span> : <Change value={a.m[k]} dp={1} />}</p></div>)}</div>
@@ -126,6 +129,9 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
               <tr><Td left>Net income</Td>{fundamentals.years.map((y) => <Td key={y.year}>${compact(y.netIncome)}</Td>)}</tr>
               <tr><Td left>Net margin</Td>{fundamentals.years.map((y) => <Td key={y.year}>{num((y.netIncome / y.revenue) * 100, 1)}%</Td>)}</tr>
               <tr><Td left>EPS (USD)</Td>{fundamentals.years.map((y) => <Td key={y.year}>{num(y.eps, 2)}</Td>)}</tr>
+              <tr><Td left>Operating cash flow</Td>{fundamentals.years.map((y) => <Td key={y.year}>{y.operatingCashFlow == null ? '—' : `$${compact(y.operatingCashFlow)}`}</Td>)}</tr>
+              <tr><Td left>Capital expenditure</Td>{fundamentals.years.map((y) => <Td key={y.year}>{y.capex == null ? '—' : `$${compact(y.capex)}`}</Td>)}</tr>
+              <tr><Td left><Link className="link" href="/resources/glossary/free-cash-flow">Free cash flow</Link></Td>{fundamentals.years.map((y) => <Td key={y.year}>{y.operatingCashFlow == null || y.capex == null ? '—' : `$${compact(y.operatingCashFlow - y.capex)}`}</Td>)}</tr>
               <tr><Td left>Revenue growth</Td>{fundamentals.years.map((y, i) => <Td key={y.year}>{i ? <Change value={(y.revenue / fundamentals.years[i - 1].revenue - 1) * 100} dp={1} /> : '—'}</Td>)}</tr>
             </tbody></table></div>
           )}

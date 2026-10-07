@@ -1,9 +1,9 @@
-import type { InstrumentIdentity } from '@/lib/types';
+import type { InstrumentIdentity, NewsKind } from '@/lib/types';
 import type { Allocations, Asset, AssetClass, CalendarEvent, Candle, ChartRange, CorporateAction, DataMeta, Dividend, Fundamentals, Holding, MarketView, MetricKey, NewsItem, ResearchDoc, Technicals, Theme } from '@/lib/types';
 
 export interface AssetQuery { cls?: AssetClass[]; marketId?: string; region?: string; sector?: string; ids?: string[] }
 export interface Quote { instrumentId: string; price: number | null; prevClose: number | null; change: number | null; changePct: number | null; currency: string; meta: DataMeta }
-export interface NewsQuery { assetId?: string; marketId?: string; category?: string; limit?: number }
+export interface NewsQuery { assetId?: string; marketId?: string; category?: string; kind?: NewsKind; limit?: number }
 
 /**
  * The single contract between INRGIFT and any market-data vendor.

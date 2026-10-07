@@ -50,7 +50,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     if (!res) return [];
     const byClass = new Map<string, Item[]>();
     for (const a of res.assets) { const k = CLASS_LABEL[a.cls].many; byClass.set(k, [...(byClass.get(k) ?? []), { label: a.name, hint: `${a.symbol} · ${a.exchange} · ${a.country}`, href: assetHref(a) }]); }
-    return [...byClass, ['Markets', res.markets.map((m) => ({ label: m.name, hint: m.exchanges.map((e) => e.name).join(', '), href: marketHref(m.slug) }))], ['Research', res.research.map((r) => ({ label: r.title, hint: r.kind, href: r.href }))], ['Themes', res.themes.map((t) => ({ label: t.name, hint: 'Collection', href: `/discover/collections/${t.id}` }))]].filter(([, items]) => (items as Item[]).length) as [string, Item[]][];
+    return [...byClass, ['Markets', res.markets.map((m) => ({ label: m.name, hint: m.exchanges.map((e) => e.name).join(', '), href: marketHref(m.slug) }))], ['Research', res.research.map((r) => ({ label: r.title, hint: r.kind, href: r.href }))], ['Themes', res.themes.map((t) => ({ label: t.name, hint: 'Collection', href: `/discover/collections/${t.id}` }))], ...(['Exchanges', 'Sectors', 'Industries', 'News', 'Learn'] as const).map((g) => [g, (res.more ?? []).filter((m) => m.group === g)])].filter(([, items]) => (items as Item[]).length) as [string, Item[]][];
   }, [q, res, recent]);
   const flat = groups.flatMap(([, items]) => items);
   const go = (item: Item) => {
@@ -68,7 +68,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
           <div role="dialog" aria-modal="true" aria-label="Search" className="flex max-h-[78vh] w-full max-w-[640px] animate-pop-in flex-col overflow-hidden rounded-card border border-line2 bg-white shadow-pop">
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search size={18} className="text-faint" />
-              <input ref={input} autoFocus value={q} onChange={(e) => setQ(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={flat[active] ? `sr-${active}` : undefined} autoComplete="off" placeholder="Search companies, tickers, ETFs, indices, currencies, markets, research" className="h-[52px] w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
+              <input ref={input} autoFocus value={q} onChange={(e) => setQ(e.target.value)} role="combobox" aria-expanded aria-controls="search-results" aria-activedescendant={flat[active] ? `sr-${active}` : undefined} autoComplete="off" placeholder="Search assets, markets, exchanges, sectors, research, news" className="h-[52px] w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(flat.length - 1, i + 1)); }
                   else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }

@@ -10,6 +10,7 @@ import { AssetTable } from '@/features/assets/asset-table';
 import { Heatmap } from '@/features/heatmap/heatmap';
 import { IndexStrip, ModuleFoot, Movers, SectorPanel, SessionRail } from '@/features/markets/widgets';
 import { SESSION_LABEL } from '@/lib/calendar';
+import { ExchangeCalendar } from '@/features/markets/exchange-calendar';
 import { dateShort, hhmm, num } from '@/lib/format';
 import { marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
@@ -44,6 +45,7 @@ export default async function MarketPage({ params }: Props) {
         <SessionRail markets={m.id === 'in' ? [m] : [m, india]} now={new Date()} />
         <p className="mt-3 text-slate2">Regular session {hhmm(m.istOpen)} to {hhmm(m.istClose)} IST{m.exchanges[0].breakStart && `, with a midday break from ${m.exchanges[0].breakStart} to ${m.exchanges[0].breakEnd} local time`}.{m.currency !== 'INR' && ` Reference rate: 1 ${m.currency} ≈ ₹${num(rates[m.currency], rates[m.currency] < 1 ? 3 : 2)}.`}</p>
       </Panel>
+      <ExchangeCalendar exchanges={m.exchanges} today={today} />
       {stocks.length > 1 && <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"><Panel title="Market heatmap" sub="By sector" footer={foot}><Heatmap compact assets={listed} initial={{ group: 'sector' }} /></Panel><SectorPanel list={stocks} title="Sectors" /></div>}
       {stocks.length > 2 && <Movers list={listed} />}
       <Panel title="Stocks, ETFs and REITs" sub={`${listed.length} covered`} flush footer={foot}><AssetTable rows={listed} columns={['d1', 'w1', 'y1', 'marketCap', 'pe', 'dividendYield']} empty={<EmptyState title="No instruments covered yet">Coverage for this market is being added. Headline indices are available above.</EmptyState>} /></Panel>

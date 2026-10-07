@@ -6,6 +6,7 @@ import { Change, PageContainer, PageHeader, Panel, Section } from '@/components/
 import { AssetTable } from '@/features/assets/asset-table';
 import { Heatmap } from '@/features/heatmap/heatmap';
 import { ModuleFoot, Movers, SectorPanel, freshest } from '@/features/markets/widgets';
+import { marketHref } from '@/lib/routes';
 import * as md from '@/services/market-data';
 
 export const metadata: Metadata = pageMetadata({ title: 'Discover', description: 'Screener, heatmap, compare, trending and collections: the tools for finding what to research next.', path: '/discover' });
@@ -25,6 +26,10 @@ export default async function DiscoverPage() {
         <SectorPanel list={stocks} />
         <Panel title="Regions" flush>{regions.map((r) => { const l = stocks.filter((a) => a.region === r); const w = l.reduce((s, a) => s + (a.m.marketCap ?? 0), 0); const v = w ? l.reduce((s, a) => s + (a.m.d1 ?? 0) * (a.m.marketCap ?? 0), 0) / w : null; return <Link key={r} href={`/discover/heatmap?group=region&path=${encodeURIComponent(r)}`} className="flex items-center justify-between border-b border-line px-4 py-2.5 last:border-0 hover:bg-bg"><span><span className="block font-semibold">{r}</span><span className="text-xs text-faint">{l.length} companies</span></span><Change value={v} /></Link>; })}</Panel>
       </div>
+      <Section title="Discover by country" link={['Markets directory', '/markets/all']}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">{markets.map((m) => { const l = stocks.filter((a) => a.marketId === m.id); const w = l.reduce((s, a) => s + (a.m.marketCap ?? 0), 0); const v = w ? l.reduce((s, a) => s + (a.m.d1 ?? 0) * (a.m.marketCap ?? 0), 0) / w : null; return <Link key={m.id} href={marketHref(m.slug)} className="card-link px-3 py-2.5"><span className="block truncate font-semibold">{m.name}</span><span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-faint"><span>{l.length ? `${l.length} stocks` : 'Indices and FX'} · {m.currency}</span>{v != null && <Change value={v} />}</span></Link>; })}</div>
+        <p className="mt-2 text-xs text-faint">Change is the market-value-weighted 1D move of covered stocks in local currency. Country notes: <Link className="link" href="/research/countries">country research</Link>.</p>
+      </Section>
       <Section title="Themes" link={['All collections', '/discover/collections']}><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{themes.slice(0, 4).map((t) => <Link key={t.id} href={`/discover/collections/${t.id}`} className="rounded-card border border-line bg-white p-4 transition-colors hover:border-brand"><h3 className="text-[15px] font-bold">{t.name}</h3><p className="mt-0.5 text-[13px] text-slate2">{t.description}</p></Link>)}</div></Section>
       <Panel title="Popular assets" sub="Largest covered names" flush footer={<ModuleFoot meta={freshest(eq)} />}><AssetTable rows={[...eq].sort((a, b) => (b.m.marketCap ?? b.m.aum ?? 0) - (a.m.marketCap ?? a.m.aum ?? 0)).slice(0, 8)} columns={['d1', 'm1', 'y1', 'marketCap']} initialSort={null} /></Panel>
     </PageContainer>

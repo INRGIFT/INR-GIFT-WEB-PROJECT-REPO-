@@ -19,7 +19,7 @@ const TITLES: Record<string, [string, string]> = {
   news: ['Market news', 'Headlines linked to the assets and markets they concern.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
-type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string }> };
+type Props = { params: Promise<{ kind: string }>; searchParams: Promise<{ category?: string; type?: string }> };
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, { category }] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: category ? 'faceted' : 'index' }) : { title: 'Not found' }; }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
@@ -34,13 +34,15 @@ export default async function ResourcePage({ params, searchParams }: Props) {
   const [title, lead] = TITLES[kind];
   let body: ReactNode;
   if (kind === 'news') {
-    const { category } = await searchParams;
+    const { category, type } = await searchParams;
     const all = await md.getNews();
     const cats = [...new Set(all.map((n) => n.category))];
-    const news = category ? all.filter((n) => n.category === category) : all;
+    const KINDS = [['', 'Latest'], ['market', 'Markets'], ['company', 'Companies'], ['etf', 'ETFs'], ['sector', 'Sectors'], ['macro', 'Global and macro']] as const;
+    const news = all.filter((n) => (!category || n.category === category) && (!type || n.kind === type));
     body = (<>
+      <nav aria-label="News type" className="flex flex-wrap gap-1.5">{KINDS.map(([k, l]) => <Link key={l} href={k ? `/resources/news?type=${k}` : '/resources/news'} aria-current={(type ?? '') === k ? 'page' : undefined} className={cn('chip', (type ?? '') === k && 'border-brand bg-brand-soft text-brand-ink')}>{l} <span className="ml-1 text-faint">{k ? all.filter((n) => n.kind === k).length : all.length}</span></Link>)}</nav>
       <nav aria-label="Category" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-hover p-[3px]">{[['All', '/resources/news', !category] as const, ...cats.map((c) => [c, `/resources/news?category=${encodeURIComponent(c)}`, c === category] as const)].map(([l, h, on]) => <Link key={l} href={h} className={cn('rounded-lg px-2.5 py-1 text-[13px] font-medium', on ? 'bg-white shadow-card' : 'text-slate2 hover:text-navy')}>{l}</Link>)}</nav>
-      <Panel title={`${news.length} headlines`} flush>{news.length ? news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-3 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span><span className="mt-1 flex flex-wrap gap-1.5 text-xs text-faint">{n.assetSymbol && <Badge tone="brand">{n.assetSymbol}</Badge>}<Badge>{n.category}</Badge>{n.publisher} · {dateShort(n.publishedAt)}</span></Link>) : <EmptyState title="No headlines in this category" />}</Panel>
+      <Panel title={`${news.length} headlines`} flush>{news.length ? news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-3 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span>{n.summary && <span className="mt-0.5 block text-ui text-slate2">{n.summary}</span>}<span className="mt-1 flex flex-wrap gap-1.5 text-xs text-faint">{n.assetSymbol && <Badge tone="brand">{n.assetSymbol}</Badge>}<Badge>{n.category}</Badge>{n.publisher} · {dateShort(n.publishedAt)}</span></Link>) : <EmptyState title="No headlines in this category" />}</Panel>
     </>);
   } else if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
     const events = await md.getCalendar(kind === 'earnings' ? 'earnings' : kind === 'dividends' ? 'dividend' : 'ipo');
@@ -53,7 +55,7 @@ export default async function ResourcePage({ params, searchParams }: Props) {
   } else if (kind === 'calendar') {
     const events = await md.getCalendar();
     const tone = { earnings: 'brand', dividend: 'up', ipo: 'warn', holiday: 'neutral', macro: 'down' } as const;
-    body = group(events.filter((e) => e.date >= new Date().toISOString().slice(0, 10))).map(([label, l]) => <Panel key={label} title={label} sub={`${l.length} events`} flush>{l.map((e) => <div key={e.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0"><span className="num w-[86px] shrink-0 text-xs font-semibold text-slate2">{dateShort(e.date)}</span><Badge tone={tone[e.kind]} className="w-[68px] justify-center">{e.kind}</Badge><span className="min-w-0 flex-1">{e.assetSlug && e.assetCls ? <Link className="font-medium hover:text-brand-ink" href={assetHref({ cls: e.assetCls, slug: e.assetSlug })}>{e.title}</Link> : <span className="font-medium">{e.title}</span>}<span className="block truncate text-xs text-faint">{e.detail}</span></span></div>)}</Panel>);
+    body = group(events.filter((e) => e.date >= new Date().toISOString().slice(0, 10))).map(([label, l]) => <Panel key={label} title={label} sub={`${l.length} events`} flush>{l.map((e) => <div key={e.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0"><span className="num w-[86px] shrink-0 text-xs font-semibold text-slate2">{dateShort(e.date)}</span><Badge tone={tone[e.kind]} className="w-[68px] justify-center">{e.kind}</Badge><span className="min-w-0 flex-1"><Link className="font-medium hover:text-brand-ink" href={e.href ?? '/resources/calendar'}>{e.title}</Link><span className="block truncate text-xs text-faint">{e.detail}{e.marketName && ` · ${e.marketName}`} · {e.time ?? 'All day'} {e.timezone} · Source: {e.source}</span></span></div>)}</Panel>);
   } else if (kind === 'learn') {
     const [learn, videos] = await Promise.all([getLearnArticles(), getVideos()]);
     const sections = [...new Set(learn.map((l) => l.section))];

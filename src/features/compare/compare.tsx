@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, IconButton } from '@/components/ui/button';
+import { STATUS_LABEL } from '@/components/ui/data-status';
 import { EmptyState, ErrorState, Panel, Segmented, Skeleton, SkeletonRows } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { MetricCell, Price } from '@/features/assets/asset-table';
@@ -50,6 +51,8 @@ export function Compare() {
   const [slugs, setSlugs] = useState<string[] | null>(null);
   const [range, setRange] = useState<ChartRange>('1Y');
   const [bench, setBench] = useState('');
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggle = (t: string) => setHidden((h) => { const n = new Set(h); if (n.has(t)) n.delete(t); else n.add(t); return n; });
   const universe = useApi<Asset[]>('/api/v1/assets?class=stocks,etfs,reits,indices&pageSize=500');
   useEffect(() => { const fromUrl = params.get('s')?.split(',').filter(Boolean).slice(0, 4); const init = fromUrl?.length ? fromUrl : readCompare(); setSlugs(init.length ? init : ['AAPL', 'NVDA', 'MSFT']); }, [params]);
   useEffect(() => { if (!slugs) return; writeCompare(slugs); window.history.replaceState(null, '', `/discover/compare${slugs.length ? `?s=${slugs.join(',')}` : ''}`); }, [slugs]);
@@ -78,21 +81,23 @@ export function Compare() {
               <div className={cn('transition-opacity duration-panel', series.loading && 'opacity-50')}><MultiLineChart series={lines} range={range} label={`Rebased ${range} returns`} /></div>
             )}
           </Panel>
-          <Panel flush title="Metrics" sub="Best and weakest in each row are marked where a direction applies">
+          <Panel flush title="Metrics" sub="Highest and lowest value in each row are marked. Higher is not automatically better." tools={<div role="group" aria-label="Show sections" className="flex flex-wrap gap-1">{['Identity', ...SECTIONS.map(([t]) => t)].map((t) => <button key={t} type="button" aria-pressed={!hidden.has(t)} onClick={() => toggle(t)} className={cn('rounded-md border px-2 py-0.5 text-caption font-medium transition-colors duration-micro', hidden.has(t) ? 'border-line2 text-faint line-through' : 'border-brand/40 bg-brand-soft text-brand-ink')}>{t}</button>)}</div>}>
             <div className="max-w-full overflow-x-auto">
               <table className="w-full border-collapse text-[13px]">
                 <thead><tr><th scope="col" className="sticky left-0 z-10 border-b border-line bg-white px-4 py-2.5 text-left text-xs font-semibold text-faint">Metric</th>{assets.map((a, i) => <th key={a.id} scope="col" className="min-w-[130px] border-b border-line px-4 py-2.5 text-right"><Link href={assetHref(a)} className="font-semibold hover:underline" style={{ color: COLOURS[i] }}>{a.symbol}</Link><span className="block text-[11px] font-normal text-faint">{CLASS_LABEL[a.cls].one} · {a.country}</span></th>)}</tr></thead>
                 <tbody>
                   <tr className="border-b border-line"><th scope="row" className="sticky left-0 bg-white px-4 py-2 text-left font-normal">Price</th>{assets.map((a) => <td key={a.id} className="px-4 py-2 text-right"><Price asset={a} className="font-medium" /></td>)}</tr>
+                  {!hidden.has('Identity') && [<tr key="identity-h"><th colSpan={assets.length + 1} scope="colgroup" className="sticky left-0 bg-soft px-4 py-1.5 text-left text-xs font-semibold text-slate2">Identity</th></tr>,
+                    ...([['Type', (a: Asset) => CLASS_LABEL[a.cls].one], ['Exchange', (a: Asset) => `${a.exchange} (${a.mic})`], ['Country', (a: Asset) => a.country], ['Currency', (a: Asset) => a.currency], ['Sector or strategy', (a: Asset) => a.sector ?? a.etf?.strategy ?? '—'], ['Data status', (a: Asset) => STATUS_LABEL[a.status]]] as const).map(([label, f]) => <tr key={label} className="border-b border-line"><th scope="row" className="sticky left-0 bg-white px-4 py-2 text-left font-normal">{label}</th>{assets.map((a) => <td key={a.id} className="px-4 py-2 text-right text-slate2">{f(a)}</td>)}</tr>)]}
                   {SECTIONS.map(([title, keys]) => {
                     const rows = keys.filter((k) => assets.some((a) => a.m[k] !== undefined));
-                    if (!rows.length) return null;
+                    if (!rows.length || hidden.has(title)) return null;
                     return [<tr key={title}><th colSpan={assets.length + 1} scope="colgroup" className="sticky left-0 bg-soft px-4 py-1.5 text-left text-xs font-semibold text-slate2">{title}</th></tr>, ...rows.map((k) => {
                       const vals = assets.map((a) => a.m[k]).filter((v): v is number => v != null);
-                      const dir = METRICS[k].better;
-                      const best = dir && vals.length > 1 ? (dir === 'high' ? Math.max(...vals) : Math.min(...vals)) : null;
-                      const weak = dir && vals.length > 1 ? (dir === 'high' ? Math.min(...vals) : Math.max(...vals)) : null;
-                      return <tr key={k} className="border-b border-line last:border-0"><th scope="row" className="sticky left-0 bg-white px-4 py-2 text-left font-normal" title={METRICS[k].label}>{METRICS[k].label}</th>{assets.map((a) => { const v = a.m[k]; const isBest = v != null && v === best && best !== weak, isWeak = v != null && v === weak && best !== weak; return <td key={a.id} className={cn('px-4 py-2 text-right', isBest && 'bg-brand-soft/70')}><span className="inline-flex items-center justify-end gap-1.5">{isBest && <span className="rounded bg-brand px-1 text-[10px] font-semibold text-white">Best</span>}{isWeak && <span className="rounded bg-hover px-1 text-[10px] font-semibold text-slate2">Weakest</span>}<span className={isBest ? 'font-semibold' : ''}><MetricCell k={k} v={v} /></span></span></td>; })}</tr>;
+                      // Descriptive marks only: the highest and lowest value, with no judgement about which is better.
+                      const best = vals.length > 1 ? Math.max(...vals) : null;
+                      const weak = vals.length > 1 ? Math.min(...vals) : null;
+                      return <tr key={k} className="border-b border-line last:border-0"><th scope="row" className="sticky left-0 bg-white px-4 py-2 text-left font-normal" title={METRICS[k].label}>{METRICS[k].label}</th>{assets.map((a) => { const v = a.m[k]; const isBest = v != null && v === best && best !== weak, isWeak = v != null && v === weak && best !== weak; return <td key={a.id} className="px-4 py-2 text-right"><span className="inline-flex items-center justify-end gap-1.5">{isBest && <span className="rounded bg-hover px-1 text-[10px] font-semibold text-slate2">Highest</span>}{isWeak && <span className="rounded bg-hover px-1 text-[10px] font-semibold text-slate2">Lowest</span>}<span><MetricCell k={k} v={v} /></span></span></td>; })}</tr>;
                     })];
                   })}
                 </tbody>

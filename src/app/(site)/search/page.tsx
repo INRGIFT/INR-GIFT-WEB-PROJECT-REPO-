@@ -16,7 +16,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export default async function SearchPage({ searchParams }: Props) {
   const q = ((await searchParams).q ?? '').trim().slice(0, 80);
   const r = q ? await md.search(q) : null;
-  const total = r ? r.assets.length + r.markets.length + r.research.length + r.themes.length : 0;
+  const total = r ? r.assets.length + r.markets.length + r.research.length + r.themes.length + r.more.length : 0;
   return (
     <PageContainer>
       <PageHeader title="Search" lead={q ? `${total} results for “${q}”` : 'Search assets, markets, research and themes.'} />
@@ -30,6 +30,7 @@ export default async function SearchPage({ searchParams }: Props) {
         {r && r.markets.length > 0 && <Panel flush title="Markets"><ul>{r.markets.map((m) => <li key={m.id}><Link href={marketHref(m.slug)} className="row-link"><span className="block font-semibold">{m.name}</span><span className="text-xs text-faint">{m.exchanges.map((e) => e.name).join(' · ')} · {SESSION_LABEL[m.session]}</span></Link></li>)}</ul></Panel>}
         {r && r.research.length > 0 && <Panel flush title="Research"><ul>{r.research.map((d) => <li key={d.href}><Link href={d.href} className="row-link"><span className="block font-semibold">{d.title}</span><span className="text-xs text-faint">{d.kind}</span></Link></li>)}</ul></Panel>}
         {r && r.themes.length > 0 && <Panel flush title="Themes"><ul>{r.themes.map((t) => <li key={t.id}><Link href={collectionHref(t.id)} className="row-link font-semibold">{t.name}</Link></li>)}</ul></Panel>}
+        {r && r.more.length > 0 && <Panel flush title="Exchanges, sectors, news and guides"><ul>{r.more.map((m) => <li key={m.group + m.href + m.label}><Link href={m.href} className="row-link"><span className="block font-semibold">{m.label}</span><span className="text-xs text-faint">{m.group} · {m.hint}</span></Link></li>)}</ul></Panel>}
       </div>
     </PageContainer>
   );

@@ -11,9 +11,9 @@ const MARKET_ROWS: Mk[] = [
   ['us', 'US', 'United States', 'North America', 'US', 'USD', 'LIVE', [['XNYS', 'NYSE', 'America/New_York', '09:30', '16:00', { preOpen: '04:00', postClose: '20:00', holidays: { ...COMMON, '2026-11-26': 'Thanksgiving Day', '2026-07-03': 'Independence Day (observed)' }, halfDays: { '2026-11-27': '13:00', '2026-12-24': '13:00' } }], ['XNAS', 'NASDAQ', 'America/New_York', '09:30', '16:00'], ['ARCX', 'NYSE Arca', 'America/New_York', '09:30', '16:00']]],
   ['ca', 'Canada', 'Canada', 'North America', 'CA', 'CAD', 'DELAYED', [['XTSE', 'Toronto Stock Exchange', 'America/Toronto', '09:30', '16:00']]],
   ['br', 'Brazil', 'Brazil', 'Latin America', 'BR', 'BRL', 'DELAYED', [['BVMF', 'B3', 'America/Sao_Paulo', '10:00', '17:00']], 'STALE'],
-  ['uk', 'UK', 'United Kingdom', 'Europe', 'GB', 'GBP', 'DELAYED', [['XLON', 'London Stock Exchange', 'Europe/London', '08:00', '16:30']]],
-  ['de', 'Germany', 'Germany', 'Europe', 'DE', 'EUR', 'LIVE', [['XETR', 'Xetra', 'Europe/Berlin', '09:00', '17:30']]],
-  ['fr', 'France', 'France', 'Europe', 'FR', 'EUR', 'DELAYED', [['XPAR', 'Euronext Paris', 'Europe/Paris', '09:00', '17:30']]],
+  ['uk', 'UK', 'United Kingdom', 'Europe', 'GB', 'GBP', 'DELAYED', [['XLON', 'London Stock Exchange', 'Europe/London', '08:00', '16:30', { openingAuction: '07:50–08:00', closingAuction: '16:30–16:35' }]]],
+  ['de', 'Germany', 'Germany', 'Europe', 'DE', 'EUR', 'LIVE', [['XETR', 'Xetra', 'Europe/Berlin', '09:00', '17:30', { closingAuction: '17:30–17:35' }]]],
+  ['fr', 'France', 'France', 'Europe', 'FR', 'EUR', 'DELAYED', [['XPAR', 'Euronext Paris', 'Europe/Paris', '09:00', '17:30', { openingAuction: '07:15–09:00', closingAuction: '17:30–17:35' }]]],
   ['ch', 'Switzerland', 'Switzerland', 'Europe', 'CH', 'CHF', 'DELAYED', [['XSWX', 'SIX Swiss Exchange', 'Europe/Zurich', '09:00', '17:20']]],
   ['nl', 'Netherlands', 'Netherlands', 'Europe', 'NL', 'EUR', 'DELAYED', [['XAMS', 'Euronext Amsterdam', 'Europe/Amsterdam', '09:00', '17:30']]],
   ['jp', 'Japan', 'Japan', 'Asia-Pacific', 'JP', 'JPY', 'DELAYED', [['XTKS', 'Tokyo Stock Exchange', 'Asia/Tokyo', '09:00', '15:30', { breakStart: '11:30', breakEnd: '12:30', holidays: { ...COMMON, '2026-11-03': 'Culture Day', '2026-11-23': 'Labour Thanksgiving Day' } }]]],
@@ -27,11 +27,21 @@ const MARKET_ROWS: Mk[] = [
   ['ae', 'UAE', 'United Arab Emirates', 'Middle East', 'AE', 'AED', 'DELAYED', [['XDFM', 'Dubai Financial Market', 'Asia/Dubai', '10:00', '15:00'], ['XADS', 'Abu Dhabi Securities Exchange', 'Asia/Dubai', '10:00', '15:00']]],
   ['sa', 'Saudi-Arabia', 'Saudi Arabia', 'Middle East', 'SA', 'SAR', 'DELAYED', [['XSAU', 'Saudi Exchange (Tadawul)', 'Asia/Riyadh', '10:00', '15:00', { tradingDays: [7, 1, 2, 3, 4] }]], 'UNAVAILABLE'],
   ['za', 'South-Africa', 'South Africa', 'Africa', 'ZA', 'ZAR', 'DELAYED', [['XJSE', 'Johannesburg Stock Exchange', 'Africa/Johannesburg', '09:00', '17:00']]],
+  // Configured markets without covered listings yet: sessions, status and currency still come from this calendar.
+  ['mx', 'Mexico', 'Mexico', 'Latin America', 'MX', 'MXN', 'DELAYED', [['XMEX', 'Bolsa Mexicana de Valores', 'America/Mexico_City', '08:30', '15:00']]],
+  ['it', 'Italy', 'Italy', 'Europe', 'IT', 'EUR', 'DELAYED', [['XMIL', 'Euronext Milan', 'Europe/Rome', '09:00', '17:30', { closingAuction: '17:30–17:35' }]]],
+  ['es', 'Spain', 'Spain', 'Europe', 'ES', 'EUR', 'DELAYED', [['XMAD', 'Bolsa de Madrid', 'Europe/Madrid', '09:00', '17:30', { closingAuction: '17:30–17:35' }]]],
+  ['se', 'Sweden', 'Sweden', 'Europe', 'SE', 'SEK', 'DELAYED', [['XSTO', 'Nasdaq Stockholm', 'Europe/Stockholm', '09:00', '17:30']]],
+  ['no', 'Norway', 'Norway', 'Europe', 'NO', 'NOK', 'DELAYED', [['XOSL', 'Oslo Børs', 'Europe/Oslo', '09:00', '16:20']]],
+  ['dk', 'Denmark', 'Denmark', 'Europe', 'DK', 'DKK', 'DELAYED', [['XCSE', 'Nasdaq Copenhagen', 'Europe/Copenhagen', '09:00', '17:00']]],
+  ['fi', 'Finland', 'Finland', 'Europe', 'FI', 'EUR', 'DELAYED', [['XHEL', 'Nasdaq Helsinki', 'Europe/Helsinki', '10:00', '18:30']]],
+  ['pl', 'Poland', 'Poland', 'Europe', 'PL', 'PLN', 'DELAYED', [['XWAR', 'Warsaw Stock Exchange', 'Europe/Warsaw', '09:00', '17:00', { closingAuction: '16:50–17:00' }]]],
+  ['nz', 'New-Zealand', 'New Zealand', 'Asia-Pacific', 'NZ', 'NZD', 'DELAYED', [['XNZE', 'NZX', 'Pacific/Auckland', '10:00', '16:45']]],
 ];
 export const MARKETS: Market[] = MARKET_ROWS.map(([id, slug, name, region, countryCode, currency, feed, exchanges, statusOverride]) => ({ id, slug, name, region, countryCode, currency, feed, exchanges: exchanges.map(ex), statusOverride }));
 
 /** Demo reference rates: units of INR per one unit of currency. */
-export const INR_PER: Record<string, number> = { USD: 88.4, EUR: 103.9, GBP: 118.7, JPY: 0.592, HKD: 11.35, TWD: 2.86, KRW: 0.064, SGD: 68.5, AUD: 58.2, BRL: 16.3, SAR: 23.57, AED: 24.07, CAD: 64.1, ZAR: 5.02, CHF: 110.4, CNY: 12.4, INR: 1 };
+export const INR_PER: Record<string, number> = { USD: 88.4, EUR: 103.9, GBP: 118.7, JPY: 0.592, HKD: 11.35, TWD: 2.86, KRW: 0.064, SGD: 68.5, AUD: 58.2, BRL: 16.3, SAR: 23.57, AED: 24.07, CAD: 64.1, ZAR: 5.02, CHF: 110.4, CNY: 12.4, MXN: 4.76, SEK: 9.32, NOK: 8.79, DKK: 13.93, PLN: 24.32, NZD: 51.4, INR: 1 };
 
 /** symbol, name, market, mic, sector, industry, price, mcap $bn, P/E, fwd P/E, rev growth, ROIC, div yield, beta, issuer */
 export type StockRow = [string, string, string, string, string, string, number, number, number, number, number, number, number, number, string?];

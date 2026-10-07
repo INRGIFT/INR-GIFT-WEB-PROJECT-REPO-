@@ -26,6 +26,9 @@ export interface Exchange {
   breakEnd?: string;
   preOpen?: string;
   postClose?: string;
+  /** Auction windows, local time, e.g. "16:30–16:35". Shown on market pages; status logic uses regular hours. */
+  openingAuction?: string;
+  closingAuction?: string;
   /** ISO weekday numbers that trade, 1 = Monday. */
   tradingDays: number[];
   /** YYYY-MM-DD → holiday name. */
@@ -124,7 +127,8 @@ export interface Listing {
 export interface InstrumentIdentity { issuer: Issuer; securities: Security[]; listings: Listing[]; source: string }
 
 export interface Candle { t: string; o: number; h: number; l: number; c: number; v: number }
-export interface FinancialYear { year: number; revenue: number; netIncome: number; eps: number }
+/** Cash-flow fields are null when the source does not report them; free cash flow = operating cash flow − capex. */
+export interface FinancialYear { year: number; revenue: number; netIncome: number; eps: number; operatingCashFlow?: number | null; capex?: number | null }
 export interface Fundamentals { currency: string; years: FinancialYear[]; nextEarnings: string | null }
 export interface Dividend { exDate: string; payDate: string; amount: number; currency: string }
 export interface CorporateAction { date: string; type: 'Split' | 'Dividend' | 'Buyback' | 'Name change'; detail: string }
@@ -132,7 +136,9 @@ export interface Holding { name: string; symbol?: string; slug?: string; weight:
 export interface Allocations { sectors: [string, number][]; countries: [string, number][] }
 export interface Technicals { rsi: number | null; sma50: number | null; sma200: number | null; high52: number | null; low52: number | null; trend: 'Above both averages' | 'Between averages' | 'Below both averages' | null }
 
-export interface NewsItem { id: string; headline: string; publisher: string; publishedAt: string; category: string; assetSlug?: string; assetCls?: AssetClass; assetSymbol?: string; marketId?: string; url: string }
+export type NewsKind = 'market' | 'company' | 'etf' | 'sector' | 'macro';
+/** Headline metadata and a short original summary only; full articles stay with the publisher (no republishing). */
+export interface NewsItem { id: string; headline: string; summary?: string; kind?: NewsKind; publisher: string; publishedAt: string; category: string; assetSlug?: string; assetCls?: AssetClass; assetSymbol?: string; marketId?: string; url: string }
 export type ResearchKind = 'stocks' | 'etfs' | 'markets' | 'themes' | 'sectors' | 'countries';
 /** A chart drawn from figures in the note itself (bars or diverging bars). Values are computed, never typed in. */
 export interface ResearchChart { title: string; unit: '%' | '×' | 'bn USD'; kind: 'bar' | 'diverging'; bars: { label: string; value: number; href?: string }[]; note?: string }
@@ -154,7 +160,8 @@ export interface ResearchDoc {
 }
 export interface Theme { id: string; name: string; description: string; assetIds: string[] }
 export type CalendarKind = 'earnings' | 'dividend' | 'ipo' | 'holiday' | 'macro';
-export interface CalendarEvent { id: string; kind: CalendarKind; date: string; title: string; detail: string; marketId?: string; assetSlug?: string; assetCls?: AssetClass; extra?: Record<string, string> }
+/** `timezone`, `marketName`, `source` and `href` are filled by the service layer from the market calendar and provider. */
+export interface CalendarEvent { id: string; kind: CalendarKind; date: string; time?: string; timezone?: string; title: string; detail: string; marketId?: string; marketName?: string; assetSlug?: string; assetCls?: AssetClass; source?: string; href?: string; extra?: Record<string, string> }
 
 export interface Pagination { page: number; pageSize: number; total: number; totalPages: number }
 export interface Envelope<T> { data: T; meta: Pick<DataMeta, 'timestamp' | 'source' | 'dataStatus'> & Partial<DataMeta>; pagination?: Pagination }

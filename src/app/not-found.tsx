@@ -1,11 +1,14 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
+import { MobileBottomNav } from '@/components/layout/mobile-nav';
+import { NotFoundBody } from '@/components/layout/not-found-body';
+import { SiteFooter } from '@/components/layout/site-footer';
+import { SiteHeader } from '@/components/layout/site-header';
+import { isDemoData } from '@/lib/config';
+import { getMarkets } from '@/services/market-data';
 
-export default function NotFound() {
-  return (
-    <main className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-[28px] font-extrabold">We couldn’t find that page.</h1>
-      <p className="mt-2 text-slate2">The address may be mistyped, or the market or asset is not covered yet.</p>
-      <p className="mt-5 flex gap-2"><Link className="inline-flex h-10 items-center rounded-ctl bg-brand px-4 font-medium text-white" href="/">Go to home</Link><Link className="inline-flex h-10 items-center rounded-ctl border border-line2 bg-white px-4 font-medium" href="/markets/all">Browse markets</Link></p>
-    </main>
-  );
+export const metadata: Metadata = { title: 'Page not found', robots: { index: false, follow: true } };
+/** Unmatched URLs: the public shell around the recovery body, served with a genuine 404 status. */
+export default async function NotFound() {
+  const open = (await getMarkets()).filter((m) => m.session === 'OPEN').length;
+  return (<><SiteHeader openCount={open} demo={isDemoData} /><main id="main"><NotFoundBody /></main><SiteFooter /><MobileBottomNav /></>);
 }

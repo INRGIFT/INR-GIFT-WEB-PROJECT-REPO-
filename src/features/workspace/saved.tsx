@@ -82,7 +82,7 @@ export function ComparisonsPage() {
           <ul>{ws.data.saved_comparisons.map((c) => { const assets = c.instrument_ids.map((id) => md.map.get(id)).filter((a): a is Asset => Boolean(a)); const href = `/discover/compare?s=${assets.map((a) => a.slug).join(',')}`; const best = [...assets].sort((x, y) => (y.m.y1 ?? -1e9) - (x.m.y1 ?? -1e9))[0]; return (
             <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-3 last:border-0">
               <div className="min-w-0 flex-1"><Link href={href} className="font-semibold hover:text-brand-ink">{c.name}</Link><p className="mt-0.5 flex flex-wrap gap-x-3 text-[13px] text-slate2">{assets.length ? assets.map((a) => <span key={a.id}>{a.symbol} <Change value={a.m.y1} dp={1} /></span>) : md.loading ? 'Loading…' : 'Assets no longer covered'}</p></div>
-              {best && <span className="text-xs text-faint">Best over 1Y: <b className="text-navy">{best.symbol}</b></span>}
+              {best && <span className="text-xs text-faint">Highest 1Y return: <b className="text-navy">{best.symbol}</b></span>}
               <span className="flex"><ButtonLink size="sm" href={href}>Open</ButtonLink><IconButton label={`Rename ${c.name}`} onClick={() => setRename(c)}><Pencil size={15} /></IconButton><IconButton label={`Delete ${c.name}`} onClick={() => setDel(c)}><Trash2 size={15} /></IconButton></span>
             </li>); })}</ul>
         </Panel>

@@ -1,7 +1,9 @@
 import { getProvider, ProviderError } from '@/providers';
 import { INR_PER } from '@/providers/demo/seed';
+import { getLearnArticles } from '@/services/content';
 import type { AssetQuery } from '@/providers/provider';
 import { validateCandles } from '@/lib/validation';
+import { assetHref, learnHref, marketHref } from '@/lib/routes';
 import type { Asset, AssetClass, CalendarKind, ChartRange, DataMeta, Envelope, MarketView, Pagination, ResearchDoc, ResearchKind } from '@/lib/types';
 
 /**
@@ -63,7 +65,14 @@ export function structureDoc(d: ResearchDoc): ResearchDoc {
   };
 }
 export async function getResearchDoc(kind: ResearchKind, slug: string) { return (await getResearch(kind)).find((d) => d.slug === slug) ?? null; }
-export async function getCalendar(kind?: CalendarKind | CalendarKind[]) { const all = await p().getCalendar(); const kinds = kind ? (Array.isArray(kind) ? kind : [kind]) : null; return kinds ? all.filter((e) => kinds.includes(e.kind)) : all; }
+/** Calendar events with time zone, market, source and a related page attached, so every row is self-describing. */
+export async function getCalendar(kind?: CalendarKind | CalendarKind[]) {
+  const [raw, markets] = await Promise.all([p().getCalendar(), getMarkets()]);
+  const byId = new Map(markets.map((m) => [m.id, m]));
+  const all = raw.map((e) => { const m = e.marketId ? byId.get(e.marketId) : undefined; return { ...e, timezone: e.timezone ?? m?.exchanges[0]?.timezone ?? 'UTC', marketName: e.marketName ?? m?.name, source: e.source ?? p().name, href: e.href ?? (e.assetSlug && e.assetCls ? assetHref({ cls: e.assetCls, slug: e.assetSlug }) : m ? marketHref(m.slug) : '/resources/calendar') }; });
+  const kinds = kind ? (Array.isArray(kind) ? kind : [kind]) : null;
+  return kinds ? all.filter((e) => kinds.includes(e.kind)) : all;
+}
 
 export const EQUITY_LIKE: AssetClass[] = ['stock', 'etf', 'reit'];
 const tradable = (a: Asset) => a.status !== 'CLOSED' && a.m.d1 != null;
@@ -85,12 +94,22 @@ export function sectors(list: Asset[]) {
 }
 export function breadth(list: Asset[]) { const l = list.filter((a) => a.cls === 'stock' && a.m.d1 != null); return { advancing: l.filter((a) => a.m.d1! > 0).length, declining: l.filter((a) => a.m.d1! < 0).length, unchanged: l.filter((a) => a.m.d1 === 0).length }; }
 
-export interface SearchResults { assets: Asset[]; markets: MarketView[]; research: { title: string; href: string; kind: string }[]; themes: { id: string; name: string }[] }
+export interface SearchEntity { group: 'Exchanges' | 'Sectors' | 'Industries' | 'News' | 'Learn'; label: string; hint: string; href: string }
+export interface SearchResults { assets: Asset[]; markets: MarketView[]; research: { title: string; href: string; kind: string }[]; themes: { id: string; name: string }[]; more: SearchEntity[] }
 export async function search(query: string): Promise<SearchResults> {
   const q = query.trim().toLowerCase();
-  if (!q) return { assets: [], markets: [], research: [], themes: [] };
-  const [assets, markets, research, themes] = await Promise.all([p().searchAssets(q, 10), getMarkets(), getResearch(), getThemes()]);
+  if (!q) return { assets: [], markets: [], research: [], themes: [], more: [] };
+  const [assets, markets, research, themes, universe, news, learn] = await Promise.all([p().searchAssets(q, 10), getMarkets(), getResearch(), getThemes(), getAssets(), p().getNews({ limit: 200 }), getLearnArticles()]);
+  const has = (s: string | undefined) => Boolean(s && s.toLowerCase().includes(q));
+  const exchanges = markets.flatMap((m) => m.exchanges.map((e) => ({ e, m }))).filter(({ e }) => has(e.name) || e.mic.toLowerCase() === q).slice(0, 3)
+    .map(({ e, m }): SearchEntity => ({ group: 'Exchanges', label: e.name, hint: `${e.mic} · ${m.name} · ${e.timezone}`, href: marketHref(m.slug) }));
+  const distinct = (k: 'sector' | 'industry') => [...new Set(universe.map((a) => a[k]).filter((v): v is string => has(v)))].slice(0, 3);
+  const sectors = distinct('sector').map((s): SearchEntity => ({ group: 'Sectors', label: s, hint: `${universe.filter((a) => a.sector === s).length} covered assets · heatmap`, href: `/discover/heatmap?group=sector&path=${encodeURIComponent(s)}` }));
+  const industries = distinct('industry').map((s): SearchEntity => ({ group: 'Industries', label: s, hint: `${universe.filter((a) => a.industry === s).length} covered assets · heatmap`, href: `/discover/heatmap?group=industry&path=${encodeURIComponent(s)}` }));
+  const newsHits = news.filter((n) => has(n.headline) || n.assetSymbol?.toLowerCase() === q).slice(0, 3).map((n): SearchEntity => ({ group: 'News', label: n.headline, hint: `${n.publisher} · ${n.publishedAt.slice(0, 10)}`, href: n.url }));
+  const learnHits = learn.filter((a) => has(a.title) || has(a.summary)).slice(0, 3).map((a): SearchEntity => ({ group: 'Learn', label: a.title, hint: a.section, href: learnHref(a.slug) }));
   return {
+    more: [...exchanges, ...sectors, ...industries, ...newsHits, ...learnHits],
     assets,
     markets: markets.filter((m) => `${m.name} ${m.slug} ${m.region} ${m.currency} ${m.exchanges.map((e) => `${e.name} ${e.mic}`).join(' ')}`.toLowerCase().includes(q)).slice(0, 4),
     research: research.filter((d) => `${d.title} ${d.assetSymbol ?? ''} ${d.topic}`.toLowerCase().includes(q)).slice(0, 4).map((d) => ({ title: d.title, href: `/research/${d.kind}/${d.slug}`, kind: d.type })),
@@ -100,4 +119,53 @@ export async function search(query: string): Promise<SearchResults> {
 export function toApiError(e: unknown): { status: number; body: { error: { code: string; message: string } } } {
   if (e instanceof ProviderError) return { status: e.code === 'NOT_CONFIGURED' ? 503 : e.code === 'NOT_ENTITLED' ? 403 : 502, body: { error: { code: e.code, message: e.message } } };
   return { status: 500, body: { error: { code: 'INTERNAL_ERROR', message: 'Something went wrong while loading this data.' } } };
+}
+
+/* ------------------------------------------------------------------ connections (internal linking) */
+export interface Connection { label: string; href: string; hint?: string }
+export interface ConnectionGroup { title: string; items: Connection[] }
+/**
+ * Where an asset sits in the global map: market, exchange, sector, industry, home index, funds that hold it,
+ * themes and research. Built only from covered data, so every link resolves to a real page.
+ */
+export async function getConnections(a: Asset): Promise<ConnectionGroup[]> {
+  const [universe, themes, research, markets] = await Promise.all([getAssets(), getThemes(), getResearch(), getMarkets()]);
+  const market = markets.find((m) => m.id === a.marketId);
+  const groups: ConnectionGroup[] = [];
+  const where: Connection[] = [];
+  if (market) {
+    where.push({ label: market.name, href: marketHref(market.slug), hint: 'Market' });
+    const ex = market.exchanges.find((e) => e.mic === a.mic);
+    if (ex) where.push({ label: ex.name, href: marketHref(market.slug), hint: `${ex.mic} · ${ex.timezone}` });
+    const country = research.find((d) => d.kind === 'countries' && d.marketId === market.id);
+    if (country) where.push({ label: `${market.name}: country research`, href: `/research/countries/${country.slug}`, hint: 'Research' });
+  }
+  if (a.sector) {
+    where.push({ label: `${a.sector} on the heatmap`, href: `/discover/heatmap?group=sector&path=${encodeURIComponent(a.sector)}`, hint: 'Sector' });
+    const sec = research.find((d) => d.kind === 'sectors' && d.sector === a.sector);
+    if (sec) where.push({ label: `${a.sector} across markets`, href: `/research/sectors/${sec.slug}`, hint: 'Sector research' });
+  }
+  if (a.industry) where.push({ label: a.industry, href: `/discover/heatmap?group=industry&path=${encodeURIComponent(a.industry)}`, hint: 'Industry' });
+  if (where.length) groups.push({ title: 'Where it sits', items: where });
+  const index = universe.find((x) => x.cls === 'index' && x.marketId === a.marketId && x.id !== a.id);
+  const funds: Connection[] = [];
+  if (index && a.cls !== 'fx') funds.push({ label: index.name, href: assetHref(index), hint: 'Home market index' });
+  if (a.cls === 'stock' || a.cls === 'reit') {
+    const etfs = universe.filter((x) => x.cls === 'etf');
+    const holders = await Promise.all(etfs.map(async (e) => ({ e, h: await p().getETFHoldings(e.id).catch(() => null) })));
+    holders.filter(({ h }) => h?.some((x) => x.slug === a.slug)).slice(0, 5).forEach(({ e, h }) => funds.push({ label: `${e.name} (${e.symbol})`, href: assetHref(e), hint: `${h!.find((x) => x.slug === a.slug)!.weight.toFixed(1)}% weight` }));
+  }
+  if (a.cls === 'etf' && a.etf) {
+    const bench = universe.find((x) => x.cls === 'index' && a.etf!.benchmark.toLowerCase().includes(x.name.toLowerCase().replace(/ composite| index/g, '')));
+    if (bench) funds.push({ label: bench.name, href: assetHref(bench), hint: 'Benchmark index' });
+    universe.filter((x) => x.cls === 'etf' && x.id !== a.id && x.etf?.strategy === a.etf!.strategy).slice(0, 4).forEach((x) => funds.push({ label: `${x.name} (${x.symbol})`, href: assetHref(x), hint: 'Same strategy' }));
+  }
+  if (funds.length) groups.push({ title: a.cls === 'etf' ? 'Benchmark and similar funds' : 'Indices and funds', items: funds });
+  const inThemes = themes.filter((t) => t.assetIds.includes(a.id));
+  if (inThemes.length) groups.push({ title: 'Themes', items: inThemes.map((t) => ({ label: t.name, href: `/discover/collections/${t.id}`, hint: `${t.assetIds.length} assets` })) });
+  if (a.cls === 'fx' && a.fx) {
+    const ms = markets.filter((m) => m.currency === a.fx!.base || m.currency === a.fx!.quote);
+    if (ms.length) groups.push({ title: 'Markets priced in these currencies', items: ms.map((m) => ({ label: m.name, href: marketHref(m.slug), hint: m.currency })) });
+  }
+  return groups;
 }
