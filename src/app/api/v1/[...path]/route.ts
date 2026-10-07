@@ -1,3 +1,4 @@
+import { log } from '@/lib/telemetry/log';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/rate-limit';
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
     } catch (e) {
       if (e instanceof NotFound) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such resource.' } }, { status: 404 });
       const { status, body } = md.toApiError(e);
+      log(status >= 500 ? 'error' : 'warn', 'api_error', { path: `/api/v1/${path}`, status, code: body.error.code });
       return NextResponse.json(body, { status });
     }
   }

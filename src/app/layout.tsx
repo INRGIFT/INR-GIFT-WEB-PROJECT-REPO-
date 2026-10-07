@@ -8,7 +8,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.siteUrl),
-  title: { default: `${SITE.name} · ${SITE.tagline}`, template: `%s · ${SITE.name}` },
+  title: { default: `${SITE.name} | ${SITE.slogan} · ${SITE.tagline}`, template: `%s | ${SITE.name}` },
   description: `${SITE.promise} Research global stocks, ETFs, indices and currencies with India context.`,
   applicationName: SITE.name,
   openGraph: { siteName: SITE.name, type: 'website', locale: 'en_IN', title: `${SITE.name} · ${SITE.tagline}`, description: SITE.promise },

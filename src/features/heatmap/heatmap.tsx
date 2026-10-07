@@ -1,4 +1,5 @@
 'use client';
+import { track } from '@/lib/telemetry/analytics';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -73,7 +74,7 @@ export function Heatmap({ compact, assets, initial }: Props) {
 
   const label = (v: number | null | undefined) => (v == null ? 'n/a' : colour === 'volatility' ? fmtMetric('volatility', v).text : pct(v, SCALE[colour] > 10 ? 1 : 2));
   const sel = selected && all ? all.find((a) => a.id === selected) : null;
-  const drill = (key: string) => { if (compact) router.push(`/discover/heatmap?group=${group}&path=${encodeURIComponent([...path, key].join('|'))}`); else { setPath([...path, key]); setSelected(null); } };
+  const drill = (key: string) => { if (compact) router.push(`/discover/heatmap?group=${group}&path=${encodeURIComponent([...path, key].join('|'))}`); else { setPath([...path, key]); setSelected(null); track('heatmap_drilldown', { level: path.length + 1, group: chain[path.length] ?? group }); } };
   const sizeNote = size === 'aum' ? 'Sizing by AUM shows funds only.' : null;
 
   const map = api.loading && !all ? <Skeleton className={cn('w-full', compact ? 'aspect-[2.6/1]' : 'aspect-[2/1]')} /> : api.error ? <ErrorState title="The heatmap could not load" action={<Button onClick={api.reload}>Retry</Button>}>{api.error}</ErrorState> : !layout || !layout.count ? <EmptyState title="No assets at this level">{query ? 'Nothing matches that search here. Clear it or step back up the breadcrumb.' : sizeNote ?? 'Step back up the breadcrumb or change the universe.'}</EmptyState> : (

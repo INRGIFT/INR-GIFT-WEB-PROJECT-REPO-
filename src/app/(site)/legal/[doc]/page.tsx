@@ -1,3 +1,4 @@
+import { AnalyticsConsent } from '@/components/layout/analytics-consent';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -24,6 +25,7 @@ export default async function LegalPage({ params }: Props) {
         <div className="space-y-4">
           {status && <Callout tone="warn" title="Working draft">{status[1]}</Callout>}
           <article className="prose-doc rounded-card border border-line bg-white px-6 py-5">{sections.map(([h, body]) => <section key={h}><h2>{h}</h2><p>{body}</p></section>)}</article>
+          {d.slug === 'cookies' && <section aria-label="Analytics choice" className="rounded-card border border-line bg-white px-6 py-5"><h2 className="mb-2 text-h4 font-bold">Your analytics choice</h2><AnalyticsConsent /></section>}
         </div>
       </div>
     </PageContainer>

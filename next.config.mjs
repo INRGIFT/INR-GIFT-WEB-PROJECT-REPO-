@@ -1,16 +1,38 @@
 /** Security headers apply to every route. Private areas are additionally marked noindex in middleware. */
-const securityHeaders = [
+const securityHeaders = () => [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'Content-Security-Policy', value: csp() },
 ];
+/**
+ * Content Security Policy. Scripts and styles are first-party; 'unsafe-inline' is required by Next's inline hydration
+ * and Tailwind's style attributes (a nonce-based policy is the next step, docs/AUTH-SECURITY.md). The only third
+ * parties are Supabase (auth and data) and the Logo.dev image CDN. 'unsafe-eval' is allowed in development only.
+ */
+function csp() {
+  const dev = process.env.NODE_ENV !== 'production';
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://img.logo.dev",
+    "font-src 'self'",
+    "media-src 'self'",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co${dev ? ' ws:' : ''}`,
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; ');
+}
 /** @type {import('next').NextConfig} */
 export default {
   reactStrictMode: true,
   // NEXT_OUTPUT=standalone produces .next/standalone/server.js for GoDaddy cPanel "Setup Node.js App" (docs/DEPLOY.md).
   ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
-  async headers() { return [{ source: '/:path*', headers: securityHeaders }]; },
+  async headers() { return [{ source: '/:path*', headers: securityHeaders() }]; },
 };

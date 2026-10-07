@@ -1,4 +1,5 @@
 'use client';
+import { AnalyticsConsent } from '@/components/layout/analytics-consent';
 import { CheckCircle2, CircleAlert, Download, LogOut, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -107,6 +108,7 @@ export function SettingsPage() {
           {themes.data ? <ChoiceChips label="Themes" options={themes.data.map((t) => [t.id, t.name] as const)} value={p.themes} onChange={(v) => set({ themes: v })} /> : themes.error ? <Callout tone="error" title="Themes could not load" action={<Button size="sm" onClick={themes.reload}>Retry</Button>} /> : <Skeleton className="h-10 w-full" />}
         </div>
       </Panel>
+      <Panel title="Privacy"><AnalyticsConsent /></Panel>
       <Panel title="Notifications">
         <Switch checked={p.notifyInApp} onChange={(v) => set({ notifyInApp: v })} label="In INRGIFT" description="Alerts, research updates and account notices in the bell menu." />
         <Switch checked={p.notifyEmail} onChange={(v) => set({ notifyEmail: v })} label="By email" description="A copy of each triggered alert. Account and security notices are always sent." />

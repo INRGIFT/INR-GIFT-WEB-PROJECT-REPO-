@@ -1,4 +1,5 @@
 'use client';
+import { track } from '@/lib/telemetry/analytics';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -54,6 +55,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   }, [q, res, recent]);
   const flat = groups.flatMap(([, items]) => items);
   const go = (item: Item) => {
+    if (q.trim()) track('search', { queryLength: q.trim().length, results: flat.length });
     const next = [item, ...recent.filter((r) => r.href !== item.href)].slice(0, 5);
     localStorage.setItem(RECENT, JSON.stringify(next));
     setOpen(false);

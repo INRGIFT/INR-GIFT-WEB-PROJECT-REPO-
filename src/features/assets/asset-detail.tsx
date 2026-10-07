@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
+import { assetQuality, assetTitle } from '@/lib/indexability';
 import { breadcrumbs, instrument, JsonLd } from '@/lib/structured-data';
 import { isDemoData } from '@/lib/config';
 import Link from 'next/link';
@@ -26,8 +27,7 @@ import { AssetTable, Price } from './asset-table';
 export async function assetMetadata(cls: AssetClass, slug: string): Promise<Metadata> {
   const a = await md.getAsset(cls, slug);
   if (!a) return { title: 'Not found' };
-  const kind = cls === 'stock' ? 'share price, chart and research' : cls === 'etf' ? 'ETF price, holdings and costs' : cls === 'index' ? 'index level and chart' : cls === 'fx' ? 'exchange rate and chart' : `${CLASS_LABEL[cls].one.toLowerCase()} price and chart`;
-  return pageMetadata({ title: `${a.name} (${a.symbol}) ${kind}`, description: `${a.description} Performance, ${cls === 'stock' ? 'valuation, fundamentals' : 'risk'}, research and India context on INRGIFT. ${isDemoData ? 'Demo data, clearly labelled.' : ''}`.trim(), path: assetHref(a) });
+  return pageMetadata({ title: assetTitle(a), index: assetQuality(a).indexable ? 'index' : 'noindex', description: `${a.description} Performance, ${cls === 'stock' ? 'valuation, fundamentals' : 'risk'}, research and India context on INRGIFT. ${isDemoData ? 'Demo data, clearly labelled.' : ''}`.trim(), path: assetHref(a) });
 }
 const M = ({ a, k, label }: { a: Asset; k: MetricKey; label?: string }) => { const f = fmtMetric(k, a.m[k]); return <Metric label={label ?? METRICS[k].short} value={f.text} hint={f.state === 'unavailable' ? 'Unavailable from source' : f.state === 'na' ? 'Not applicable' : METRICS[k].label} />; };
 const Unavailable = ({ children }: { children: ReactNode }) => <EmptyState title="Unavailable">{children}</EmptyState>;

@@ -1,4 +1,5 @@
 'use client';
+import { track } from '@/lib/telemetry/analytics';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -85,7 +86,7 @@ export function SignupForm() {
   const { busy, error, run } = useAuthAction();
   const errs = { name: !f.name.trim() ? 'Enter your name.' : null, email: !isEmail(f.email.trim()) ? 'Enter a valid email address.' : null, password: passwordProblem(f.password), terms: !f.terms ? 'Accept the terms to continue.' : null };
   const show = (k: keyof typeof errs) => (touched ? errs[k] : null);
-  const submit = () => { setTouched(true); if (Object.values(errs).some(Boolean)) return; void run(async () => { await auth.signUp({ email: f.email.trim(), password: f.password, name: f.name.trim(), country: f.country }); router.push(`/verify?email=${encodeURIComponent(f.email.trim())}&next=${encodeURIComponent(next)}`); }); };
+  const submit = () => { setTouched(true); if (Object.values(errs).some(Boolean)) return; track('signup_started', {}); void run(async () => { await auth.signUp({ email: f.email.trim(), password: f.password, name: f.name.trim(), country: f.country }); track('signup_completed', {}); router.push(`/verify?email=${encodeURIComponent(f.email.trim())}&next=${encodeURIComponent(next)}`); }); };
   if (!ready) return <AuthSkeleton />;
   return (
     <AuthCard title="Create your account" lead="Free. Research tools stay open without an account; an account keeps your work." step={[1, 4, 'Account']} footer={<>Already have an account? <AltLink href="/login">Sign in</AltLink></>}>
@@ -119,7 +120,7 @@ export function VerifyEmail() {
       <div className="space-y-4">
         <FormError error={error} />
         {sent && <Callout tone="success" title="A new link is on its way." >Links expire after one hour. Check spam if it has not arrived in a few minutes.</Callout>}
-        {auth.mode === 'demo' && <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => { await auth.confirmEmail?.(); await refresh(); router.push(`/verify-phone?next=${encodeURIComponent(next)}`); })}>Open the verification link (demo)</Button>}
+        {auth.mode === 'demo' && <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => { await auth.confirmEmail?.(); track('verification_completed', { step: 'email' }); await refresh(); router.push(`/verify-phone?next=${encodeURIComponent(next)}`); })}>Open the verification link (demo)</Button>}
         <Button size="lg" className="w-full" disabled={!email || cool.left > 0 || busy} onClick={() => run(async () => { await auth.resendEmail(email); setSent(true); cool.start(); })}>{cool.left > 0 ? `Resend available in ${cool.left}s` : 'Resend the link'}</Button>
       </div>
     </AuthCard>
@@ -140,7 +141,7 @@ export function VerifyPhone() {
   const after = `/mfa?mode=enrol&next=${encodeURIComponent(next)}`;
   if (loading || !user) return <AuthSkeleton />;
   const send = () => { const p = normalizePhone(phone); if (!isPhone(p)) return setError('Enter the number with its country code, for example +91 98765 43210.'); void run(async () => { await auth.sendPhoneOtp(p, 'verify'); setSentTo(p); cool.start(); }); };
-  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code.'); void run(async () => { await auth.verifyPhoneOtp(sentTo!, code, 'verify'); await refresh(); router.push(after); }); };
+  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code.'); void run(async () => { await auth.verifyPhoneOtp(sentTo!, code, 'verify'); track('verification_completed', { step: 'phone' }); await refresh(); router.push(after); }); };
   return (
     <AuthCard title="Verify your mobile number" step={[3, 4, 'Verify phone']} lead="A verified number lets you sign in with a code and helps recover the account." footer={<button type="button" className="link" onClick={() => router.push(after)}>Skip for now</button>}>
       {user.phoneVerified && !sentTo ? <div className="space-y-4"><Callout tone="success" title={`${maskPhone(user.phone ?? '')} is already verified.`} /><Button variant="primary" size="lg" className="w-full" onClick={() => router.push(after)}>Continue</Button></div> : !sentTo ? (
@@ -180,7 +181,7 @@ export function MfaPage() {
     if (user.mfaEnrolled) { router.replace(next); return; }
     void run(async () => setEnrol(await auth.mfaEnroll()));
   }, [loading, mode, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code from your authenticator app.'); void run(async () => { await auth.mfaVerify(mode === 'challenge' ? factor! : enrol!.factorId, code); await refresh(); router.replace(next); router.refresh(); }); };
+  const verify = () => { if (code.length !== 6) return setError('Enter the six-digit code from your authenticator app.'); void run(async () => { await auth.mfaVerify(mode === 'challenge' ? factor! : enrol!.factorId, code); if (mode !== 'challenge') track('verification_completed', { step: 'mfa' }); await refresh(); router.replace(next); router.refresh(); }); };
   if (mode === 'challenge') return (
     <AuthCard title="Two-step verification" lead="Open your authenticator app and enter the current code for INRGIFT." footer={<>Lost access to your authenticator? <AltLink href="/support">Contact support</AltLink></>}>
       {!factor ? <AuthSkeleton /> : (

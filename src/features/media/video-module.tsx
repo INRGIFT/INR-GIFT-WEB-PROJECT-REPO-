@@ -1,4 +1,5 @@
 'use client';
+import { track } from '@/lib/telemetry/analytics';
 import { Captions, FileText, Play } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/format';
@@ -22,7 +23,7 @@ export function VideoModule({ video, compact }: { video: VideoItem; compact?: bo
     <figure className="overflow-hidden rounded-card border border-line bg-white shadow-card" aria-labelledby={`v-${video.id}`}>
       <div className="relative aspect-video bg-navy">
         {video.src ? (
-          <video ref={ref} className="h-full w-full" controls={started} preload="none" poster={video.poster} playsInline onTimeUpdate={(e) => setNow(e.currentTarget.currentTime)} onPlay={() => setStarted(true)}>
+          <video ref={ref} className="h-full w-full" controls={started} preload="none" poster={video.poster} playsInline onTimeUpdate={(e) => setNow(e.currentTarget.currentTime)} onPlay={() => { if (!started) track('video_start', { videoId: video.id }); setStarted(true); }} onEnded={() => track('video_complete', { videoId: video.id })}>
             <source src={video.src} type={video.type ?? 'video/webm'} />
             {video.captions && <track kind="captions" src={video.captions} srcLang="en" label="English" default />}
           </video>

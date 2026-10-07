@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
+import { marketQuality } from '@/lib/indexability';
 import { breadcrumbs, JsonLd, marketPlace } from '@/lib/structured-data';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -18,7 +19,8 @@ import * as md from '@/services/market-data';
 type Props = { params: Promise<{ market: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await md.getMarket((await params).market);
-  return m ? pageMetadata({ title: `${m.name} stock market: indices, sectors and hours in IST`, description: `${m.name} market overview: ${m.exchanges.map((e) => e.name).join(', ')} trading hours in IST, headline indices, sector performance, movers and ${m.currency}/INR context.`, path: marketHref(m.slug) }) : { title: 'Market not found' };
+  const covered = m ? (await md.getAssets({ marketId: m.id })).length : 0;
+  return m ? pageMetadata({ index: marketQuality(m, covered).indexable ? 'index' : 'noindex', title: `${m.name} Stock Market: Indices, Sectors & Trading Hours in IST`, description: `${m.name} market overview: ${m.exchanges.map((e) => e.name).join(', ')} trading hours in IST, headline indices, sector performance, movers and ${m.currency}/INR context.`, path: marketHref(m.slug) }) : { title: 'Market not found' };
 }
 export default async function MarketPage({ params }: Props) {
   const m = await md.getMarket((await params).market);

@@ -1,4 +1,6 @@
 'use client';
+import { countRules, decodeTree } from '@/features/screener/logic';
+import { track } from '@/lib/telemetry/analytics';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useToast } from '@/components/ui/toast';
@@ -59,7 +61,7 @@ export function WorkspaceProvider({ rates, children }: { rates: Record<string, n
   const requireAuth = useCallback(() => { if (user) return true; router.push(`/login?next=${encodeURIComponent(pathname)}`); return false; }, [user, router, pathname]);
   const add = useCallback(async <T extends TableName>(table: T, row: NewRow<T>) => {
     if (!repo.current) return null;
-    try { const saved = await repo.current.insert(table, row); setData((d) => ({ ...d, [table]: [saved, ...d[table]] })); return saved; } catch { toast('That could not be saved. Try again.'); return null; }
+    try { const saved = await repo.current.insert(table, row); setData((d) => ({ ...d, [table]: [saved, ...d[table]] })); trackSave(table, row as Record<string, unknown>); return saved; } catch { toast('That could not be saved. Try again.'); return null; }
   }, [toast]);
   const update = useCallback(async <T extends TableName>(table: T, id: string, patch: Partial<Row<T>>) => {
     setData((d) => ({ ...d, [table]: d[table].map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
@@ -96,4 +98,13 @@ export function WorkspaceProvider({ rates, children }: { rates: Record<string, n
 
   const value = useMemo(() => ({ ready, data, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice }), [ready, data, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** Product analytics for saves. Only entity ids and enums, never names, notes or other text a person typed. */
+function trackSave(table: string, row: Record<string, unknown>) {
+  if (table === 'watchlist_items') track('watchlist_add', { instrumentId: String(row.instrument_id ?? '') });
+  else if (table === 'alerts') track('alert_created', { kind: String(row.kind ?? '') });
+  else if (table === 'saved_screens') { const tree = decodeTree(String(row.definition ?? '')); track('screen_created', { rules: tree ? countRules(tree) : 0, universe: String(row.universe ?? 'all') }); }
+  else if (table === 'saved_comparisons') track('compare_created', { count: Array.isArray(row.instrument_ids) ? row.instrument_ids.length : 0 });
+  else if (table === 'saved_research') track('research_save', { refType: String(row.ref_type ?? '') });
 }

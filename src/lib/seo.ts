@@ -19,7 +19,7 @@ interface PageMeta {
   /** Canonical path, e.g. `/stocks/AAPL`. */
   path: string;
   /** `faceted` keeps the canonical but asks crawlers not to index this variant. `private` blocks indexing and following. */
-  index?: 'index' | 'faceted' | 'private';
+  index?: 'index' | 'faceted' | 'noindex' | 'private';
   type?: 'website' | 'article' | 'profile';
   publishedTime?: string;
   modifiedTime?: string;
@@ -28,14 +28,14 @@ interface PageMeta {
   keywords?: string[];
 }
 export function pageMetadata({ title, description, path, index = 'index', type = 'website', publishedTime, modifiedTime, absoluteTitle, keywords }: PageMeta): Metadata {
-  const ogTitle = absoluteTitle ? title : `${title} · ${SITE.name}`;
+  const ogTitle = absoluteTitle ? title : `${title} | ${SITE.name}`;
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,
     keywords,
     alternates: { canonical: path },
     // While the site serves demo data (or SITE_INDEXABLE=false), nothing is indexable; see config.isIndexable.
-    robots: !isIndexable || index === 'private' ? { index: false, follow: index !== 'private' } : index === 'faceted' ? { index: false, follow: true } : { index: true, follow: true },
+    robots: !isIndexable || index === 'private' ? { index: false, follow: index !== 'private' } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: { type, title: ogTitle, description, url: path, siteName: SITE.name, locale: 'en_IN', ...(type === 'article' ? { publishedTime, modifiedTime } : {}) },
     twitter: { card: 'summary_large_image', title: ogTitle, description },
   };

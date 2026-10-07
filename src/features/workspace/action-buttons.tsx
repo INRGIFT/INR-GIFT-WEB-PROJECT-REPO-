@@ -1,4 +1,5 @@
 'use client';
+import { track as analytics } from '@/lib/telemetry/analytics';
 import { Bell, Bookmark, Check, Columns2, FileText, LineChart, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -77,9 +78,10 @@ export function RowActions({ asset }: { asset: Lite }) {
   );
 }
 /** Records an asset or document view in the signed-in user's history. Renders nothing. */
-export function TrackView({ kind, title, href }: { kind: 'asset' | 'research'; title: string; href: string }) {
+export function TrackView({ kind, title, href, id, cls }: { kind: 'asset' | 'research'; title: string; href: string; id?: string; cls?: string }) {
   const { track, ready } = useWorkspace();
   useEffect(() => { if (ready) track(kind, title, href); }, [ready, track, kind, title, href]);
+  useEffect(() => { if (kind === 'asset') analytics('asset_open', { instrumentId: id ?? href, cls: cls ?? '' }); else { const [, , k, slug] = href.split('/'); analytics('research_open', { kind: k ?? '', slug: slug ?? '' }); } }, [kind, href, id, cls]);
   return null;
 }
 export function ResearchLink({ asset }: { asset: Lite }) { return <Link href={`${assetHref(asset)}#research`} className={buttonClass('secondary')}>View research</Link>; }
