@@ -7,7 +7,7 @@ import type { OtpCheck, SmsOtpProvider } from '@/services/providers/twofactor';
 const CODE = '482913';
 function session(over: Partial<ServerSession> = {}, facts: Partial<ServerSession['facts']> = {}): ServerSession {
   const f = { signedIn: true, emailConfirmed: true, phoneVerified: false, passwordSession: true, smsVerified: false, ...facts };
-  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, facts: f, gate: workspaceGate(f), ...over };
+  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, facts: f, gate: workspaceGate(f, true), ...over };
   return s;
 }
 function memoryStore(taken = new Set<string>()) {
@@ -125,7 +125,7 @@ describe('2Factor SMS verification (server core)', () => {
     const r = await startSms(recovery, 'reset', null, { store: m.store, sms, now: clock });
     await completeSms(recovery, r.challengeId, CODE, { store: m.store, sms, now: clock });
     expect(m.stepUps).toEqual([['s1', 'u1']]);
-    expect(workspaceGate({ ...recovery.facts, smsVerified: true })).toBe('login');
+    expect(workspaceGate({ ...recovery.facts, smsVerified: true }, true)).toBe('login');
   });
   it('provider failure is reported as PROVIDER and nothing is stored', async () => {
     const m = memoryStore();

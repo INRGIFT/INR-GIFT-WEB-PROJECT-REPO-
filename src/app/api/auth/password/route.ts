@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { passwordProblem } from '@/features/auth/policy';
 import { readServerSession } from '@/features/auth/server-facts';
-import { authMode } from '@/lib/config';
+import { authMode, smsSecondFactor } from '@/lib/config';
 import { rateLimit } from '@/lib/rate-limit';
 import { sendEmail } from '@/services/email/email-service';
 import { emailTemplates } from '@/services/email/templates';
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const sb = await supabaseServer();
   const session = await readServerSession(sb);
   if (!session) return NextResponse.json({ error: { code: 'NOT_SIGNED_IN', message: 'Sign in first.' } }, { status: 401 });
-  if (session.phoneConfirmed && !session.smsVerified) return NextResponse.json({ error: { code: 'SMS_REQUIRED', message: 'Confirm the code sent to your phone first.' } }, { status: 403 });
+  if (smsSecondFactor && session.phoneConfirmed && !session.smsVerified) return NextResponse.json({ error: { code: 'SMS_REQUIRED', message: 'Confirm the code sent to your phone first.' } }, { status: 403 });
   const { error } = await sb.auth.updateUser({ password: parsed.data.password });
   if (error) return NextResponse.json({ error: { code: 'REJECTED', message: error.code === 'same_password' ? 'Choose a password you have not used here before.' : 'Choose a stronger password.' } }, { status: 400 });
   await sb.auth.signOut({ scope: 'others' });

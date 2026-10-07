@@ -4,15 +4,14 @@ import { signInDemo } from './fixtures';
 
 /**
  * Release-quality checks on a demo build (NEXT_PUBLIC_AUTH_MODE=demo).
- * Access model: only "/" (plus legal, support and contact) is public; every other page and /api route needs a fully
- * verified session (src/lib/route-registry.ts). Signed-in checks use the demo session fixture.
+ * Access model: only "/" is public (plus auth pages); every other page and /api route needs a fully verified session (src/lib/route-registry.ts). Signed-in checks use the demo session fixture.
  */
-const PUBLIC = ['/', '/legal/privacy', '/legal/terms', '/legal/grievance', '/support', '/contact'];
+const PUBLIC = ['/'];
 const AUTH = ['/login', '/signup', '/verify', '/verify-phone', '/forgot-password', '/reset-password'];
 const PROTECTED = ['/markets', '/markets/all', '/markets/India', '/assets', '/assets/stocks', '/assets/funds', '/stocks/AAPL', '/etfs/SPY', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/commodities/GOLD', '/bonds/US-10Y', '/reits/PLD',
   '/discover', '/discover/heatmap', '/discover/screener', '/discover/compare', '/discover/collections', '/discover/trending', '/research', '/research/stocks', '/research/etfs', '/research/markets', '/research/themes', '/research/sectors', '/research/countries', '/research/sectors/technology',
   '/resources', '/resources/news', '/resources/earnings', '/resources/dividends', '/resources/ipo', '/resources/calendar', '/resources/learn', '/resources/learn/etf-basics', '/resources/glossary', '/resources/glossary/beta', '/resources/data',
-  '/search', '/about', '/pricing', '/faq', '/app', '/app/watchlist', '/app/alerts', '/app/screens', '/app/comparisons', '/app/collections', '/app/research', '/app/notes', '/app/history', '/app/recent', '/account/profile', '/account/settings', '/account/security', '/notifications', '/onboarding'];
+  '/search', '/legal/privacy', '/legal/terms', '/legal/grievance', '/support', '/contact', '/about', '/pricing', '/faq', '/app', '/app/watchlist', '/app/alerts', '/app/screens', '/app/comparisons', '/app/collections', '/app/research', '/app/notes', '/app/history', '/app/recent', '/account/profile', '/account/settings', '/account/security', '/notifications', '/onboarding'];
 const APIS = ['/api/v1/assets', '/api/v1/assets/AAPL', '/api/v1/search?q=apple', '/api/v1/markets', '/api/v1/fx-rates', '/api/v1/news', '/api/v1/news/feed', '/api/v1/research'];
 const base = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 const signedIn = async (playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) => playwright.request.newContext({ baseURL: base, extraHTTPHeaders: { Cookie: 'inrgift_demo_session=1' } });
@@ -34,6 +33,7 @@ test.describe('access: homepage only is public', () => {
       expect.soft(body.error?.code, path).toBe('UNAUTHENTICATED');
       expect.soft(body.data, path).toBeUndefined();
     }
+    expect((await request.post('/api/contact', { data: { topic: 'other', email: 'a@example.com', message: 'hello there' } })).status()).toBe(401);
     const prefetch = await request.get('/markets', { maxRedirects: 0, headers: { RSC: '1', 'Next-Router-Prefetch': '1' } });
     expect(prefetch.status()).toBe(307);
   });
@@ -56,8 +56,11 @@ test.describe('access: homepage only is public', () => {
     expect(await (await request.get('/robots.txt')).text()).toContain('Disallow: /');
     const sitemap = await (await request.get('/sitemap/core.xml')).text();
     expect(sitemap).not.toMatch(/\/(stocks|markets|research|discover|resources|app)\//);
+    const robots = await (await request.get('/robots.txt')).text();
+    expect(robots).not.toMatch(/Allow: \/(legal|support|contact|markets|stocks)/);
     const h = await request.get('/api/health');
     expect(h.status()).toBe(200);
+    expect(JSON.stringify(await h.json())).not.toMatch(/re_|whsec_|sb_secret|eyJ/);
     const j = await h.json();
     expect(j.status).toBe('ok');
     expect(JSON.stringify(j)).not.toMatch(/re_|sk_|whsec|secret_key|apikey/i);
@@ -80,8 +83,8 @@ test.describe('accessibility', () => {
     const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
   };
-  for (const path of ['/', '/login', '/signup', '/legal/privacy']) test(`no serious or critical axe violations on ${path} (public)`, async ({ page }) => { await page.goto(path); expect(await check(page)).toEqual([]); });
-  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/resources/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/account/security']) {
+  for (const path of ['/', '/login', '/signup']) test(`no serious or critical axe violations on ${path} (public)`, async ({ page }) => { await page.goto(path); expect(await check(page)).toEqual([]); });
+  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/resources/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/legal/privacy', '/account/security']) {
     test(`no serious or critical axe violations on ${path} (signed in)`, async ({ page }) => { await signInDemo(page); await page.goto(path); expect(await check(page)).toEqual([]); });
   }
 });

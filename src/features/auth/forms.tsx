@@ -8,14 +8,15 @@ import { Callout, Skeleton } from '@/components/ui/primitives';
 import { AltLink, AuthCard, AuthForm, FormError, gateHref, maskEmail, maskPhone, PasswordRules, safeNext, useAuthAction, useCooldown, useNext, useRedirectIfSignedIn } from './auth-ui';
 import { AuthError, isEmail, passwordProblem, type PhoneChallenge, type SmsPurpose } from './auth-service';
 import { validateSignup, type SignupErrors, type SignupInput } from './policy';
+import { smsSecondFactor } from '@/lib/config';
 import { useSession } from './session-context';
 
 const COUNTRIES = ['India', 'United Arab Emirates', 'Singapore', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'Japan', 'Saudi Arabia', 'Other'];
 const NOTICES: Record<string, [tone: 'warn' | 'success', text: string]> = {
   link: ['warn', 'That link could not be used. Request a new one below.'],
   expired: ['warn', 'That link has expired. Request a new one below.'],
-  verified: ['success', 'Email verified. Sign in with your email and password to verify your mobile number.'],
-  reset: ['success', 'Password changed and other sessions signed out. Sign in with your new password; we will text a code to your phone.'],
+  verified: ['success', smsSecondFactor ? 'Email verified. Sign in with your email and password to verify your mobile number.' : 'Email verified. Sign in with your email and password.'],
+  reset: ['success', smsSecondFactor ? 'Password changed and other sessions signed out. Sign in with your new password; we will text a code to your phone.' : 'Password changed and other sessions signed out. Sign in with your new password.'],
 };
 const STEPS = 3;
 /**
@@ -51,13 +52,15 @@ export function LoginForm() {
       try {
         const gate = await auth.signIn(email.trim(), password);
         await refresh();
-        router.replace(gateHref(gate, next));
+        // Without the SMS step, the first sign-in after the emailed link is where a new account meets onboarding.
+        const firstSignIn = !smsSecondFactor && gate === 'ok' && params.get('notice') === 'verified';
+        router.replace(firstSignIn ? `/onboarding${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}` : gateHref(gate, next));
       } catch (e) { if (e instanceof AuthError && e.code === 'EMAIL_UNCONFIRMED') setUnconfirmed(true); throw e; }
     });
   };
   if (!ready) return <AuthSkeleton />;
   return (
-    <AuthCard title="Sign in to INRGIFT" lead="Email and password, then a code sent to your phone." footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create your account</AltLink></>}>
+    <AuthCard title="Sign in to INRGIFT" lead={smsSecondFactor ? 'Email and password, then a code sent to your phone.' : 'Sign in with your email and password.'} footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create your account</AltLink></>}>
       {notice && <Callout tone={notice[0]} className="mb-4" title={notice[1]} />}
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
@@ -108,7 +111,7 @@ export function SignupForm() {
         <FormError error={error} />
         <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} error={show('name')} maxLength={80} autoFocus />
         <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={f.email} onChange={(e) => set('email', e.target.value)} error={show('email')} />
-        <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} error={show('phone')} hint="With country code. Each sign-in asks for a code sent here by SMS." />
+        <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} error={show('phone')} hint={smsSecondFactor ? 'With country code. Each sign-in asks for a code sent here by SMS.' : 'With country code. Required for every account; SMS verification of this number is switched on later.'} />
         <SelectField label="Country of residence" value={f.country} onChange={(e) => set('country', e.target.value)}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
         <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} error={show('password')} /><PasswordRules value={f.password} /></div>
         <PasswordField label="Confirm password" autoComplete="new-password" value={f.confirm} onChange={(e) => set('confirm', e.target.value)} error={show('confirm')} />
@@ -174,7 +177,7 @@ export function VerifyPhone() {
   const params = useSearchParams();
   const change = params.get('mode') === 'change';
   const next = safeNext(params.get('next'), change ? '/account/security' : '/app');
-  const purpose: SmsPurpose | null = !account ? null : change ? (account.gate === 'ok' ? 'change' : null) : account.gate === 'verify-phone' ? 'signup' : account.gate === 'sms' ? 'login' : null;
+  const purpose: SmsPurpose | null = !account ? null : change ? (smsSecondFactor && account.gate === 'ok' ? 'change' : null) : account.gate === 'verify-phone' ? 'signup' : account.gate === 'sms' ? 'login' : null;
   const [phone, setPhone] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<PhoneChallenge | null>(null);
   const autoSent = useRef(false);
@@ -248,7 +251,7 @@ export function ForgotPassword() {
   const { busy, error, setError, run } = useAuthAction();
   const submit = () => { if (!isEmail(email.trim())) return setError('Enter the email address on your account.'); void run(async () => { await auth.resetPassword(email.trim()); setSent(true); cool.start(); }); };
   return (
-    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in one hour. You will also need your phone.</> : 'Enter your email and we will send a link to choose a new password. You will also confirm a code sent to your phone.'} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
+    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in one hour.{smsSecondFactor ? ' You will also need your phone.' : ''}</> : `Enter your email and we will send a link to choose a new password.${smsSecondFactor ? ' You will also confirm a code sent to your phone.' : ''}`} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
       {!sent ? (
         <AuthForm onSubmit={submit}>
           <FormError error={error} />
@@ -284,7 +287,7 @@ export function ResetPassword() {
   const problem = passwordProblem(pw), mismatch = confirm && pw !== confirm ? 'The two passwords do not match.' : null;
   if (loading || opening) return <AuthSkeleton />;
   if (!account) return <AuthCard title="This reset link has expired" lead="Reset links work once and expire after one hour."><a href="/forgot-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Request a new link</a></AuthCard>;
-  const needsSms = account.phoneVerified && !account.smsVerified;
+  const needsSms = smsSecondFactor && account.phoneVerified && !account.smsVerified;
   if (needsSms) return (
     <AuthCard title="Confirm it is you" lead="Before choosing a new password, enter the code we send to your phone. A password reset never removes your phone verification."
       footer={<>Lost access to this phone? <AltLink href="/support?topic=lost-phone">Recover your account</AltLink></>}>
@@ -302,7 +305,7 @@ export function ResetPassword() {
     void run(async () => { await auth.updatePassword(pw); await auth.signOut('global'); await refresh(); router.replace('/login?notice=reset'); });
   };
   return (
-    <AuthCard title="Choose a new password" lead="After saving, every session is signed out. Sign in again with your email, the new password and an SMS code.">
+    <AuthCard title="Choose a new password" lead={`After saving, every session is signed out. Sign in again with your email and the new password${smsSecondFactor ? ', then an SMS code' : ''}.`}>
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         <div><PasswordField label="New password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} error={touched ? problem : null} autoFocus /><PasswordRules value={pw} /></div>

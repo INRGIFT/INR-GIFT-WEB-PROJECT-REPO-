@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signInDemo } from './fixtures';
+import { signInDemo, SMS_ON } from './fixtures';
 
 /**
  * The acceptance journey from docs/QA.md, run in demo mode (no Supabase): accounts live in the browser, the email
@@ -25,10 +25,12 @@ async function signUp(page: Page) {
   await page.getByLabel('Email', { exact: true }).fill(address);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
-  await page.getByRole('button', { name: 'Send code' }).click();
-  await page.getByLabel('SMS code').fill(CODE);
-  await page.getByRole('button', { name: 'Verify number' }).click();
+  if (SMS_ON) {
+    await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
+    await page.getByRole('button', { name: 'Send code' }).click();
+    await page.getByLabel('SMS code').fill(CODE);
+    await page.getByRole('button', { name: 'Verify number' }).click();
+  }
   await expect(page.getByRole('heading', { name: 'How should prices appear?' })).toBeVisible();
   return address;
 }
@@ -54,7 +56,7 @@ test('signed-in research flow: search, asset, chart, compare, heatmap, screener'
   await expect(page.getByText(/of \d+ match/)).toBeVisible();
 });
 
-test('account journey: sign up, verify email and phone, onboarding, workspace, sign out, sign in with SMS', async ({ page }) => {
+test('account journey: sign up, verify email and phone, onboarding, workspace, sign out, sign in (with SMS when on)', async ({ page }) => {
   const address = await signUp(page);
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -88,9 +90,11 @@ test('account journey: sign up, verify email and phone, onboarding, workspace, s
   await page.getByLabel('Email', { exact: true }).fill(address);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Enter the code sent to your phone' })).toBeVisible();
-  await page.getByLabel('SMS code').fill(CODE);
-  await page.getByRole('button', { name: 'Verify and continue' }).click();
+  if (SMS_ON) {
+    await expect(page.getByRole('heading', { name: 'Enter the code sent to your phone' })).toBeVisible();
+    await page.getByLabel('SMS code').fill(CODE);
+    await page.getByRole('button', { name: 'Verify and continue' }).click();
+  }
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole('link', { name: /Infosys/ }).first()).toBeVisible();
 });

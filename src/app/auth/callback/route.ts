@@ -1,16 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { landing } from '@/lib/auth-links';
-import { isSupabaseConfigured } from '@/lib/config';
+import { isSupabaseConfigured, redirectBase } from '@/lib/config';
 import { supabaseServer } from '@/supabase/server';
 
 /** PKCE landing point for email verification (`flow=signup`) and password-reset (`flow=recovery`) links. */
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
   const kind = req.nextUrl.searchParams.get('flow') === 'recovery' ? 'recovery' : 'signup';
-  if (!isSupabaseConfigured || !code) return NextResponse.redirect(new URL('/login?error=link', req.url));
+  if (!isSupabaseConfigured || !code) return NextResponse.redirect(new URL('/login?error=link', redirectBase(req.url)));
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) return NextResponse.redirect(new URL('/login?error=expired', req.url));
+  if (error) return NextResponse.redirect(new URL('/login?error=expired', redirectBase(req.url)));
   if (kind === 'signup') await supabase.auth.signOut({ scope: 'local' });
-  return NextResponse.redirect(new URL(landing(kind, req.nextUrl.searchParams.get('next')), req.url));
+  return NextResponse.redirect(new URL(landing(kind, req.nextUrl.searchParams.get('next')), redirectBase(req.url)));
 }

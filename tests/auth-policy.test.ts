@@ -19,15 +19,25 @@ describe('sign-up requires email, phone and password', () => {
   it('invalid email format is rejected', () => expect(validateSignup({ ...good, email: 'asha@' }).email).toBeTruthy());
 });
 
+describe('SMS second factor switched off (2Factor.in / DLT pending)', () => {
+  const off = (f: Partial<AuthFacts>) => workspaceGate({ ...full, phoneVerified: false, smsVerified: false, ...f }, false);
+  it('email + password with a confirmed email opens the workspace without any SMS', () => expect(off({})).toBe('ok'));
+  it('still requires a confirmed email and a password session', () => {
+    expect(off({ emailConfirmed: false })).toBe('verify-email');
+    expect(off({ passwordSession: false })).toBe('login');
+    expect(off({ signedIn: false })).toBe('login');
+  });
+});
+
 describe('workspace gate (middleware, RLS and demo all apply this rule)', () => {
-  it('13. email + password + verified phone + SMS this session opens the workspace', () => expect(workspaceGate(full)).toBe('ok'));
-  it('signed out goes to sign in', () => expect(workspaceGate({ ...full, signedIn: false })).toBe('login'));
-  it('9. unverified email is blocked', () => expect(workspaceGate({ ...full, emailConfirmed: false })).toBe('verify-email'));
-  it('10/12. unverified phone is blocked, even with a correct password', () => expect(workspaceGate({ ...full, phoneVerified: false, smsVerified: false })).toBe('verify-phone'));
-  it('11. correct password but no (or a wrong) SMS code is blocked', () => expect(workspaceGate({ ...full, smsVerified: false })).toBe('sms'));
-  it('phone + SMS without the password is blocked', () => expect(workspaceGate({ ...full, passwordSession: false })).toBe('login'));
-  it('15. a password-reset (recovery) session never opens the workspace, even after SMS', () => expect(workspaceGate({ ...full, passwordSession: false, smsVerified: true })).toBe('login'));
-  it('14. a fresh sign-in after sign-out needs the SMS code again', () => expect(workspaceGate({ ...full, smsVerified: false })).toBe('sms'));
+  it('13. email + password + verified phone + SMS this session opens the workspace', () => expect(workspaceGate(full, true)).toBe('ok'));
+  it('signed out goes to sign in', () => expect(workspaceGate({ ...full, signedIn: false }, true)).toBe('login'));
+  it('9. unverified email is blocked', () => expect(workspaceGate({ ...full, emailConfirmed: false }, true)).toBe('verify-email'));
+  it('10/12. unverified phone is blocked, even with a correct password', () => expect(workspaceGate({ ...full, phoneVerified: false, smsVerified: false }, true)).toBe('verify-phone'));
+  it('11. correct password but no (or a wrong) SMS code is blocked', () => expect(workspaceGate({ ...full, smsVerified: false }, true)).toBe('sms'));
+  it('phone + SMS without the password is blocked', () => expect(workspaceGate({ ...full, passwordSession: false }, true)).toBe('login'));
+  it('15. a password-reset (recovery) session never opens the workspace, even after SMS', () => expect(workspaceGate({ ...full, passwordSession: false, smsVerified: true }, true)).toBe('login'));
+  it('14. a fresh sign-in after sign-out needs the SMS code again', () => expect(workspaceGate({ ...full, smsVerified: false }, true)).toBe('sms'));
   it('reads Supabase amr objects and RFC 8176 strings', () => {
     expect(amrMethods([{ method: 'password', timestamp: 1 }])).toEqual(['password']);
     expect(amrMethods(['password'])).toEqual(['password']);

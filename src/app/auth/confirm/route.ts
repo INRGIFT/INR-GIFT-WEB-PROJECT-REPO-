@@ -1,7 +1,7 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { landing, linkKind } from '@/lib/auth-links';
-import { isSupabaseConfigured } from '@/lib/config';
+import { isSupabaseConfigured, redirectBase } from '@/lib/config';
 import { supabaseServer } from '@/supabase/server';
 
 /**
@@ -14,11 +14,11 @@ export async function GET(req: NextRequest) {
   const tokenHash = q.get('token_hash');
   const type = q.get('type') as EmailOtpType | null;
   const kind = linkKind(type);
-  if (!isSupabaseConfigured || !tokenHash || !type || !kind) return NextResponse.redirect(new URL('/login?error=link', req.url));
+  if (!isSupabaseConfigured || !tokenHash || !type || !kind) return NextResponse.redirect(new URL('/login?error=link', redirectBase(req.url)));
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-  if (error) return NextResponse.redirect(new URL('/login?error=expired', req.url));
+  if (error) return NextResponse.redirect(new URL('/login?error=expired', redirectBase(req.url)));
   // A confirmation link verifies the email only; the person signs in with the password next.
   if (kind === 'signup') await supabase.auth.signOut({ scope: 'local' });
-  return NextResponse.redirect(new URL(landing(kind, req.nextUrl.searchParams.get('next')), req.url));
+  return NextResponse.redirect(new URL(landing(kind, req.nextUrl.searchParams.get('next')), redirectBase(req.url)));
 }

@@ -2,14 +2,14 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { GATE_PATH, type Gate } from '@/features/auth/policy';
 import { readServerSession } from '@/features/auth/server-facts';
-import { authMode, config as app, DEMO_SESSION_COOKIE } from '@/lib/config';
+import { authMode, config as app, DEMO_SESSION_COOKIE, redirectBase } from '@/lib/config';
 import { classifyPath, isNoindexPath } from '@/lib/route-registry';
 import { safeReturnPath } from '@/lib/return-url';
 
 /**
- * The site's access gate (src/lib/route-registry.ts): only "/" and the listed public pages are open; every other page
- * and API needs a fully verified session (src/features/auth/policy.ts: password session, confirmed email, verified
- * phone, SMS code in this session). Pages redirect to the missing step with ?next=<path+query>; APIs answer 401/403
+ * The site's access gate (src/lib/route-registry.ts): only "/" (and the auth pages) is open; every other page and API
+ * needs a fully verified session (src/features/auth/policy.ts: password session and confirmed email, plus a verified
+ * phone and an SMS code in this session when the SMS second factor is switched on). Pages redirect to the missing step with ?next=<path+query>; APIs answer 401/403
  * JSON. Protected responses are private and uncacheable, and everything except the public pages is noindex.
  */
 export async function middleware(req: NextRequest) {
@@ -51,9 +51,7 @@ export async function middleware(req: NextRequest) {
         const code = gate === 'login' ? 'UNAUTHENTICATED' : 'VERIFICATION_REQUIRED';
         return carry(NextResponse.json({ error: { code, step: gate, message: gate === 'login' ? 'Sign in to use INRGIFT.' : 'Finish verifying your account to use INRGIFT.' } }, { status: gate === 'login' ? 401 : 403, headers: { 'Cache-Control': 'no-store' } }));
       }
-      const url = req.nextUrl.clone();
-      url.pathname = GATE_PATH[gate];
-      url.search = `?next=${encodeURIComponent(safeReturnPath(`${pathname}${search}`))}`;
+      const url = new URL(`${GATE_PATH[gate]}?next=${encodeURIComponent(safeReturnPath(`${pathname}${search}`))}`, redirectBase(req.url));
       return carry(NextResponse.redirect(url));
     }
     res.headers.set('Cache-Control', 'private, no-store');

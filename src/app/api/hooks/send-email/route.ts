@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
   try { p = JSON.parse(body) as HookPayload; } catch { return fail(400, 'Malformed payload.'); }
   const to = p.user?.email, d = p.email_data ?? {};
   if (!to || !d.email_action_type) return fail(400, 'Malformed payload.');
-  // The configured site address wins; otherwise the Site URL set in Supabase (sent in the signed payload).
-  const site = (process.env.NEXT_PUBLIC_SITE_URL ? config.siteUrl : d.site_url ?? config.siteUrl).replace(/\/$/, '');
+  // INRGIFT's own origin (https://inrgift.com in production, src/lib/config.ts); never taken from the payload.
+  const site = config.siteUrl.replace(/\/$/, '');
   // The return path chosen at sign-up rides along (validated again by /auth/confirm); nothing else from redirect_to is used.
   let next = '';
   try { next = safeReturnPath(new URL(d.redirect_to ?? '', 'https://x.invalid').searchParams.get('next'), ''); } catch { /* none */ }

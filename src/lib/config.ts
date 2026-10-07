@@ -3,7 +3,8 @@ export type ProviderKind = 'demo' | 'nse' | 'real';
 export const config = {
   provider: (process.env.MARKET_DATA_PROVIDER ?? 'demo') as ProviderKind,
   fallbackProvider: (process.env.MARKET_DATA_FALLBACK || null) as ProviderKind | null,
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  /** Canonical origin. Set NEXT_PUBLIC_SITE_URL before the build; production falls back to https://inrgift.com, development to localhost. */
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === 'production' ? 'https://inrgift.com' : 'http://localhost:3000'),
   /** Stock/ETF logo source: "logo.dev" or "none" (ticker tiles only). See src/lib/logos. */
   logoProvider: (process.env.NEXT_PUBLIC_LOGO_PROVIDER || 'none') as 'logo.dev' | 'none',
   /** Logo.dev publishable key (pk_…). Browser-safe by design; restrict it to the production domain at Logo.dev. */
@@ -25,6 +26,17 @@ export const isSupabaseConfigured = Boolean(config.supabaseUrl && config.supabas
  *   off       a production build with no Supabase configuration and no explicit demo opt-in: sign-in is unavailable,
  *             so a misconfigured deployment can never fall back to the demo account.
  */
+/**
+ * Base for absolute redirects. In production the configured site URL (https://inrgift.com), so a proxy in front of the
+ * Node app (GoDaddy) can never turn a redirect into an internal host or http; elsewhere the request's own URL.
+ */
+export const redirectBase = (requestUrl: string) => (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SITE_URL ? process.env.NEXT_PUBLIC_SITE_URL : requestUrl);
+/**
+ * SMS second factor (2Factor.in). Off until the sender/template DLT approval, the 2Factor key and migration 0007 are in
+ * place; then set NEXT_PUBLIC_SMS_SECOND_FACTOR=on (and rebuild). While off, accounts still give email + phone +
+ * password, email confirmation and a password sign-in are still required, and no SMS is ever attempted.
+ */
+export const smsSecondFactor = process.env.NEXT_PUBLIC_SMS_SECOND_FACTOR === 'on';
 export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
   : process.env.NEXT_PUBLIC_AUTH_MODE === 'demo' || process.env.NODE_ENV !== 'production' ? 'demo' : 'off';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).

@@ -3,9 +3,9 @@
  * rules live in one place.
  *
  * ACCESS POLICY (default deny):
- *   public      "/" (the homepage) and the few pages listed in PUBLIC_PAGES with a stated reason
+ *   public      "/" (the homepage) only: the owner's literal requirement
  *   auth        sign-in, sign-up and verification infrastructure, open so people can authenticate
- *   public-api  endpoints that must work before sign-in and protect themselves (health, auth steps, signed hooks, contact)
+ *   public-api  endpoints that must work before sign-in and protect themselves (health, auth steps, signed hooks, ingest)
  *   file        static and metadata files (robots, sitemap, icons, share images, files in /public)
  *   protected   EVERYTHING ELSE, pages and /api alike: requires a fully verified session (src/features/auth/policy.ts)
  * A new route is protected automatically; making something public means adding it here with a reason.
@@ -15,15 +15,12 @@ export type Layout = 'site' | 'workspace' | 'auth' | 'api';
 export interface RouteSpec { pattern: string; layout: Layout; access: Access; index: 'index' | 'noindex'; feature: string }
 
 /**
- * Pages public besides the homepage, and why. Decision recorded in docs/DECISIONS.md (7 Oct 2026):
- *   /legal/*   Terms and Privacy must be readable before someone accepts them at sign-up; Indian IT Rules 2021 require
- *              the grievance officer details to be published; risk disclosure and refund terms are pre-purchase notices.
- *   /support   Account recovery when a phone is lost happens before sign-in is possible.
- *   /contact   The only way for someone who cannot sign in to reach INRGIFT (and the grievance channel).
+ * Public pages: the homepage only (owner decision, 7 Oct 2026, docs/DECISIONS.md). Legal, support and contact pages
+ * require sign-in like every other page; see docs/RELEASE_READINESS.md for the consent consideration this creates.
  */
-export const PUBLIC_PAGES = ['/', '/legal', '/support', '/contact'];
+export const PUBLIC_PAGES = ['/'];
 export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/mfa', '/forgot-password', '/reset-password', '/auth/callback', '/auth/confirm'];
-export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/contact', '/api/internal'];
+export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/internal'];
 const METADATA_FILES = ['/robots.txt', '/sitemap.xml', '/sitemap', '/manifest.webmanifest', '/icon', '/apple-icon', '/opengraph-image', '/twitter-image', '/favicon.ico'];
 /** Files served from /public (brand, fonts, media, posters): marketing assets with no product data. Only root-level
  * files and these folders count, so a page path with a file-like suffix (/stocks/AAPL.png) stays protected. */
@@ -43,7 +40,7 @@ export function classifyPath(pathname: string): Access {
 export const isProtectedPath = (p: string) => classifyPath(p) === 'protected';
 /** Kept for older call sites: "private" now means protected. */
 export const isPrivatePath = isProtectedPath;
-/** Only the homepage and the public pages may be indexed; everything else (and anything with a query) is noindex. */
+/** Only the homepage may be indexed; everything else (and anything with a query) is noindex. */
 export const isIndexablePath = (p: string) => classifyPath(p) === 'public';
 export const isNoindexPath = (p: string) => !isIndexablePath(p);
 

@@ -4,7 +4,8 @@ import { PageContainer, Section } from '@/components/ui/primitives';
 import { VideoModule } from '@/features/media/video-module';
 import { HomeCtas } from '@/features/site/home-ctas';
 import { JsonLd, organization } from '@/lib/structured-data';
-import { SITE } from '@/lib/seo';
+import { pageMetadata, SITE } from '@/lib/seo';
+import { smsSecondFactor } from '@/lib/config';
 import { getVideos } from '@/services/content';
 import * as md from '@/services/market-data';
 
@@ -12,6 +13,11 @@ import * as md from '@/services/market-data';
  * The only public product page. It explains INRGIFT and converts; it shows no market tables, prices, research or news
  * (all of which require a verified account, src/lib/route-registry.ts). Feature links lead to sign-in when signed out.
  */
+export const metadata = pageMetadata({
+  title: `${SITE.name} | ${SITE.slogan} · ${SITE.tagline}`, absoluteTitle: true, path: '/',
+  description: `${SITE.promise} Research global stocks, ETFs, indices and currencies with India context.`,
+});
+
 const FEATURES = [
   { icon: Globe2, title: 'Markets', href: '/markets', body: 'Every covered exchange with its trading session on India time, holidays, auctions and benchmark index.' },
   { icon: Layers, title: 'Assets', href: '/assets', body: 'Stocks, ETFs, indices, currencies, commodities, bonds and REITs, each with performance, risk and identity.' },
@@ -42,8 +48,8 @@ export default async function HomePage() {
           <div className="rounded-card border border-white/10 bg-white p-5 text-navy shadow-pop">
             <h2 className="flex items-center gap-2 text-lead font-bold"><ShieldCheck size={20} aria-hidden className="text-brand" />Private by design</h2>
             <ul className="mt-3 space-y-2.5 text-[14px] text-slate2">
-              <li><b className="text-navy">Three credentials.</b> Every account has a verified email, a verified mobile number and a password.</li>
-              <li><b className="text-navy">Two steps at every sign-in.</b> Your password, then a code sent to your phone by SMS.</li>
+              <li><b className="text-navy">Three credentials.</b> Every account has an email, a mobile number and a password, and the email is verified before sign-in.</li>
+              <li><b className="text-navy">{smsSecondFactor ? 'Two steps at every sign-in.' : 'Verified sign-in.'}</b> {smsSecondFactor ? 'Your password, then a code sent to your phone by SMS.' : 'A confirmed email and your password; SMS codes are being added.'}</li>
               <li><b className="text-navy">Your workspace is yours.</b> Watchlists, alerts and notes are visible only to you.</li>
             </ul>
           </div>

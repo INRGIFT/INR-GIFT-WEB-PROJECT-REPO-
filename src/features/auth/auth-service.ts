@@ -1,5 +1,5 @@
 'use client';
-import { authMode, DEMO_SESSION_COOKIE } from '@/lib/config';
+import { authMode, DEMO_SESSION_COOKIE, smsSecondFactor } from '@/lib/config';
 import { supabaseBrowser } from '@/supabase/client';
 import { amrMethods, isPhone, normalizePhone, passwordProblem, workspaceGate, type AuthFacts, type Gate } from './policy';
 
@@ -103,7 +103,7 @@ const supabaseAdapter = (): AuthAdapter => {
       if (!u) return null;
       const { data: c } = await sb.auth.getClaims();
       const claims = c?.claims as { session_id?: string; amr?: unknown } | undefined;
-      const { data: step } = claims?.session_id ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
+      const { data: step } = smsSecondFactor && claims?.session_id ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
       const phoneVerified = Boolean(u.phone_confirmed_at && u.phone);
       return build({
         id: u.id, email: u.email ?? null, name: (u.user_metadata?.full_name as string) || u.email?.split('@')[0] || 'Account',
@@ -115,7 +115,8 @@ const supabaseAdapter = (): AuthAdapter => {
     async signUp({ name, email, phone, password, country, next }) {
       const p = normalizePhone(phone);
       if (!isPhone(p)) throw new AuthError('INVALID', 'Enter the number with its country code.');
-      if (!(await phoneAvailable(p))) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
+      // Number uniqueness is enforced from migration 0007 on, which ships with the SMS second factor.
+      if (smsSecondFactor && !(await phoneAvailable(p))) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
       // The number goes in the sign-up metadata; a database trigger reserves it (unique) when the user is created.
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name, country, phone: p }, emailRedirectTo: confirmRedirect(next) } });
       if (error) throw friendly(error);

@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { authMessage, maskPhone, PasswordRules } from '@/features/auth/auth-ui';
 import { passwordProblem, type SecurityEvent } from '@/features/auth/auth-service';
 import { useSession } from '@/features/auth/session-context';
+import { smsSecondFactor } from '@/lib/config';
 import { TABLES } from '@/features/workspace/repo';
 import { useWorkspace } from '@/features/workspace/workspace-context';
 import { dateTimeIST } from '@/lib/format';
@@ -143,12 +144,14 @@ export function SecurityPage() {
       <Panel title="Sign-in credentials">
         <dl>
           <Row label="Email" value={<span className="flex flex-wrap items-center gap-2">{user.email ?? '—'} <Verified ok={user.emailVerified} no="Pending" /></span>} />
-          <Row label="Phone" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : '—'} <Verified ok={user.phoneVerified} no="Pending" /></span>} action={<ButtonLink size="sm" href="/verify-phone?mode=change&next=/account/security">Change number</ButtonLink>} />
+          <Row label="Phone" value={<span className="flex flex-wrap items-center gap-2">{user.phone ? maskPhone(user.phone) : '—'} <Verified ok={user.phoneVerified} no="Pending" /></span>} action={smsSecondFactor ? <ButtonLink size="sm" href="/verify-phone?mode=change&next=/account/security">Change number</ButtonLink> : undefined} />
           <Row label="Password" value={<span className="flex flex-wrap items-center gap-2">Configured <Verified ok yes="Set" /></span>} action={<Button size="sm" onClick={() => { setPwErr(null); setPwOpen(true); }}>Change</Button>} />
-          <Row label="SMS two-factor" value={<span className="flex flex-wrap items-center gap-2">Code sent to your phone at every sign-in <Verified ok={user.phoneVerified} yes="Enabled" no="Pending" /></span>} />
+          <Row label="SMS two-factor" value={<span className="flex flex-wrap items-center gap-2">{smsSecondFactor ? 'Code sent to your phone at every sign-in' : 'Not yet active'} <Verified ok={smsSecondFactor && user.phoneVerified} yes="Enabled" no="Pending" /></span>} />
         </dl>
-        <p className="mt-3 text-[13px] text-slate2">Two-factor authentication is required for every INRGIFT account and cannot be turned off. Each sign-in needs your email, your password and a code sent to your phone.</p>
-        <p className="mt-2 text-[13px] text-slate2">Forgot your password? <Link className="link" href="/forgot-password">Reset it by email</Link>; you will also confirm a code sent to your phone.</p>
+        {smsSecondFactor
+          ? <p className="mt-3 text-[13px] text-slate2">Two-factor authentication is required for every INRGIFT account and cannot be turned off. Each sign-in needs your email, your password and a code sent to your phone.</p>
+          : <p className="mt-3 text-[13px] text-slate2">SMS two-factor authentication is being set up. Once it is switched on, every sign-in will also need a code sent to the mobile number on your account.</p>}
+        <p className="mt-2 text-[13px] text-slate2">Forgot your password? <Link className="link" href="/forgot-password">Reset it by email</Link>{smsSecondFactor ? '; you will also confirm a code sent to your phone' : ''}.</p>
         <p className="mt-2 text-[13px] text-slate2">Lost this phone? <Link className="link" href="/support?topic=lost-phone">Recover your account</Link>. Support confirms your identity before the old number is removed; you then sign in with your email and password and verify a new number.</p>
       </Panel>
       <Panel title="Current session" tools={<Button size="sm" onClick={async () => { await auth.signOut(); router.push('/'); router.refresh(); }}><LogOut size={14} />Sign out</Button>}>

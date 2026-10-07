@@ -5,8 +5,10 @@ It is **not production-ready**. Live market data, production email and SMS, lega
 not connected. `docs/RELEASE_READINESS.md` lists the gates.
 
 
-**Update (7 Oct 2026, later):** only the homepage (plus legal, support and contact) is public; every product page and
-`/api/v1` route requires a fully verified account (email + phone + password, and an SMS code in the current session).
+**Update (7 Oct 2026, final audit for https://inrgift.com):** only `/` is public (plus auth pages); every other page and
+`/api` route requires a verified account. Every account has email + phone + password. The SMS code step is built but
+**switched off** (`NEXT_PUBLIC_SMS_SECOND_FACTOR`) until 2Factor.in DLT approval, so sign-in today is email + password
+with a confirmed email; migration 0007 is applied together with switching SMS on.
 SMS codes come from 2Factor.in through INRGIFT's server, auth email goes through Resend via the Supabase Send Email
 Hook, and news comes from NewsData.io (demo headlines until its key is set). None of the three providers has been
 exercised with real keys yet, and migration 0007 is not yet applied to the live Supabase project.
@@ -47,9 +49,9 @@ exercised with real keys yet, and migration 0007 is not yet applied to the live 
 
 ## Verification on this commit
 - `npm run typecheck`: passes.
-- `npm test`: 51 tests pass.
-- `npm run build`: passes.
-- Playwright: 64 tests pass (32 on desktop, 32 on Pixel 7). They cover:
+- `npm test`: 119 tests pass. `npm run test:db`: migrations 0001–0007 and RLS pass on local Postgres.
+- `npm run build`: passes (no env; and with Supabase + `NEXT_PUBLIC_SITE_URL=https://inrgift.com`).
+- Playwright on demo builds: 88 pass + 6 SMS-only skipped (SMS off), 92 pass + 2 skipped (SMS on). They cover:
   - journeys
   - route statuses
   - 404s

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { smsSecondFactor } from '@/lib/config';
 import { amrMethods, workspaceGate, type AuthFacts, type Gate } from './policy';
 
 /** Everything the server knows about the current request's session, read from Supabase only. */
@@ -25,7 +26,8 @@ export async function readServerSession(sb: SupabaseClient): Promise<ServerSessi
   const { data: u } = await sb.auth.getUser();
   const user = u.user;
   if (!user || user.id !== claims.sub) return null;
-  const { data: step } = await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle();
+  // The SMS step-up table exists from migration 0007; it is read only when the SMS second factor is on.
+  const { data: step } = smsSecondFactor ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
   const amr = amrMethods(claims.amr);
   const phoneConfirmed = Boolean(user.phone_confirmed_at && user.phone);
   const facts: AuthFacts = { signedIn: true, emailConfirmed: Boolean(user.email_confirmed_at), phoneVerified: phoneConfirmed, passwordSession: amr.includes('password'), smsVerified: Boolean(step) };

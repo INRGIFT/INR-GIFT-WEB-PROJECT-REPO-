@@ -13,8 +13,12 @@ Supabase MFA factors and Supabase's own SMS provider are **not** used (migration
 Every account has three credentials: **email**, **mobile number** and **password**. No passwordless sign-in, no social
 login, no phone-only or email-only accounts, no "skip".
 
-A session reaches any product page or data API only when all five facts hold (`src/features/auth/policy.ts`,
-`workspaceGate`), each read on the server from Supabase:
+**SMS switch (`NEXT_PUBLIC_SMS_SECOND_FACTOR`, `src/lib/config.ts`). Off by default and off in production today**,
+because 2Factor.in DLT approval is pending and migration 0007 is not applied. While off: the gate is facts 1–3 below
+(signed in, email confirmed, password session); sign-up still requires the mobile number (stored in the user's
+metadata, not yet verified or unique); no request ever calls 2Factor.in; the SMS routes answer "not configured";
+Security shows "SMS two-factor: Not yet active"; nothing reads the 0007 tables. Supabase Phone Auth and Supabase MFA
+stay off either way. When on, all five facts are required:
 1. signed in (Supabase session) · 2. email confirmed (`auth.users.email_confirmed_at`) · 3. the session was opened with
 the password (JWT `amr` contains `password`) · 4. phone verified (`auth.users.phone_confirmed_at`, written only by
 INRGIFT's server after 2Factor.in matched a code) · 5. **this session** passed an SMS code (`public.sms_step_ups` row
@@ -37,10 +41,23 @@ The database enforces the same rule with a restrictive RLS policy on every works
   (no `password` in `amr`), and a reset never disables SMS.
 - **Change number** (`/verify-phone?mode=change`, from Security): needs a fully verified session; code sent to the
   new number; the number changes only after it matches; Resend sends a notice. The old number is released.
-- **Lost phone**: `/support?topic=lost-phone` (public). Support confirms identity out of band, then removes the phone
+- **Lost phone** (SMS on only): `/support?topic=lost-phone` (protected under homepage-only access, so the person
+  writes to the support email address instead). Support confirms identity out of band, then removes the phone
   with the Supabase dashboard/admin API; the person signs in with email + password and verifies a new number.
 - **Security page** (`/account/security`): email Verified/Pending, phone Verified/Pending, password Configured, SMS
   two-factor Enabled (cannot be turned off), change number, change password, reset link, sign out.
+- With the SMS switch off, the flows above stop after email + password: sign-up → emailed link → sign in → onboarding
+  → destination; reset → emailed link → new password → sign in. The steps marked SMS are skipped, never faked.
+
+## Switching SMS on (after 2Factor.in DLT approval)
+Do these together, in order; 0007 and the switch belong together, because 0007's RLS requires an SMS step-up on every
+workspace table and the app only writes step-ups when the switch is on.
+1. In GoDaddy: `TWO_FACTOR_API_KEY`, `TWO_FACTOR_OTP_TEMPLATE` (the DLT-approved template) and `SUPABASE_SECRET_KEY`.
+2. Check that no two existing accounts share a mobile number (0007 reserves numbers uniquely and fails on duplicates).
+3. Apply `supabase/migrations/0007_required_credentials_sms.sql` to the live project (verified locally by `npm run test:db`).
+4. Set `NEXT_PUBLIC_SMS_SECOND_FACTOR=on` in GoDaddy and rebuild (it is compiled in at build time).
+5. Smoke test: `/api/health` shows `twofactor: { configured: true, secondFactor: "on" }`; sign in → SMS code arrives →
+   workspace opens; a wrong code keeps it closed. Existing accounts are asked to verify their number at next sign-in.
 
 ## SMS verification (server)
 `src/services/auth/sms-verification.ts` (pure logic, unit-tested) with a Supabase store (`sms-store.ts`, secret key).
@@ -55,13 +72,14 @@ The database enforces the same rule with a restrictive RLS policy on every works
 `src/lib/route-registry.ts` classifies every path; `src/middleware.ts` enforces it for pages **and** `/api`:
 | Class | Paths | Rule |
 | --- | --- | --- |
-| public | `/`, `/legal/*`, `/support`, `/contact` | open (legal pages must be readable before consenting at sign-up and are required by Indian IT Rules 2021; support/contact are the only route for someone who cannot sign in) |
+| public | `/` | open (owner requirement: homepage only; legal, support and contact pages are protected too) |
 | auth | `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | open |
-| public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/contact` (rate-limited), `/api/internal/*` (secret) | each protects itself |
+| public-api | `/api/health`, `/api/auth/*`, `/api/hooks/*` (signed), `/api/internal/*` (secret) | each protects itself |
 | file | robots, sitemap, icons, share image, `/brand` `/fonts` `/media` files | open, no product data |
-| **protected** | **everything else** (default deny): markets, assets, discover, research, resources, search, about, pricing, FAQ, workspace, account, all `/api/v1/*` | fully verified session |
+| **protected** | **everything else** (default deny): markets, assets, discover, research, resources, search, legal, support, contact, about, pricing, FAQ, workspace, account, all `/api/v1/*`, `/api/contact` | fully verified session |
 
-Anonymous page requests → `307 /login?next=<path+query>`; signed in but unverified → the missing step (`/verify`,
+Anonymous page requests → `307 /login?next=<path+query>` (absolute on `NEXT_PUBLIC_SITE_URL` in production, so a
+proxy never rewrites the host); signed in but unverified → the missing step (`/verify`,
 `/verify-phone`). Anonymous API requests → `401 { error: { code: "UNAUTHENTICATED" } }`; unverified → `403
 VERIFICATION_REQUIRED`. Protected responses are `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`; every
 page renders dynamically (`export const dynamic = 'force-dynamic'` in the root layout), so nothing is served from a

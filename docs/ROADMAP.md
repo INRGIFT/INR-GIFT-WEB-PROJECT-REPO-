@@ -3,7 +3,12 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 117 unit/API tests, 92 Playwright tests on desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+## Done (typecheck, 119 unit/API tests, Playwright 88 + 6 skipped with SMS off / 92 + 2 skipped with SMS on, desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+- **Production-readiness audit (7 Oct 2026, inrgift.com):** SMS second factor behind `NEXT_PUBLIC_SMS_SECOND_FACTOR`
+  (off until 2Factor.in DLT approval: sign-in is email + password with a confirmed email, no 2Factor call, no 0007
+  dependency); production site URL defaults to `https://inrgift.com`; email links and auth/middleware redirects use the
+  configured site URL, never the hook payload or the proxy host; public access is literally `/` only (legal, support,
+  contact and `/api/contact` protected); robots allows only `/`, sitemap lists only `/`; homepage canonical.
 - **Foundations:** self-hosted Inter and Manrope; design tokens incl. motion durations; primitives (Button, Tabs,
   Menu, Drawer, Dialog, form fields incl. password, one-time code, switch, checkbox, choice chips, Callout,
   Pagination, Kbd); keyboard-accessible header menus; phone/tablet navigation drawer; route loading, error,
@@ -73,9 +78,10 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
     `next` return path with query; noindex, robots and sitemap limited to public pages; marketing-only homepage.
 
 ## Not done — next, in order
-1. **Owner configuration, then the real-provider smoke test** (`docs/CONNECTORS.md`): apply migration 0007 to the live
-   project; Supabase Site URL and redirect URLs, Send Email Hook, secret key, phone provider and MFA off; Resend key and
-   verified domain; 2Factor.in key and DLT template; NewsData.io key. Nothing is production-ready until a real email,
+1. **Owner configuration, then the real-provider smoke test** (`docs/CONNECTORS.md`, `docs/DEPLOY.md`): Supabase Site
+   URL `https://inrgift.com` and redirect URLs, Send Email Hook, phone provider and MFA off; Resend key and verified
+   domain; NewsData.io key. **After DLT approval only:** 2Factor.in key and template, secret key, migration 0007 and
+   `NEXT_PUBLIC_SMS_SECOND_FACTOR=on`, together (`docs/AUTH-SECURITY.md`, "Switching SMS on"). Nothing is production-ready until a real email,
    a real SMS and a real NewsData.io request have been verified on the deployed site.
 2. **Server-side alert job:** run `evaluateAlert` (src/lib/alerts.ts) on a schedule with the service role, write
    notifications and send email for `channel = 'email'`. Today alerts are evaluated in the browser while INRGIFT is open.
@@ -98,12 +104,13 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - No route-level loading skeleton in `(site)` (removed to keep genuine 404 status).
 - Analytics and error reporting have no vendor sink; Event/Dataset JSON-LD deferred.
 - Demo auth is a browser simulation for dev and tests (hashed passwords, same rules); production builds without Supabase run with sign-in off.
-- Middleware reads the user record and the SMS step-up on every protected request (two Supabase calls); add short-lived caching if latency matters.
+- With homepage-only access, Terms/Privacy (linked from sign-up consent) and support/contact need sign-in; anonymous visitors cannot read them before consenting. Owner/legal decision.
+- Middleware reads the user record and the SMS step-up (when SMS is on) on every protected request (two Supabase calls); add short-lived caching if latency matters.
 - Supabase cannot list other sessions from the browser; the security page says so.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
   that match the type scale steps.
 
 ## Blockers needing the owner
-Domain name and GoDaddy plan type (cPanel Node.js or VPS) · 2Factor.in key and DLT-approved template · Resend key and
-verified domain · NewsData.io key · Supabase secret key, hook and migration 0007 on the live project · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
+GoDaddy env vars and the Supabase URL/hook settings for inrgift.com · 2Factor.in DLT approval, key and template (SMS stays off until then) · Resend key and
+verified domain · NewsData.io key · Supabase secret key and hook; migration 0007 with the SMS switch · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
 analytics and error-reporting vendors.

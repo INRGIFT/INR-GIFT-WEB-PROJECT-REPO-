@@ -89,12 +89,13 @@ To finish:
   owner-scoped `storage.objects` policies. Never store credentials in Storage.
 
 **Dashboard settings still to set** (needs the project):
-- Apply migration 0007 (`supabase/migrations/0007_required_credentials_sms.sql`).
-- Site URL; redirect URLs `https://<domain>/auth/callback**` and `https://<domain>/auth/confirm**` (with `**` so the
-  `next` return path is allowed).
+- Migration 0007 (`supabase/migrations/0007_required_credentials_sms.sql`): **not now**. Apply it only together with
+  the SMS switch, after 2Factor.in DLT approval (`docs/AUTH-SECURITY.md`, "Switching SMS on").
+- Site URL `https://inrgift.com`; redirect URLs `https://inrgift.com/auth/callback**` and
+  `https://inrgift.com/auth/confirm**` (with `**` so the `next` return path is allowed).
 - Email confirmation **on**. Email provider on; **Phone provider off** (SMS goes through INRGIFT + 2Factor.in);
   anonymous sign-ins off; no OAuth providers; MFA (TOTP/phone) **off** (INRGIFT refuses Supabase MFA factors).
-- Authentication → Hooks → **Send Email**: HTTPS hook to `https://<domain>/api/hooks/send-email`; copy its secret
+- Authentication → Hooks → **Send Email**: HTTPS hook to `https://inrgift.com/api/hooks/send-email`; copy its secret
   (`v1,whsec_…`) into `SEND_EMAIL_HOOK_SECRET` on the host.
 - Project Settings → API keys: create a **secret key** for `SUPABASE_SECRET_KEY` (server only).
 - CAPTCHA (optional; see Anti-abuse) and Auth rate limits.
@@ -107,7 +108,8 @@ Supabase → `POST /api/hooks/send-email` (Standard Webhooks signature checked w
 Handled types: `signup` (link to `/auth/confirm?type=signup`), `recovery` (`/auth/confirm?type=recovery`),
 `reauthentication` (code). `magiclink`, `invite` and `email_change` are refused (422): INRGIFT has no passwordless
 sign-in, and email changes go through support. Security notices (phone changed, password changed) are sent by the
-server through the same adapter. Sending an email never marks anything verified; Supabase does.
+server through the same adapter. Sending an email never marks anything verified; Supabase does. Links in every
+email are built from `NEXT_PUBLIC_SITE_URL` (`https://inrgift.com`), never from the hook payload's `site_url`.
 Setup: verify the sending domain in Resend (SPF/DKIM, DMARC recommended), create a sending-only API key, set
 `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (e.g. `INRGIFT <no-reply@<domain>>`) on the host, then enable the hook in
 Supabase. (Resend's Supabase SMTP integration is an alternative only for Supabase's own templates; INRGIFT uses the
@@ -120,7 +122,8 @@ Browser → `/api/auth/sms/start|verify` → `src/services/auth/sms-verification
 (returns an OTP session id, not the code) and `GET …/SMS/VERIFY/{session_id}/{otp}` ("OTP Matched" / "OTP Mismatch" /
 "OTP Expired"). Setup: `TWO_FACTOR_API_KEY`; `TWO_FACTOR_OTP_TEMPLATE` = the OTP template name approved for INRGIFT
 (Indian SMS needs TRAI DLT sender and template registration through 2Factor); optionally restrict the key to the
-server's IP in the 2Factor dashboard.
+server's IP in the 2Factor dashboard. **Status: not active.** DLT approval is pending, so
+`NEXT_PUBLIC_SMS_SECOND_FACTOR` stays off and no code path calls 2Factor.in until it is switched on.
 
 ## News: NewsData.io ("News IO")
 

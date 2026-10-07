@@ -47,10 +47,12 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 
 ## Access and providers (do not change without the owner)
 
-- **Only `/` is public** (plus `/legal/*`, `/support`, `/contact` and auth infrastructure). Every other page and `/api`
+- **Only `/` is public** (plus auth infrastructure; legal, support and contact are protected too). Every other page and `/api`
   route requires a fully verified session; the default-deny classifier is `src/lib/route-registry.ts`, enforced in
   `src/middleware.ts`. New routes are protected automatically. Return paths go through `safeReturnPath` only.
 - **Accounts:** email + phone + password. Sign-in = email + password, then an SMS code. Never passwordless, social or skip.
+  The SMS step sits behind `NEXT_PUBLIC_SMS_SECOND_FACTOR` (off until 2Factor.in DLT approval; switch on together with
+  migration 0007, `docs/AUTH-SECURITY.md`).
 - **Providers:** Supabase Auth (identity/sessions/password), Resend (email, via the Send Email Hook), 2Factor.in (SMS),
   NewsData.io (news, the owner's "News IO" key). Never substitute (no NewsAPI.org, Twilio, Vonage, MessageBird, SNS).
 - Provider secrets are server-only (`src/lib/server-env.ts`), never `NEXT_PUBLIC_`, never committed, never in the zip.
@@ -90,6 +92,6 @@ format, heatmap, screener, compare, identity model, SEO, a route registry, CSP, 
 content library (44 guides, 36 terms), eight recorded tutorials, 2Factor.in SMS second factor, Resend email,
 NewsData.io news and homepage-only public access. It is not production-ready: see
 `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`. Official brand files are
-integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006 applied; 0007 in the repo, to apply; `.env.local`); GoDaddy
+integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006 applied; 0007 in the repo, applied only with the SMS switch; `.env.local`); production domain https://inrgift.com; GoDaddy
 deployment is a validated source zip that GoDaddy installs and builds (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
 `NEXT_PUBLIC_AUTH_MODE=demo`. Start with `docs/ROADMAP.md`.

@@ -7,17 +7,17 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (117), build | Pass | — |
-| Playwright (92: access gate, journeys, auth cases 1–15, return URL, news, 404s, axe, six widths, reduced motion, failure cases) | Pass, demo mode | — |
-| Migrations + RLS (`npm run test:db`, incl. 0007) | Pass on local Postgres; live project on 0001–0006, **0007 not yet applied** | Owner |
+| Typecheck, unit/API tests (119), build | Pass | — |
+| Playwright (access gate, journeys, auth cases 1–15, return URL, news, 404s, axe, six widths, reduced motion, failure cases) | Pass on demo builds: SMS off 88 + 6 skipped, SMS on 92 + 2 skipped | — |
+| Migrations + RLS (`npm run test:db`, incl. 0007) | Pass on local Postgres; live project on 0001–0006; **0007 deliberately not applied** until SMS is switched on | Owner, after DLT |
 | GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
-| `NEXT_PUBLIC_SITE_URL` set in GoDaddy before the build (canonical and share URLs) | Open, needs the domain | Owner |
+| `NEXT_PUBLIC_SITE_URL=https://inrgift.com` in GoDaddy before the build (canonical, email links, redirects; a production build also defaults to it) | Open | Owner |
 | GoDaddy runs the build step and has the memory for `next build` (DEPLOY.md, remaining GoDaddy questions) | Unverified on the real account | Owner |
 | Domain, DNS, TLS and GoDaddy Node.js app created | Open | Owner |
 | Host environment variables (Supabase URL and publishable key, `NEXT_PUBLIC_SITE_URL`, Logo.dev key) | Open | Owner |
 | `NEXT_PUBLIC_AUTH_MODE` is **not** `demo` on the public host | Must verify at deploy | Owner + engineering |
 | Supabase Site URL, redirect URLs, email templates, custom SMTP | Open; production email untested | Owner |
-| 2Factor.in key + DLT template; real SMS received and verified | Open; untested | Owner |
+| 2Factor.in DLT approval, key + template; then 0007 + `NEXT_PUBLIC_SMS_SECOND_FACTOR=on`; real SMS received | Pending DLT; SMS off in production until then | Owner |
 | Resend key + verified domain + Supabase Send Email Hook; real email received | Open; untested | Owner |
 | NewsData.io key; real request filtered to market news | Open; untested | Owner |
 | Real sign-up round trip on the deployed domain | Open | Engineering, after the items above |

@@ -107,11 +107,15 @@ describe('Send Email Hook route', () => {
   };
   afterEach(() => vi.unstubAllEnvs());
   it('sends the sign-up confirmation through Resend with a link to /auth/confirm', async () => {
-    const { status, sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_1', token: '123456', site_url: 'https://inrgift.example' } });
+    // The payload's site_url is ignored: links always use INRGIFT's configured site URL (https://inrgift.com in production).
+    const { status, sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_1', token: '123456', site_url: 'https://attacker.example' } });
+    const { config } = await import('@/lib/config');
+    const site = config.siteUrl.replace(/\/$/, '');
     expect(status).toBe(200);
     expect(sent[0].to).toBe('a@example.com');
-    expect(sent[0].html).toContain('https://inrgift.example/auth/confirm?token_hash=th_1&amp;type=signup');
-    expect(sent[0].text).toContain('https://inrgift.example/auth/confirm?token_hash=th_1&type=signup');
+    expect(sent[0].html).toContain(`${site}/auth/confirm?token_hash=th_1&amp;type=signup`);
+    expect(sent[0].text).toContain(`${site}/auth/confirm?token_hash=th_1&type=signup`);
+    expect(sent[0].text).not.toContain('attacker.example');
   });
   it('rejects unsigned calls and refuses passwordless email types', async () => {
     expect((await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'x' } }, false)).status).toBe(401);

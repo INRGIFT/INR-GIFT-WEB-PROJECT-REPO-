@@ -13,6 +13,8 @@
  * policies (supabase/migrations/0007_required_credentials_sms.sql).
  */
 
+import { smsSecondFactor } from '@/lib/config';
+
 export interface AuthFacts {
   signedIn: boolean;
   emailConfirmed: boolean;
@@ -25,11 +27,15 @@ export interface AuthFacts {
 }
 export type Gate = 'ok' | 'login' | 'verify-email' | 'verify-phone' | 'sms';
 
-/** The next step a session must complete before the workspace opens; 'ok' when nothing is missing. */
-export function workspaceGate(f: AuthFacts): Gate {
+/**
+ * The next step a session must complete before the workspace opens; 'ok' when nothing is missing. Steps 4–5 apply only
+ * when the SMS second factor is switched on (`smsSecondFactor`, src/lib/config.ts).
+ */
+export function workspaceGate(f: AuthFacts, sms: boolean = smsSecondFactor): Gate {
   if (!f.signedIn) return 'login';
   if (!f.emailConfirmed) return 'verify-email';
   if (!f.passwordSession) return 'login';
+  if (!sms) return 'ok';
   if (!f.phoneVerified) return 'verify-phone';
   if (!f.smsVerified) return 'sms';
   return 'ok';

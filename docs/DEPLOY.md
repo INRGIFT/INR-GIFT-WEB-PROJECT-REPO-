@@ -111,7 +111,7 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | Variable | Value |
 | --- | --- |
 | `NODE_ENV` | `production` |
-| `NEXT_PUBLIC_SITE_URL` | `https://<your-domain>` |
+| `NEXT_PUBLIC_SITE_URL` | `https://inrgift.com` (no trailing slash; used for canonical URLs, email links and redirects) |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://odiflbsoitgktylaksng.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key from Supabase → Project Settings → API keys |
 | `NEXT_PUBLIC_LOGO_PROVIDER` | `logo.dev` |
@@ -121,7 +121,8 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `RESEND_API_KEY` | Resend API key (sending access) |
 | `RESEND_FROM_EMAIL` | e.g. `INRGIFT <no-reply@<your-domain>>` on a domain verified in Resend |
 | `TWO_FACTOR_API_KEY` | 2Factor.in API key |
-| `TWO_FACTOR_OTP_TEMPLATE` | 2Factor OTP template name approved for INRGIFT (DLT) |
+| `TWO_FACTOR_OTP_TEMPLATE` | 2Factor OTP template name approved for INRGIFT (DLT) — after DLT approval |
+| `NEXT_PUBLIC_SMS_SECOND_FACTOR` | **Leave empty (off)** until DLT approval, the 2Factor key and migration 0007 are in place; then `on` and rebuild (`docs/AUTH-SECURITY.md`) |
 | `NEWSIO_API_KEY` | NewsData.io API key |
 | `NEWSIO_PAGE_SIZE` / `NEWSIO_CACHE_SECONDS` | Optional: 10 / 900 by default (free-plan safe) |
 | `MARKET_DATA_PROVIDER` | `demo` until a licensed feed is connected |
@@ -148,18 +149,21 @@ No DNS change has been made by this repository or by Claude.
 ## 6. Supabase settings that depend on the domain
 
 In the Supabase dashboard for project `odiflbsoitgktylaksng` (Authentication → URL Configuration):
-- **Site URL:** `https://<your-domain>`
-- **Redirect URLs:** `https://<your-domain>/auth/confirm`, `https://<your-domain>/auth/callback`, and
+- **Site URL:** `https://inrgift.com`
+- **Redirect URLs:** `https://inrgift.com/auth/confirm`, `https://inrgift.com/auth/callback`, and
   `http://localhost:3000/**` for development.
 
-Then, under Authentication → Emails, paste the templates from `supabase/templates`. Until custom SMTP is configured,
-Supabase sends only about 2 emails an hour, and only to members of the Supabase organisation.
+Then, under Authentication → Hooks, enable the **Send Email** hook (HTTPS) at `https://inrgift.com/api/hooks/send-email`
+and copy its secret into `SEND_EMAIL_HOOK_SECRET`. With the hook on, every auth email goes through Resend and the
+Supabase email templates and SMTP are not used. Leave **Phone** provider and **MFA** off in Supabase: SMS goes through
+2Factor.in via INRGIFT's server, never Supabase.
 
 ## 7. Smoke test after deploy
 
-- `/`, `/markets` and `/assets/stocks` load. The header shows the official logo, and the favicon and share image
-  are the official ones.
-- `/app` redirects to `/login?next=%2Fapp`.
-- Sign up with an organisation-member email, confirm via the link (lands on `/auth/confirm`), finish onboarding,
-  add a watchlist item, sign out and back in. The watchlist item should persist; that is the Supabase round trip.
+- `/` loads with the official logo, favicon and share image. Signed out, `/markets`, `/legal/terms` and `/app`
+  redirect to `https://inrgift.com/login?next=…`, and `/api/v1/assets` answers 401.
+- `/api/health` reports `auth: supabase`, `demo: false` and `twofactor.secondFactor: off` (until SMS is switched on).
+- Sign up with email, mobile number and password; the confirmation email arrives from Resend with a link to
+  `https://inrgift.com/auth/confirm…`; sign in with email + password; finish onboarding; add a watchlist item; sign
+  out and back in. The watchlist item should persist; that is the Supabase round trip.
 - `/robots.txt` disallows everything while the site serves demo data.

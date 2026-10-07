@@ -6,6 +6,8 @@ import type { Page } from '@playwright/test';
  * after sign-up, email link, phone verification and an SMS code (src/features/auth/auth-service.ts), so tests that
  * need a signed-in visitor do not repeat the whole journey. Production sessions come from Supabase, never from this.
  */
+/** Mirrors the build's SMS second-factor switch (src/lib/config.ts); run the suite with the same env as the build. */
+export const SMS_ON = process.env.NEXT_PUBLIC_SMS_SECOND_FACTOR === 'on';
 export const DEMO_EMAIL = 'analyst@example.com';
 export const DEMO_PASSWORD = 'research-2026!';
 const hash = (pw: string) => createHash('sha256').update(`inrgift-demo:${pw}`).digest('hex');

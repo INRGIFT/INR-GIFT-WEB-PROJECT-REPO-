@@ -1,10 +1,9 @@
 # UX system
 
 ## Access (7 Oct 2026): homepage-only public
-**Public:** `/` only, plus `/legal/*`, `/support` and `/contact` (legal consent, grievance and account recovery; see
-`docs/DECISIONS.md`). **Auth infrastructure:** `/login` `/signup` `/verify` `/verify-phone` `/forgot-password`
-`/reset-password` `/auth/*`. **Everything else requires a fully verified account** (email + phone + password, and an SMS
-code in this session), including markets, assets, discover, research, resources, search, about, pricing and FAQ.
+**Public:** `/` only (legal, support and contact are protected too; see `docs/DECISIONS.md`). **Auth infrastructure:** `/login` `/signup` `/verify` `/verify-phone` `/forgot-password`
+`/reset-password` `/auth/*`. **Everything else requires a fully verified account** (email + phone + password; plus an SMS
+code in this session once the SMS second factor is switched on), including markets, assets, discover, research, resources, search, about, pricing and FAQ.
 Signed out, any product link or URL goes to `/login?next=<path+query>`; "Create your account" keeps `next`; after
 verification the person lands on the original page. The header keeps its navigation and search for discovery; they lead
 to sign-in when signed out. The homepage is a conversion page: no market tables, prices, research or news feeds.

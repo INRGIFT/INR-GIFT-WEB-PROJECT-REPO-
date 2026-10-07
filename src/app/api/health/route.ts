@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { authMode, config } from '@/lib/config';
+import { authMode, config, smsSecondFactor } from '@/lib/config';
 import { configured } from '@/lib/server-env';
 import { getProvider } from '@/providers';
 
@@ -23,7 +23,7 @@ export async function GET() {
   const integrations = {
     supabase: { auth: authMode, secretKey: configured.supabaseAdmin() },
     resend: { configured: configured.email(), sendEmailHook: configured.emailHook() },
-    twofactor: { configured: configured.sms() },
+    twofactor: { configured: configured.sms(), secondFactor: smsSecondFactor ? 'on' : 'off' },
     news: { provider: configured.news() ? 'newsdata.io' : 'demo', configured: configured.news() },
   };
   const body = { status: provider.ok ? 'ok' : 'degraded', time: new Date().toISOString(), provider, fallback: config.fallbackProvider, auth: authMode, logos: config.logoProvider, integrations };
