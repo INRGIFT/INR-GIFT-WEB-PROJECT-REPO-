@@ -17,7 +17,7 @@ none() { # label, extended regex over entry paths
 
 grep -qx 'package.json' <<<"$ENTRIES" && pass "package.json at zip root" || fail "package.json at zip root"
 grep -qx 'package-lock.json' <<<"$ENTRIES" && pass "package-lock.json at zip root" || fail "package-lock.json at zip root"
-none "no nested project folder (no */package.json at the second level)" '^[^/]+/package\.json$'
+none "no nested project folder (package.json only at the root)" '/package\.json$'
 none "no node_modules anywhere" '(^|/)node_modules(/|$)'
 none "no .next build output anywhere" '(^|/)\.next(/|$)'
 none "no .env files anywhere" '(^|/)\.env'
