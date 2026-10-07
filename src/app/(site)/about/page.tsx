@@ -1,33 +1,55 @@
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { ButtonLink } from '@/components/ui/button';
+import { CompanyContact } from '@/components/layout/company-contact';
 import { PageContainer, PageHeader, Panel } from '@/components/ui/primitives';
-import { SessionRail } from '@/features/markets/widgets';
+import { COMPANY, LEGAL_PATHS } from '@/lib/company';
 import { pageMetadata } from '@/lib/seo';
 import { breadcrumbs, JsonLd, organization } from '@/lib/structured-data';
-import * as md from '@/services/market-data';
 
-export const metadata = pageMetadata({ title: 'About INRGIFT', description: 'INRGIFT is a global market research and intelligence platform built from India: every market, every asset class, one research view, with India context.', path: '/about' });
+export const metadata = pageMetadata({ title: 'About INRGIFT', description: 'INRGIFT is a global market research and intelligence platform built from India. Invest Beyond Borders: every market, every asset, one research view.', path: LEGAL_PATHS.about });
 
-const PRINCIPLES: [string, string][] = [
-  ['Research, not advice', 'Pages describe data and context. There are no ratings, no price targets and nothing tailored to your circumstances.'],
-  ['Every number has a source and a time', 'Each data module carries its status and an exact timestamp. Gaps are shown as gaps, never as zeros.'],
-  ['India is the point of view', 'Sessions in IST, prices in rupees on request, and the exchange rate beside every foreign return.'],
-  ['Your research stays yours', 'Watchlists, alerts and notes are private to your account and protected by row-level security.'],
+/** Only capabilities that exist in the product today. */
+const CAPABILITIES: [string, string][] = [
+  ['Global market discovery', 'Exchanges across regions with their trading sessions on India time, holidays and benchmark indices, and instruments across stocks, ETFs, indices, currencies, commodities, bonds and REITs.'],
+  ['Screening', 'A screener with more than thirty metrics, nested filter groups and shareable links.'],
+  ['Comparative analysis', 'Side-by-side comparison of up to four assets, with performance, risk and identity details.'],
+  ['Visualisation', 'Price charts with indicators and a global heatmap you can drill into from the world to a single company.'],
+  ['Research', 'Structured notes on stocks, ETFs, markets, sectors, themes and countries, each with sources, limitations and method.'],
+  ['News and context', 'Business and market news filtered for relevance and linked to the companies and markets it concerns.'],
+  ['Your workspace', 'Watchlists, alerts that notify you, saved screens and comparisons, notes and collections, private to your account.'],
 ];
-export default async function AboutPage() {
-  const [markets, all] = await Promise.all([md.getMarkets(), md.getAssets()]);
-  const regions = new Set(markets.map((m) => m.region)).size;
+const AUDIENCE = ['Individual investors in India who want to understand markets beyond India', 'People who research before they decide and want sources and timestamps with every figure', 'Students and professionals learning how global markets, currencies and asset classes fit together'];
+
+export default function AboutPage() {
   return (
     <PageContainer className="max-w-[1100px]">
       <JsonLd data={[organization(), breadcrumbs([['Home', '/'], ['About']])]} />
-      <PageHeader crumbs={[['Home', '/'], ['About']]} title="Global markets, understood from India" lead="INRGIFT brings every market and asset class into one research view, read through the lens an Indian investor actually uses: rupees, IST and the exchange rate in between." />
-      <div className="grid grid-cols-3 gap-px overflow-hidden rounded-card border border-line bg-line">{[[markets.length, 'markets'], [regions, 'regions'], [all.length, 'instruments covered']].map(([n, l]) => <div key={l as string} className="bg-white px-4 py-4"><p className="num font-display text-[28px] font-extrabold">{n}</p><p className="text-[13px] text-slate2">{l}</p></div>)}</div>
-      <div className="grid gap-4 md:grid-cols-2">{PRINCIPLES.map(([t, d]) => <Panel key={t} title={t}><p className="text-slate2">{d}</p></Panel>)}</div>
-      <Panel title="Why India time matters" sub="Regular sessions converted to IST"><SessionRail markets={['us', 'uk', 'jp', 'in'].map((id) => markets.find((m) => m.id === id)!)} now={new Date()} /></Panel>
-      <section className="rounded-r-card border border-l-[3px] border-line border-l-saffron bg-white px-5 py-4">
-        <h2 className="text-lg font-bold">What INRGIFT is not</h2>
-        <p className="mt-1 max-w-[75ch] text-slate2">INRGIFT is a research and information platform. It is not a broker or an investment adviser, it does not hold client funds, and nothing on it is a recommendation. Read the <Link className="link" href="/legal/risk-disclosure">risk disclosure</Link> and the <Link className="link" href="/resources/data">data methodology</Link>.</p>
-        <div className="mt-3 flex flex-wrap gap-2"><ButtonLink href="/markets" variant="primary">Explore markets</ButtonLink><ButtonLink href="/pricing">Plans</ButtonLink><ButtonLink href="/contact">Contact us</ButtonLink></div>
+      <PageHeader crumbs={[['Home', '/'], ['About']]} title="About INRGIFT" lead={COMPANY.descriptor} />
+      <section className="rounded-card bg-navy px-6 py-8 text-white">
+        <p className="text-ui font-semibold uppercase tracking-[.22em] text-ice">{COMPANY.tagline}</p>
+        <p className="mt-2 font-display text-[28px] font-extrabold leading-tight md:text-[34px]">{COMPANY.promise}</p>
+        <p className="mt-3 max-w-[70ch] text-white/75">INRGIFT is a global market research and intelligence platform built from India. It brings markets and asset classes from around the world into one research view, read the way an Indian investor reads them: in rupees, on India time, with the exchange rate in between.</p>
+      </section>
+      <section aria-labelledby="workflow">
+        <h2 id="workflow" className="mb-3 text-lg font-bold">One research workflow</h2>
+        <ol className="flex flex-wrap items-center gap-2 text-[14px]">{COMPANY.workflow.map((s, i) => <li key={s} className="flex items-center gap-2"><span className="rounded-full border border-line bg-white px-3 py-1 font-semibold text-navy">{s}</span>{i < COMPANY.workflow.length - 1 && <ArrowRight size={14} aria-hidden className="text-faint" />}</li>)}</ol>
+      </section>
+      <section aria-labelledby="capabilities">
+        <h2 id="capabilities" className="mb-3 text-lg font-bold">What INRGIFT does</h2>
+        <div className="grid gap-4 md:grid-cols-2">{CAPABILITIES.map(([t, d]) => <Panel key={t} title={t}><p className="text-slate2">{d}</p></Panel>)}</div>
+      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Panel title="Who it is for"><ul className="list-disc space-y-1.5 pl-5 text-slate2">{AUDIENCE.map((a) => <li key={a}>{a}</li>)}</ul></Panel>
+        <Panel title="Research, not execution">
+          <p className="text-slate2">INRGIFT is a research, data and discovery platform. It is not a broker, an exchange or an investment adviser. It does not place or execute orders, hold money or securities, or give personalised recommendations. Alerts notify you; they never act for you. Read the <Link className="link" href={LEGAL_PATHS.risk}>risk disclaimer</Link>.</p>
+        </Panel>
+      </div>
+      <section aria-labelledby="contact" className="grid gap-4 rounded-card border border-line bg-white p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div>
+          <h2 id="contact" className="text-lg font-bold">Contact</h2>
+          <p className="mt-1 text-slate2">Questions about INRGIFT, your account or our policies: visit <Link className="link" href={LEGAL_PATHS.support}>Support</Link> or write to us.</p>
+        </div>
+        <CompanyContact title={null} />
       </section>
     </PageContainer>
   );

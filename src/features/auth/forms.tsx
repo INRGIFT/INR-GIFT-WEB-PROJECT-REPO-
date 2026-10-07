@@ -10,12 +10,13 @@ import { AuthError, isEmail, passwordProblem, type PhoneChallenge, type SmsPurpo
 import { validateSignup, type SignupErrors, type SignupInput } from './policy';
 import { smsSecondFactor } from '@/lib/config';
 import { useSession } from './session-context';
+import { COUNTRIES } from './countries';
 
-const COUNTRIES = ['India', 'United Arab Emirates', 'Singapore', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'Japan', 'Saudi Arabia', 'Other'];
 const NOTICES: Record<string, [tone: 'warn' | 'success', text: string]> = {
   link: ['warn', 'That link could not be used. Request a new one below.'],
   expired: ['warn', 'That link has expired. Request a new one below.'],
   verified: ['success', smsSecondFactor ? 'Email verified. Sign in with your email and password to verify your mobile number.' : 'Email verified. Sign in with your email and password.'],
+  oauth: ['warn', 'Google sign-in did not complete. Try again, or sign in with your email and password.'],
   reset: ['success', smsSecondFactor ? 'Password changed and other sessions signed out. Sign in with your new password; we will text a code to your phone.' : 'Password changed and other sessions signed out. Sign in with your new password.'],
 };
 const STEPS = 3;
@@ -29,9 +30,36 @@ const loadPending = (purpose: SmsPurpose): PhoneChallenge | null => {
   try { const c = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as (PhoneChallenge & { at: number }) | null; return c && c.purpose === purpose && Date.now() - c.at < 10 * 60_000 ? c : null; } catch { return null; }
 };
 
+/* ------------------------------------ Google ------------------------------------ */
+/**
+ * "Continue with Google" through Supabase OAuth (src/features/auth/auth-service.ts). Rendered only when Google is
+ * enabled in Supabase (src/features/auth/google.ts). A first Google sign-in then completes the same profile as an
+ * email sign-up (mobile number, password, country, terms) before anything opens.
+ */
+function GoogleSignIn({ next, label = 'Continue with Google' }: { next: string; label?: string }) {
+  const { auth, refresh } = useSession();
+  const router = useRouter();
+  const { busy, error, run } = useAuthAction();
+  const go = () => void run(async () => {
+    await auth.signInWithGoogle(next);
+    if (auth.mode === 'demo') { await refresh(); const u = await auth.getUser(); router.replace(gateHref(u?.gate ?? 'login', next)); }
+  });
+  return (
+    <div className="mt-5">
+      <div className="flex items-center gap-3 text-xs font-medium text-faint" aria-hidden><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
+      <div className="mt-4 space-y-2">
+        <FormError error={error} />
+        <Button type="button" size="lg" className="w-full" disabled={busy} onClick={go}>
+          <img src="/brand/google-g.svg" alt="" width={18} height={18} aria-hidden />{busy ? 'Opening Google…' : label}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------ Login ------------------------------------ */
-/** Email and password are the only primary sign-in. The SMS code is the second factor, asked for afterwards. */
-export function LoginForm() {
+/** Email + password, or Google. With the SMS second factor on, an SMS code follows either way. */
+export function LoginForm({ google = false }: { google?: boolean }) {
   const next = useNext();
   const params = useSearchParams();
   const { ready } = useRedirectIfSignedIn(next);
@@ -70,13 +98,14 @@ export function LoginForm() {
         <div className="flex justify-end"><AltLink href="/forgot-password">Forgot password?</AltLink></div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </AuthForm>
+      {google && <GoogleSignIn next={next} />}
     </AuthCard>
   );
 }
 
 /* ------------------------------------ Sign up ------------------------------------ */
 /** Email, mobile number and password are all required; the account opens once email and phone are verified. */
-export function SignupForm() {
+export function SignupForm({ google = false }: { google?: boolean }) {
   const { auth } = useSession();
   const router = useRouter();
   const next = useNext();
@@ -106,7 +135,7 @@ export function SignupForm() {
   };
   if (!ready) return <AuthSkeleton />;
   return (
-    <AuthCard title="Create your account" lead="Your account uses three credentials: email, mobile number and password. Research tools stay open without an account." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign in</AltLink></>}>
+    <AuthCard title="Create your account" lead="Every INRGIFT account has three credentials: email, mobile number and password." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign in</AltLink></>}>
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} error={show('name')} maxLength={80} autoFocus />
@@ -115,9 +144,10 @@ export function SignupForm() {
         <SelectField label="Country of residence" value={f.country} onChange={(e) => set('country', e.target.value)}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
         <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} error={show('password')} /><PasswordRules value={f.password} /></div>
         <PasswordField label="Confirm password" autoComplete="new-password" value={f.confirm} onChange={(e) => set('confirm', e.target.value)} error={show('confirm')} />
-        <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/legal/terms">terms</AltLink> and <AltLink href="/legal/privacy">privacy policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
+        <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/terms-and-conditions">Terms and Conditions</AltLink> and the <AltLink href="/privacy-policy">Privacy Policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
       </AuthForm>
+      {google && <GoogleSignIn next={next} label="Sign up with Google" />}
     </AuthCard>
   );
 }
@@ -316,3 +346,60 @@ export function ResetPassword() {
   );
 }
 export function AuthSkeleton() { return <div className="w-full max-w-[420px] space-y-3" role="status" aria-label="Loading"><Skeleton className="h-7 w-2/3" /><Skeleton className="h-4 w-full" /><Skeleton className="mt-6 h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-11 w-full" /></div>; }
+
+/* ------------------------------- Complete profile ------------------------------- */
+/**
+ * After a first Google sign-in: the account model still needs a mobile number, a password (so email + password also
+ * works), country and acceptance of the terms. Only the missing fields are asked for; the server checks them again
+ * (/api/auth/complete-profile). Nothing opens until this is done.
+ */
+export function CompleteProfile() {
+  const { auth, account, loading, refresh } = useSession();
+  const router = useRouter();
+  const next = useNext();
+  const [f, setF] = useState({ name: '', phone: '+91 ', country: 'India', password: '', confirm: '', terms: false });
+  const [touched, setTouched] = useState(false);
+  const { busy, error, setError, run } = useAuthAction();
+  useEffect(() => {
+    if (loading) return;
+    if (!account) { router.replace(`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`); return; }
+    if (account.gate !== 'profile') router.replace(gateHref(account.gate, next));
+    else setF((x) => (x.name ? x : { ...x, name: account.name, phone: account.phone ?? x.phone }));
+  }, [loading, account, next, router]);
+  if (loading || !account || account.gate !== 'profile') return <AuthSkeleton />;
+  const need = (k: 'phone' | 'password' | 'country' | 'terms') => account.missing.includes(k);
+  const errs: Record<string, string | null> = {
+    name: f.name.trim() ? null : 'Enter your name.',
+    phone: validateSignup({ name: 'x', email: 'a@b.cd', phone: f.phone, password: 'aaaaaaaaa1!', confirm: 'aaaaaaaaa1!', terms: true }).phone ?? null,
+    password: need('password') ? passwordProblem(f.password) : null,
+    confirm: need('password') && f.confirm !== f.password ? 'The two passwords do not match.' : null,
+    terms: need('terms') && !f.terms ? 'Accept the Terms and Conditions and the Privacy Policy to continue.' : null,
+  };
+  const show = (k: string) => (touched ? errs[k] : null);
+  const submit = () => {
+    setTouched(true); setError(null);
+    if (Object.values(errs).some(Boolean)) return;
+    void run(async () => {
+      const gate = await auth.completeProfile({ name: f.name.trim(), phone: f.phone, country: f.country, ...(need('password') ? { password: f.password } : {}), ...(need('terms') ? { terms: f.terms } : {}) });
+      await refresh();
+      router.replace(gate === 'ok' ? `/onboarding${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}` : gateHref(gate, next));
+    });
+  };
+  return (
+    <AuthCard title="Finish setting up your account" lead={<>Signed in as <b className="text-navy">{account.email ? maskEmail(account.email) : 'your Google account'}</b>. Every INRGIFT account also has a mobile number and a password.</>}
+      footer={<>Not you? <button type="button" className="link" onClick={async () => { await auth.signOut(); router.replace('/login'); }}>Sign out</button></>}>
+      <AuthForm onSubmit={submit}>
+        <FormError error={error} />
+        <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} error={show('name')} maxLength={80} />
+        <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} error={show('phone')} hint={smsSecondFactor ? 'With country code. Each sign-in asks for a code sent here by SMS.' : 'With country code. Required for every account; SMS verification of this number is switched on later.'} />
+        <SelectField label="Country of residence" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
+        {need('password') && <>
+          <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} error={show('password')} hint="So you can also sign in with your email and password." /><PasswordRules value={f.password} /></div>
+          <PasswordField label="Confirm password" autoComplete="new-password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} error={show('confirm')} />
+        </>}
+        {need('terms') && <div><Checkbox checked={f.terms} onChange={(v) => setF({ ...f, terms: v })} label={<>I accept the <AltLink href="/terms-and-conditions">Terms and Conditions</AltLink> and the <AltLink href="/privacy-policy">Privacy Policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>}
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</Button>
+      </AuthForm>
+    </AuthCard>
+  );
+}

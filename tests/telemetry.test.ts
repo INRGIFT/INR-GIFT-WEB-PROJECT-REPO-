@@ -17,18 +17,19 @@ describe('route registry', () => {
     const missing = pages.map(toPattern).map((p) => (p === '/' ? '/' : p.replace(/\/$/, ''))).filter((p) => !patterns.has(p));
     expect(missing).toEqual([]);
   });
-  it('classifies access: homepage public, everything else protected by default', () => {
-    expect(classifyPath('/')).toBe('public');
-    for (const p of ['/login', '/signup', '/verify', '/verify-phone', '/forgot-password', '/reset-password', '/auth/confirm', '/auth/callback']) expect(classifyPath(p), p).toBe('auth');
-    for (const p of ['/api/health', '/api/auth/sms/start', '/api/hooks/send-email', '/api/internal/ingest']) expect(classifyPath(p), p).toBe('public-api');
-    for (const p of ['/markets', '/markets/US', '/assets/stocks', '/stocks/AAPL', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/discover/screener', '/research/stocks', '/resources/news', '/resources/learn/etf-basics', '/search', '/about', '/pricing', '/faq', '/app', '/app/notes', '/account/profile', '/notifications', '/onboarding', '/api/v1/assets', '/api/v1/news/feed', '/api/contact', '/some-future-route', '/stocks/AAPL.png', '/legal/privacy', '/legal/terms', '/support', '/contact'])
+  it('classifies access: homepage and compliance pages public, everything else protected by default', () => {
+    for (const p of ['/', '/terms-and-conditions', '/privacy-policy', '/about', '/support', '/account-closure', '/grievance-redressal', '/legal', '/legal/risk-disclaimer', '/legal/cookie-policy']) expect(classifyPath(p), p).toBe('public');
+    for (const p of ['/login', '/signup', '/verify', '/verify-phone', '/forgot-password', '/reset-password', '/complete-profile', '/auth/confirm', '/auth/callback']) expect(classifyPath(p), p).toBe('auth');
+    for (const p of ['/api/health', '/api/auth/sms/start', '/api/hooks/send-email', '/api/internal/ingest', '/api/forms/support', '/api/forms/account-closure']) expect(classifyPath(p), p).toBe('public-api');
+    for (const p of ['/markets', '/markets/US', '/assets/stocks', '/stocks/AAPL', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/discover/screener', '/research/stocks', '/resources/news', '/resources/learn/etf-basics', '/search', '/pricing', '/faq', '/terms-and-conditions-x', '/about-us', '/supportx', '/legalese', '/app', '/app/notes', '/account/profile', '/notifications', '/onboarding', '/api/v1/assets', '/api/v1/news/feed', '/api/contact', '/some-future-route', '/stocks/AAPL.png'])
       expect(classifyPath(p), p).toBe('protected');
     for (const p of ['/robots.txt', '/sitemap.xml', '/sitemap/core.xml', '/brand/logo/INRGIFT_Emblem_NavyCobalt.svg', '/media/universal-search.webm', '/icon.svg', '/opengraph-image', '/_next/static/x.js']) expect(classifyPath(p), p).toBe('file');
     expect(isPrivatePath('/app/watchlist')).toBe(true);
     expect(isNoindexPath('/login')).toBe(true);
     expect(isNoindexPath('/stocks/AAPL')).toBe(true);
     expect(isNoindexPath('/')).toBe(false);
-    expect(ROUTES.filter((r) => r.access === 'public').map((r) => r.pattern)).toEqual(['/']);
+    expect(ROUTES.filter((r) => r.access === 'public').map((r) => r.pattern).sort()).toEqual(['/', '/about', '/account-closure', '/grievance-redressal', '/legal', '/legal/[doc]', '/privacy-policy', '/support', '/terms-and-conditions']);
+    expect(isNoindexPath('/account-closure')).toBe(false);
     expect(matchRoute('/markets/all')?.pattern).toBe('/markets/all');
     expect(matchRoute('/markets/India')?.pattern).toBe('/markets/[market]');
   });

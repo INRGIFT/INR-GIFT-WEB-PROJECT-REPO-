@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { isIndexablePath } from './route-registry';
-import { config, isIndexable } from './config';
+import { config, publicPagesIndexable } from './config';
 
 /**
  * Metadata engine. Every route builds its metadata here so canonical, Open Graph, Twitter and robots rules stay
@@ -35,9 +35,9 @@ export function pageMetadata({ title, description, path, index = 'index', type =
     description,
     keywords,
     alternates: { canonical: path },
-    // While the site serves demo data (or SITE_INDEXABLE=false), nothing is indexable; see config.isIndexable.
+    // Only the public pages may be indexed (they show no market data); SITE_INDEXABLE=false closes them too.
     // Only public pages may be indexed (src/lib/route-registry.ts); product pages require sign-in and are noindex.
-    robots: !isIndexable || index === 'private' || !isIndexablePath(path.split('?')[0]) ? { index: false, follow: false } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
+    robots: !publicPagesIndexable || index === 'private' || !isIndexablePath(path.split('?')[0]) ? { index: false, follow: false } : index === 'faceted' || index === 'noindex' ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: { type, title: ogTitle, description, url: path, siteName: SITE.name, locale: 'en_IN', ...(type === 'article' ? { publishedTime, modifiedTime } : {}) },
     twitter: { card: 'summary_large_image', title: ogTitle, description },
   };

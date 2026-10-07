@@ -3,7 +3,7 @@
  * rules live in one place.
  *
  * ACCESS POLICY (default deny):
- *   public      "/" (the homepage) only: the owner's literal requirement
+ *   public      "/" and the compliance pages (terms, privacy, about, support, account closure, grievance, legal)
  *   auth        sign-in, sign-up and verification infrastructure, open so people can authenticate
  *   public-api  endpoints that must work before sign-in and protect themselves (health, auth steps, signed hooks, ingest)
  *   file        static and metadata files (robots, sitemap, icons, share images, files in /public)
@@ -15,12 +15,15 @@ export type Layout = 'site' | 'workspace' | 'auth' | 'api';
 export interface RouteSpec { pattern: string; layout: Layout; access: Access; index: 'index' | 'noindex'; feature: string }
 
 /**
- * Public pages: the homepage only (owner decision, 7 Oct 2026, docs/DECISIONS.md). Legal, support and contact pages
- * require sign-in like every other page; see docs/RELEASE_READINESS.md for the consent consideration this creates.
+ * Public pages: the homepage and the compliance pages that must be readable without an account (owner decision,
+ * 7 Oct 2026, docs/DECISIONS.md): Terms and Conditions, Privacy Policy, About, Support, Account Closure (required by the
+ * NSEIXGA white-label documentation), Grievance Redressal and the legal index with its documents. They show no market
+ * data. Every product, data, workspace and account route stays protected.
  */
-export const PUBLIC_PAGES = ['/'];
-export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/mfa', '/forgot-password', '/reset-password', '/auth/callback', '/auth/confirm'];
-export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/internal'];
+export const PUBLIC_PAGES = ['/', '/terms-and-conditions', '/privacy-policy', '/about', '/support', '/account-closure', '/grievance-redressal', '/legal'];
+export const AUTH_PAGES = ['/login', '/signup', '/verify', '/verify-phone', '/complete-profile', '/mfa', '/forgot-password', '/reset-password', '/auth/callback', '/auth/confirm'];
+/** `/api/forms/*` (support, grievance, account closure) back the public pages: validated, rate-limited, same-origin only. */
+export const PUBLIC_API = ['/api/health', '/api/auth', '/api/hooks', '/api/internal', '/api/forms'];
 const METADATA_FILES = ['/robots.txt', '/sitemap.xml', '/sitemap', '/manifest.webmanifest', '/icon', '/apple-icon', '/opengraph-image', '/twitter-image', '/favicon.ico'];
 /** Files served from /public (brand, fonts, media, posters): marketing assets with no product data. Only root-level
  * files and these folders count, so a page path with a file-like suffix (/stocks/AAPL.png) stays protected. */
@@ -40,7 +43,7 @@ export function classifyPath(pathname: string): Access {
 export const isProtectedPath = (p: string) => classifyPath(p) === 'protected';
 /** Kept for older call sites: "private" now means protected. */
 export const isPrivatePath = isProtectedPath;
-/** Only the homepage may be indexed; everything else (and anything with a query) is noindex. */
+/** Only the public pages may be indexed; everything else (and anything with a query) is noindex. */
 export const isIndexablePath = (p: string) => classifyPath(p) === 'public';
 export const isNoindexPath = (p: string) => !isIndexablePath(p);
 
@@ -61,8 +64,10 @@ export const ROUTES: RouteSpec[] = [
   page('/research', 'research'), page('/research/[kind]', 'research'), page('/research/[kind]/[slug]', 'research'),
   page('/resources', 'resources'), page('/resources/[kind]', 'resources'), page('/resources/learn/[slug]', 'learn'), page('/resources/glossary/[slug]', 'glossary'),
   page('/search', 'search'),
-  page('/about', 'company'), page('/pricing', 'company'), page('/faq', 'company'), page('/support', 'company'), page('/contact', 'company'), page('/legal/[doc]', 'legal'),
-  page('/login', 'auth', 'auth'), page('/signup', 'auth', 'auth'), page('/verify', 'auth', 'auth'), page('/verify-phone', 'auth', 'auth'), page('/mfa', 'auth', 'auth'),
+  page('/about', 'company'), page('/pricing', 'company'), page('/faq', 'company'), page('/support', 'company'),
+  page('/terms-and-conditions', 'legal'), page('/privacy-policy', 'legal'), page('/account-closure', 'legal'), page('/grievance-redressal', 'legal'),
+  page('/legal', 'legal'), page('/legal/[doc]', 'legal'),
+  page('/login', 'auth', 'auth'), page('/signup', 'auth', 'auth'), page('/verify', 'auth', 'auth'), page('/verify-phone', 'auth', 'auth'), page('/complete-profile', 'auth', 'auth'), page('/mfa', 'auth', 'auth'),
   page('/forgot-password', 'auth', 'auth'), page('/reset-password', 'auth', 'auth'),
   page('/onboarding', 'onboarding', 'auth'),
   page('/app', 'workspace', 'workspace'), page('/app/watchlist', 'watchlists', 'workspace'), page('/app/alerts', 'alerts', 'workspace'), page('/app/screens', 'saved-screens', 'workspace'),

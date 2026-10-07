@@ -6,8 +6,8 @@ import type { OtpCheck, SmsOtpProvider } from '@/services/providers/twofactor';
 
 const CODE = '482913';
 function session(over: Partial<ServerSession> = {}, facts: Partial<ServerSession['facts']> = {}): ServerSession {
-  const f = { signedIn: true, emailConfirmed: true, phoneVerified: false, passwordSession: true, smsVerified: false, ...facts };
-  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, facts: f, gate: workspaceGate(f, true), ...over };
+  const f = { signedIn: true, emailConfirmed: true, phoneVerified: false, primarySignIn: true, profileComplete: true, smsVerified: false, ...facts };
+  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, profile: { providers: ['email'], phone: '+919876543210', country: 'India', passwordSet: false, termsAcceptedAt: null }, missing: [], facts: f, gate: workspaceGate(f, true), ...over };
   return s;
 }
 function memoryStore(taken = new Set<string>()) {
@@ -111,7 +111,7 @@ describe('2Factor SMS verification (server core)', () => {
   it('purposes are checked against the session (no bypass with parameters)', async () => {
     const m = memoryStore(), sms = fakeSms();
     await expect(startSms(null, 'signup', null, { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_SIGNED_IN' });
-    await expect(startSms(session({}, { passwordSession: false }), 'signup', null, { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_ALLOWED' });
+    await expect(startSms(session({}, { primarySignIn: false }), 'signup', null, { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_ALLOWED' });
     await expect(startSms(session({}, { emailConfirmed: false }), 'signup', null, { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_ALLOWED' });
     await expect(startSms(session(), 'login', null, { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_ALLOWED' });
     await expect(startSms(session({}, { phoneVerified: true }), 'change', '+919000000001', { store: m.store, sms, now: clock })).rejects.toMatchObject({ code: 'NOT_ALLOWED' });
@@ -121,7 +121,7 @@ describe('2Factor SMS verification (server core)', () => {
   });
   it('password reset needs the SMS code; the recovery session never becomes a workspace session', async () => {
     const m = memoryStore(), sms = fakeSms();
-    const recovery = session({ amr: ['otp'] }, { phoneVerified: true, passwordSession: false });
+    const recovery = session({ amr: ['otp'] }, { phoneVerified: true, primarySignIn: false });
     const r = await startSms(recovery, 'reset', null, { store: m.store, sms, now: clock });
     await completeSms(recovery, r.challengeId, CODE, { store: m.store, sms, now: clock });
     expect(m.stepUps).toEqual([['s1', 'u1']]);

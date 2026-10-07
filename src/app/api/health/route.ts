@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { authMode, config, publicSetting, smsSecondFactor } from '@/lib/config';
+import { googleSignInAvailable } from '@/features/auth/google';
+import { supportPhone } from '@/lib/company-server';
 import { configured } from '@/lib/server-env';
 import { getProvider } from '@/providers';
 
@@ -35,6 +37,8 @@ export async function GET() {
     resend: { configured: configured.email(), sendEmailHook: configured.emailHook() },
     twofactor: { configured: configured.sms(), secondFactor: smsSecondFactor ? 'on' : 'off' },
     news: { provider: configured.news() ? 'newsdata.io' : 'demo', configured: configured.news() },
+    google: { signIn: (await googleSignInAvailable()) ? 'enabled' : 'disabled' },
+    support: { phoneConfigured: Boolean(supportPhone()), inbox: process.env.SUPPORT_INBOX_EMAIL ? 'custom' : 'support@inrgift.com' },
   };
   // Booleans only: which settings the running server received. Values are never returned.
   const configuration = {

@@ -15,9 +15,9 @@ function getProvider(): EmailProvider {
   if (!configured.email()) throw new ProviderError('resend', 'NOT_CONFIGURED');
   return (provider = resend({ apiKey: serverEnv.resendApiKey(), from: serverEnv.resendFrom() }));
 }
-export async function sendEmail(to: string, mail: RenderedEmail, kind: string): Promise<{ ok: true; id: string } | { ok: false; code: string }> {
+export async function sendEmail(to: string, mail: RenderedEmail, kind: string, opts: { replyTo?: string } = {}): Promise<{ ok: true; id: string } | { ok: false; code: string }> {
   try {
-    const { id } = await getProvider().send({ to, ...mail, tags: [{ name: 'kind', value: kind }] });
+    const { id } = await getProvider().send({ to, ...mail, ...(opts.replyTo ? { replyTo: opts.replyTo } : {}), tags: [{ name: 'kind', value: kind }] });
     return { ok: true, id };
   } catch (e) {
     const code = e instanceof ProviderError ? e.code : 'UNKNOWN';

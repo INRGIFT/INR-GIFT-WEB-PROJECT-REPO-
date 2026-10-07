@@ -2,6 +2,8 @@
  * Transactional email content. Plain, branded HTML plus a text part. Links point only at INRGIFT's own
  * /auth/confirm route, which verifies the token with Supabase on the server.
  */
+import { smsSecondFactor } from '@/lib/config';
+
 export interface RenderedEmail { subject: string; html: string; text: string }
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 function layout(title: string, lines: string[], action?: { label: string; href: string }, foot = 'If you did not request this, you can ignore this email.'): RenderedEmail {
@@ -18,9 +20,25 @@ ${action ? `<p style="margin:20px 0"><a href="${esc(action.href)}" style="backgr
   const text = `INRGIFT · INVEST BEYOND BORDERS\n\n${title}\n\n${lines.join('\n\n')}${action ? `\n\n${action.label}: ${action.href}` : ''}\n\n${foot}`;
   return { subject: title, html, text };
 }
+/**
+ * A support, grievance or account-closure submission for the support inbox. Every value is escaped; multi-line text
+ * keeps its line breaks. The subject is fixed by INRGIFT plus cleaned single-line input (no header injection).
+ */
+export function formSubmission(subject: string, title: string, rows: [label: string, value: string][]): RenderedEmail {
+  const cell = 'padding:6px 10px;border-bottom:1px solid #E6EAF2;font-size:13px;vertical-align:top';
+  const html = `<!doctype html><html><body style="margin:0;background:#F5F7FB;font-family:Arial,Helvetica,sans-serif;color:#0B0E14">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" style="max-width:640px;background:#ffffff;border-radius:12px;padding:24px">
+<tr><td><p style="margin:0 0 4px;font-weight:700;font-size:16px;color:#071A33">INRGIFT</p><h1 style="font-size:18px;margin:8px 0 14px">${esc(title)}</h1>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows.map(([k, v]) => `<tr><th align="left" style="${cell};width:34%;color:#5F6B84;font-weight:600">${esc(k)}</th><td style="${cell};white-space:pre-wrap;word-break:break-word">${esc(v)}</td></tr>`).join('')}</table>
+<p style="font-size:11px;color:#5F6B84;margin:16px 0 0">Submitted through ${esc('https://inrgift.com')}. Reply to this email to answer the sender.</p>
+</td></tr></table></td></tr></table></body></html>`;
+  const text = `${title}\n\n${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+  return { subject, html, text };
+}
 export const emailTemplates = {
-  confirmSignup: (link: string) => layout('Confirm your email for INRGIFT', ['Confirm this address to continue setting up your account. After confirming, sign in with your email and password and verify your mobile number.', 'The link expires in one hour and works once.'], { label: 'Confirm email', href: link }),
-  resetPassword: (link: string) => layout('Reset your INRGIFT password', ['Use this link to choose a new password. You will also confirm a code sent to your phone; resetting your password never turns off SMS verification.', 'The link expires in one hour and works once.'], { label: 'Choose a new password', href: link }),
+  confirmSignup: (link: string) => layout('Confirm your email for INRGIFT', [smsSecondFactor ? 'Confirm this address to continue setting up your account. After confirming, sign in with your email and password and verify your mobile number.' : 'Confirm this address to finish setting up your account. After confirming, sign in with your email and password.', 'The link expires in one hour and works once.'], { label: 'Confirm email', href: link }),
+  resetPassword: (link: string) => layout('Reset your INRGIFT password', [smsSecondFactor ? 'Use this link to choose a new password. You will also confirm a code sent to your phone; resetting your password never turns off SMS verification.' : 'Use this link to choose a new password.', 'The link expires in one hour and works once.'], { label: 'Choose a new password', href: link }),
   confirmEmailChange: (link: string) => layout('Confirm your new email address', ['Confirm this address to use it for your INRGIFT account.'], { label: 'Confirm new email', href: link }),
   reauthenticate: (code: string) => layout('Your INRGIFT confirmation code', [`Enter this code to confirm a sensitive change: ${code}`, 'It expires shortly and works once.']),
   phoneChanged: (masked: string) => layout('Your INRGIFT mobile number changed', [`The mobile number on your account is now ${masked}. Sign-in codes go to this number from now on.`], undefined, 'If you did not make this change, reset your password and contact support immediately.'),

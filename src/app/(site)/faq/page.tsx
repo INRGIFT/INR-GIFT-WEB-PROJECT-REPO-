@@ -11,7 +11,7 @@ export default async function FaqPage() {
   return (
     <PageContainer className="max-w-[860px]">
       <JsonLd data={[faqPage(faq), breadcrumbs([['Home', '/'], ['FAQ']])]} />
-      <PageHeader crumbs={[['Home', '/'], ['FAQ']]} title="Frequently asked questions" lead={<>Can’t find it here? <Link className="link" href="/support">Visit support</Link> or <Link className="link" href="/contact">contact us</Link>.</>} />
+      <PageHeader crumbs={[['Home', '/'], ['FAQ']]} title="Frequently asked questions" lead={<>Can’t find it here? <Link className="link" href="/support">Visit support</Link> or <Link className="link" href="/support#support-form">contact us</Link>.</>} />
       {cats.map((c) => (
         <section key={c}>
           <h2 className="mb-2 text-lg font-bold">{c}</h2>

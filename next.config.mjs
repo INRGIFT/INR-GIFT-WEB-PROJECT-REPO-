@@ -36,4 +36,13 @@ export default {
   ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
   async headers() { return [{ source: '/:path*', headers: securityHeaders() }]; },
+  // Old legal and contact URLs move permanently to the canonical compliance URLs (no dead links). Redirects run before
+  // middleware, so they work signed out.
+  async redirects() {
+    return [
+      ['/legal/terms', '/terms-and-conditions'], ['/legal/privacy', '/privacy-policy'], ['/legal/grievance', '/grievance-redressal'],
+      ['/legal/cookies', '/legal/cookie-policy'], ['/legal/risk-disclosure', '/legal/risk-disclaimer'], ['/legal/terms-and-conditions', '/terms-and-conditions'],
+      ['/legal/privacy-policy', '/privacy-policy'], ['/contact', '/support'], ['/terms', '/terms-and-conditions'], ['/privacy', '/privacy-policy'],
+    ].map(([source, destination]) => ({ source, destination, permanent: true }));
+  },
 };

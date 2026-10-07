@@ -6,6 +6,7 @@
 
 // Learn articles and glossary terms live in ./content/* with a CMS-ready model (status, author, reviewer, dates).
 import { GLOSSARY_TERMS } from './content/glossary';
+import { LEGAL_DOCUMENTS, LEGAL_UPDATED, type LegalDocument } from './content/legal';
 import { LEARN_ARTICLES } from './content/learn';
 import { LEARN_GUIDES } from './content/learn-guides';
 import { PUBLISHED_ONLY, type GlossaryTerm, type LearnArticle } from './content/types';
@@ -30,15 +31,6 @@ export const PLANS = [
   { name: 'Enterprise', price: 'Contact us', status: 'Planned', features: ['Everything in Pro', 'Team workspaces and shared collections', 'Data delivery options', 'Priority support'] },
 ];
 
-const REVIEW = 'This text is a working draft included so the page is complete in development. It has not been reviewed by a lawyer and must be replaced with reviewed terms before launch.';
-export const LEGAL: Record<string, { title: string; sections: [string, string][] }> = {
-  privacy: { title: 'Privacy Policy', sections: [['Status', REVIEW], ['What we collect', 'Account details you provide (name, email, phone), preferences you set, and the watchlists, alerts, screens, comparisons and notes you save.'], ['How we use it', 'To run your account, show your saved research, send the alerts you create and keep the service secure. We do not sell personal data.'], ['Where it is stored', 'Private data is stored in a managed database with row-level security, so each record is readable only by its owner.'], ['Your choices', 'You can edit your profile, delete saved items, and ask for your account and data to be deleted through the contact page.']] },
-  terms: { title: 'Terms of Use', sections: [['Status', REVIEW], ['The service', 'INRGIFT provides market information and research tools. It is not a broker and does not provide investment advice.'], ['Your account', 'You are responsible for keeping your credentials secure and for activity under your account.'], ['Acceptable use', 'Do not scrape, resell or redistribute data, attempt to bypass access controls, or interfere with the service.'], ['Data', 'Market data may be delayed, incomplete or unavailable. Status and timestamps are shown with each module.']] },
-  cookies: { title: 'Cookie Policy', sections: [['Status', REVIEW], ['Essential cookies', 'Used to keep you signed in and to protect your session. The service does not work without them.'], ['Preferences', 'Your display currency and similar settings are kept in your browser so they persist between visits.'], ['Analytics', 'No third-party advertising cookies are set by this build.']] },
-  'risk-disclosure': { title: 'Risk Disclosure', sections: [['Status', REVIEW], ['Information only', 'Content on INRGIFT is for information and research. It is not a recommendation to transact in any security and does not consider your circumstances.'], ['Market risk', 'The value of investments can fall as well as rise. Past performance does not indicate future results.'], ['Currency risk', 'Returns on foreign assets depend on exchange rates as well as asset prices. INR values shown are approximate.'], ['Data risk', 'Data can be delayed or wrong. Verify important figures with the issuer or exchange before relying on them.']] },
-  refund: { title: 'Refund Policy', sections: [['Status', REVIEW], ['Current plans', 'INRGIFT is free today, so there are no charges to refund.'], ['Future paid plans', 'Refund terms for paid plans will be published here before those plans are sold.']] },
-  grievance: { title: 'Grievance Redressal', sections: [['Status', REVIEW], ['Raising a concern', 'Use the contact page and choose the Support category. Include your account email and a description of the issue.'], ['What happens next', 'A named grievance officer, response timelines and an escalation path will be published here before launch.']] },
-};
 
 
 /**
@@ -61,7 +53,7 @@ export const VIDEOS: VideoItem[] = [
 
 /* ------------------------------- Content access (CMS seam) ------------------------------- */
 export type FaqItem = (typeof FAQ)[number];
-export type LegalDoc = { slug: string; title: string; sections: [string, string][] };
+export type { LegalDocument as LegalDoc, LegalSection } from './content/legal';
 const LEARN_ALL: LearnArticle[] = [...LEARN_ARTICLES, ...LEARN_GUIDES].filter((a) => PUBLISHED_ONLY(a.status));
 const TERMS: GlossaryTerm[] = GLOSSARY_TERMS.filter((t) => PUBLISHED_ONLY(t.status));
 const names = (t: GlossaryTerm) => [t.term.replace(/ \(.*\)$/, ''), ...(t.aliases ?? [])];
@@ -82,7 +74,10 @@ export async function termsMentionedIn(text: string, limit = 6): Promise<Glossar
 export const termSlug = (name: string) => TERMS.find((t) => names(t).some((n) => n.toLowerCase() === name.toLowerCase()) || t.term === name)?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 export async function getFaq(): Promise<FaqItem[]> { return FAQ; }
 export async function getPlans() { return PLANS; }
-export async function getLegalDocs(): Promise<LegalDoc[]> { return Object.entries(LEGAL).map(([slug, d]) => ({ slug, ...d })); }
-export async function getLegalDoc(slug: string): Promise<LegalDoc | null> { const d = LEGAL[slug]; return d ? { slug, ...d } : null; }
+/** Legal documents (src/services/content/legal.ts), each with its canonical path. */
+export async function getLegalDocs(): Promise<LegalDocument[]> { return LEGAL_DOCUMENTS; }
+export async function getLegalDoc(slug: string): Promise<LegalDocument | null> { return LEGAL_DOCUMENTS.find((d) => d.slug === slug) ?? null; }
+/** When the legal documents last changed (LEGAL_LAST_UPDATED on the server overrides it after a later revision). */
+export async function getLegalUpdated(): Promise<string> { const v = process.env.LEGAL_LAST_UPDATED; return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : LEGAL_UPDATED; }
 export async function getVideos(): Promise<VideoItem[]> { return VIDEOS; }
 export async function getVideoFor(placement: string): Promise<VideoItem | null> { return VIDEOS.find((v) => v.placements.includes(placement)) ?? null; }

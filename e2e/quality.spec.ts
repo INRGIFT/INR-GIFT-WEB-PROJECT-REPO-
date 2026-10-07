@@ -4,19 +4,19 @@ import { signInDemo } from './fixtures';
 
 /**
  * Release-quality checks on a demo build (NEXT_PUBLIC_AUTH_MODE=demo).
- * Access model: only "/" is public (plus auth pages); every other page and /api route needs a fully verified session (src/lib/route-registry.ts). Signed-in checks use the demo session fixture.
+ * Access model: "/" and the compliance pages are public (plus auth pages); every other page and /api route needs a verified session (src/lib/route-registry.ts). Signed-in checks use the demo session fixture.
  */
-const PUBLIC = ['/'];
-const AUTH = ['/login', '/signup', '/verify', '/verify-phone', '/forgot-password', '/reset-password'];
+const PUBLIC = ['/', '/terms-and-conditions', '/privacy-policy', '/about', '/support', '/account-closure', '/grievance-redressal', '/legal', '/legal/risk-disclaimer', '/legal/cookie-policy', '/legal/refund'];
+const AUTH = ['/login', '/signup', '/verify', '/verify-phone', '/complete-profile', '/forgot-password', '/reset-password'];
 const PROTECTED = ['/markets', '/markets/all', '/markets/India', '/assets', '/assets/stocks', '/assets/funds', '/stocks/AAPL', '/etfs/SPY', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/commodities/GOLD', '/bonds/US-10Y', '/reits/PLD',
   '/discover', '/discover/heatmap', '/discover/screener', '/discover/compare', '/discover/collections', '/discover/trending', '/research', '/research/stocks', '/research/etfs', '/research/markets', '/research/themes', '/research/sectors', '/research/countries', '/research/sectors/technology',
   '/resources', '/resources/news', '/resources/earnings', '/resources/dividends', '/resources/ipo', '/resources/calendar', '/resources/learn', '/resources/learn/etf-basics', '/resources/glossary', '/resources/glossary/beta', '/resources/data',
-  '/search', '/legal/privacy', '/legal/terms', '/legal/grievance', '/support', '/contact', '/about', '/pricing', '/faq', '/app', '/app/watchlist', '/app/alerts', '/app/screens', '/app/comparisons', '/app/collections', '/app/research', '/app/notes', '/app/history', '/app/recent', '/account/profile', '/account/settings', '/account/security', '/notifications', '/onboarding'];
+  '/search', '/pricing', '/faq', '/app', '/app/watchlist', '/app/alerts', '/app/screens', '/app/comparisons', '/app/collections', '/app/research', '/app/notes', '/app/history', '/app/recent', '/account/profile', '/account/settings', '/account/security', '/notifications', '/onboarding'];
 const APIS = ['/api/v1/assets', '/api/v1/assets/AAPL', '/api/v1/search?q=apple', '/api/v1/markets', '/api/v1/fx-rates', '/api/v1/news', '/api/v1/news/feed', '/api/v1/research'];
 const base = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 const signedIn = async (playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) => playwright.request.newContext({ baseURL: base, extraHTTPHeaders: { Cookie: 'inrgift_demo_session=1' } });
 
-test.describe('access: homepage only is public', () => {
+test.describe('access: homepage and compliance pages are public', () => {
   test('anonymous: public and auth pages answer 200; every product page redirects to sign in with the full return path', async ({ request }) => {
     for (const path of [...PUBLIC, ...AUTH]) expect.soft((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
     for (const path of [...PROTECTED, '/discover/screener?market=us&sector=technology', '/stocks/AAPL.png', '/some-future-route']) {
@@ -33,7 +33,12 @@ test.describe('access: homepage only is public', () => {
       expect.soft(body.error?.code, path).toBe('UNAUTHENTICATED');
       expect.soft(body.data, path).toBeUndefined();
     }
-    expect((await request.post('/api/contact', { data: { topic: 'other', email: 'a@example.com', message: 'hello there' } })).status()).toBe(401);
+    // Old legal and contact URLs redirect permanently to the canonical compliance URLs, signed out.
+    for (const [from, to] of [['/legal/terms', '/terms-and-conditions'], ['/legal/privacy', '/privacy-policy'], ['/legal/grievance', '/grievance-redressal'], ['/contact', '/support'], ['/legal/risk-disclosure', '/legal/risk-disclaimer']]) {
+      const r = await request.get(from, { maxRedirects: 0 });
+      expect.soft(r.status(), from).toBe(308);
+      expect.soft(r.headers().location ?? '', from).toContain(to);
+    }
     const prefetch = await request.get('/markets', { maxRedirects: 0, headers: { RSC: '1', 'Next-Router-Prefetch': '1' } });
     expect(prefetch.status()).toBe(307);
   });
@@ -50,14 +55,21 @@ test.describe('access: homepage only is public', () => {
     expect((await auth.get('/api/v1/assets?pageSize=9999')).status()).toBe(400);
     await auth.dispose();
   });
-  test('SEO: only the homepage is indexable; robots and sitemap publish no product routes; health reports safely', async ({ request }) => {
+  test('SEO: public pages are indexable with canonical URLs; robots and sitemap publish no product routes; health reports safely', async ({ request }) => {
     expect((await request.get('/')).headers()['x-robots-tag'] ?? '').not.toContain('noindex');
     expect((await request.get('/login')).headers()['x-robots-tag']).toContain('noindex');
-    expect(await (await request.get('/robots.txt')).text()).toContain('Disallow: /');
-    const sitemap = await (await request.get('/sitemap/core.xml')).text();
-    expect(sitemap).not.toMatch(/\/(stocks|markets|research|discover|resources|app)\//);
     const robots = await (await request.get('/robots.txt')).text();
-    expect(robots).not.toMatch(/Allow: \/(legal|support|contact|markets|stocks)/);
+    expect(robots).toContain('Disallow: /');
+    expect(robots).toContain('Allow: /account-closure$');
+    expect(robots).not.toMatch(/Allow: \/(markets|stocks|app|discover|research)/);
+    const sitemap = await (await request.get('/sitemap/core.xml')).text();
+    expect(sitemap).toContain('/terms-and-conditions');
+    expect(sitemap).not.toMatch(/\/(stocks|markets|research|discover|resources|app)\b/);
+    for (const path of ['/terms-and-conditions', '/privacy-policy', '/about', '/support', '/account-closure', '/grievance-redressal']) {
+      const html = await (await request.get(path)).text();
+      expect.soft(html, path).toMatch(new RegExp(`<link rel="canonical" href="https?://[^"]+${path.replace('/', '\\/')}"`));
+      expect.soft(html, path).not.toContain('noindex');
+    }
     const h = await request.get('/api/health');
     expect(h.status()).toBe(200);
     expect(JSON.stringify(await h.json())).not.toMatch(/re_|whsec_|sb_secret|eyJ/);
@@ -83,8 +95,8 @@ test.describe('accessibility', () => {
     const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
   };
-  for (const path of ['/', '/login', '/signup']) test(`no serious or critical axe violations on ${path} (public)`, async ({ page }) => { await page.goto(path); expect(await check(page)).toEqual([]); });
-  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/resources/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/legal/privacy', '/account/security']) {
+  for (const path of ['/', '/login', '/signup', '/support', '/account-closure', '/grievance-redressal', '/terms-and-conditions']) test(`no serious or critical axe violations on ${path} (public)`, async ({ page }) => { await page.goto(path); expect(await check(page)).toEqual([]); });
+  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/resources/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/account/security']) {
     test(`no serious or critical axe violations on ${path} (signed in)`, async ({ page }) => { await signInDemo(page); await page.goto(path); expect(await check(page)).toEqual([]); });
   }
 });

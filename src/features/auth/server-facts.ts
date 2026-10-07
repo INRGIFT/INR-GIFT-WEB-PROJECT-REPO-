@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { smsSecondFactor } from '@/lib/config';
-import { amrMethods, workspaceGate, type AuthFacts, type Gate } from './policy';
+import { amrMethods, isPrimarySignIn, profileFactsOf, profileMissing, workspaceGate, type AuthFacts, type Gate, type ProfileFacts, type ProfileField } from './policy';
 
 /** Everything the server knows about the current request's session, read from Supabase only. */
 export interface ServerSession {
@@ -11,6 +11,8 @@ export interface ServerSession {
   /** The number given at sign-up (not yet verified). */
   signupPhone: string | null;
   smsVerified: boolean;
+  /** Identity providers, profile facts and what the profile still lacks (Google-only accounts). */
+  profile: ProfileFacts; missing: ProfileField[];
   facts: AuthFacts; gate: Gate;
 }
 const e164 = (p: string | null | undefined) => (p ? `+${p.replace(/\D/g, '')}` : null);
@@ -30,10 +32,12 @@ export async function readServerSession(sb: SupabaseClient): Promise<ServerSessi
   const { data: step } = smsSecondFactor ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
   const amr = amrMethods(claims.amr);
   const phoneConfirmed = Boolean(user.phone_confirmed_at && user.phone);
-  const facts: AuthFacts = { signedIn: true, emailConfirmed: Boolean(user.email_confirmed_at), phoneVerified: phoneConfirmed, passwordSession: amr.includes('password'), smsVerified: Boolean(step) };
+  const profile = profileFactsOf(user);
+  const missing = profileMissing(profile);
+  const facts: AuthFacts = { signedIn: true, emailConfirmed: Boolean(user.email_confirmed_at), phoneVerified: phoneConfirmed, primarySignIn: isPrimarySignIn(amr), profileComplete: missing.length === 0, smsVerified: Boolean(step) };
   return {
     userId: user.id, sessionId: claims.session_id, email: user.email ?? null, amr,
     emailConfirmed: facts.emailConfirmed, phoneConfirmed, phone: phoneConfirmed ? e164(user.phone) : null,
-    signupPhone: e164(user.user_metadata?.phone as string | undefined), smsVerified: facts.smsVerified, facts, gate: workspaceGate(facts),
+    signupPhone: e164(user.user_metadata?.phone as string | undefined), smsVerified: facts.smsVerified, profile, missing, facts, gate: workspaceGate(facts),
   };
 }

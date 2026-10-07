@@ -19,7 +19,7 @@ export default async function PricingPage() {
             <div className="flex items-center justify-between gap-2"><h2 id={`plan-${i}`} className="text-lg font-bold">{p.name}</h2><Badge tone={i === 0 ? 'up' : 'neutral'}>{p.status}</Badge></div>
             <p className="num mt-2 font-display text-[28px] font-extrabold">{p.price}</p>
             <ul className="mt-4 flex-1 space-y-2 text-[14px]">{p.features.map((f) => <li key={f} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-up" aria-hidden />{f}</li>)}</ul>
-            <div className="mt-5">{i === 0 ? <ButtonLink href="/signup" variant="primary" className="w-full">Create a free account</ButtonLink> : <ButtonLink href={`/contact?topic=${encodeURIComponent(`${p.name} plan`)}`} className="w-full">Register interest</ButtonLink>}</div>
+            <div className="mt-5">{i === 0 ? <ButtonLink href="/signup" variant="primary" className="w-full">Create a free account</ButtonLink> : <ButtonLink href="/support?topic=other" className="w-full">Register interest</ButtonLink>}</div>
           </section>
         ))}
       </div>

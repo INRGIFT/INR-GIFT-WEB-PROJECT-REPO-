@@ -1,7 +1,7 @@
 'use client';
-import { authMode, DEMO_SESSION_COOKIE, smsSecondFactor } from '@/lib/config';
+import { authMode, config, DEMO_SESSION_COOKIE, smsSecondFactor } from '@/lib/config';
 import { supabaseBrowser } from '@/supabase/client';
-import { amrMethods, isPhone, normalizePhone, passwordProblem, workspaceGate, type AuthFacts, type Gate } from './policy';
+import { amrMethods, isPrimarySignIn, isPhone, normalizePhone, passwordProblem, profileFactsOf, profileMissing, workspaceGate, type AuthFacts, type Gate, type ProfileField } from './policy';
 
 export { isEmail, isPhone, normalizePhone, passwordProblem } from './policy';
 
@@ -19,8 +19,14 @@ export interface AuthUser {
   phoneVerified: boolean;
   /** This session passed an SMS code. */
   smsVerified: boolean;
+  /** Sign-in methods on the account ("email", "google"). */
+  providers: string[];
+  /** What the profile still lacks (a first Google sign-in): completed on /complete-profile. */
+  missing: ProfileField[];
   gate: Gate;
 }
+/** What /complete-profile sends. `password` and `terms` only when they are missing. */
+export interface ProfileInput { name: string; phone: string; country: string; password?: string; terms?: boolean }
 export type AuthErrorCode = 'INVALID' | 'RATE_LIMITED' | 'EXPIRED' | 'WEAK_PASSWORD' | 'DUPLICATE_EMAIL' | 'DUPLICATE_PHONE' | 'EMAIL_UNCONFIRMED' | 'SMS_REQUIRED' | 'NOT_CONFIGURED' | 'UNKNOWN';
 export class AuthError extends Error { constructor(public code: AuthErrorCode, message: string, public retryAfter?: number) { super(message); } }
 export type SmsPurpose = 'signup' | 'login' | 'reset' | 'change';
@@ -36,8 +42,15 @@ export interface AuthAdapter {
   onChange(cb: () => void): () => void;
   /** Creates the account (email + password, phone reserved). No session until the email is verified. */
   signUp(input: { name: string; email: string; phone: string; password: string; country: string; next?: string }): Promise<void>;
-  /** Email + password, the only primary sign-in. Returns the next step. */
+  /** Email + password. Returns the next step. */
   signIn(email: string, password: string): Promise<Gate>;
+  /**
+   * Google through Supabase OAuth: the browser leaves for Google and returns to /auth/callback (production). Never a
+   * substitute for the account model: a first Google sign-in completes the profile before anything opens.
+   */
+  signInWithGoogle(next?: string): Promise<void>;
+  /** Saves the missing profile fields (server-checked in production). Returns the next step. */
+  completeProfile(input: ProfileInput): Promise<Gate>;
   /** Demo only: stands in for clicking the emailed link. */
   confirmEmail?(email: string): Promise<void>;
   resendEmail(email: string, next?: string): Promise<void>;
@@ -55,8 +68,8 @@ export interface AuthAdapter {
   signOut(scope?: 'local' | 'global'): Promise<void>;
 }
 
-const build = (base: Omit<AuthUser, 'gate'>, passwordSession: boolean): AuthUser => {
-  const f: AuthFacts = { signedIn: true, emailConfirmed: base.emailVerified, phoneVerified: base.phoneVerified, passwordSession, smsVerified: base.smsVerified };
+const build = (base: Omit<AuthUser, 'gate'>, primarySignIn: boolean): AuthUser => {
+  const f: AuthFacts = { signedIn: true, emailConfirmed: base.emailVerified, phoneVerified: base.phoneVerified, primarySignIn, profileComplete: base.missing.length === 0, smsVerified: base.smsVerified };
   return { ...base, gate: workspaceGate(f) };
 };
 
@@ -72,7 +85,7 @@ function friendly(e: { message?: string; status?: number; code?: string } | null
   if (m.includes('database error')) return new AuthError('DUPLICATE_PHONE', 'That mobile number cannot be used. It may already belong to another account.');
   return new AuthError('UNKNOWN', 'That did not work. Try again in a moment.');
 }
-const SERVER_CODES: Record<string, AuthErrorCode> = { COOLDOWN: 'RATE_LIMITED', TOO_MANY: 'RATE_LIMITED', LOCKED: 'RATE_LIMITED', EXPIRED: 'EXPIRED', NOT_FOUND: 'EXPIRED', INVALID_CODE: 'INVALID', INVALID_PHONE: 'INVALID', PHONE_TAKEN: 'DUPLICATE_PHONE', SMS_REQUIRED: 'SMS_REQUIRED', WEAK_PASSWORD: 'WEAK_PASSWORD', REJECTED: 'WEAK_PASSWORD', NOT_CONFIGURED: 'NOT_CONFIGURED' };
+const SERVER_CODES: Record<string, AuthErrorCode> = { COOLDOWN: 'RATE_LIMITED', TOO_MANY: 'RATE_LIMITED', LOCKED: 'RATE_LIMITED', EXPIRED: 'EXPIRED', NOT_FOUND: 'EXPIRED', INVALID_CODE: 'INVALID', INVALID_PHONE: 'INVALID', PHONE_TAKEN: 'DUPLICATE_PHONE', SMS_REQUIRED: 'SMS_REQUIRED', WEAK_PASSWORD: 'WEAK_PASSWORD', REJECTED: 'WEAK_PASSWORD', NOT_CONFIGURED: 'NOT_CONFIGURED', NOT_SIGNED_IN: 'INVALID', INVALID_INPUT: 'INVALID', DUPLICATE_PHONE: 'DUPLICATE_PHONE' };
 /** Calls an INRGIFT auth route; errors arrive as safe { code, message } from the server. */
 async function api<T>(path: string, body: unknown): Promise<T> {
   let r: Response;
@@ -82,11 +95,13 @@ async function api<T>(path: string, body: unknown): Promise<T> {
   if (!r.ok || j.error) throw new AuthError(SERVER_CODES[j.error?.code ?? ''] ?? 'UNKNOWN', j.error?.message ?? 'That did not work. Try again in a moment.', j.error?.retryAfter);
   return j.data as T;
 }
-const origin = () => window.location.origin;
+/** Origin for links Supabase sends people back to: the canonical site in production, never localhost there. */
+const origin = () => (process.env.NODE_ENV === 'production' ? config.siteUrl.replace(/\/$/, '') : window.location.origin);
+const nextQ = (next?: string) => (next && next !== '/app' ? `&next=${encodeURIComponent(next)}` : '');
 /** Forget the tab's pending SMS challenge (see forms.tsx) when the session ends. */
 const clearPending = () => { try { sessionStorage.removeItem('inrgift.sms.pending'); } catch { /* storage unavailable */ } };
 /** Carries the return path through the emailed link (the email hook and /auth/confirm validate it again). */
-const confirmRedirect = (next?: string) => `${origin()}/auth/callback?flow=signup${next && next !== '/app' ? `&next=${encodeURIComponent(next)}` : ''}`;
+const confirmRedirect = (next?: string) => `${origin()}/auth/callback?flow=signup${nextQ(next)}`;
 async function phoneAvailable(phone: string): Promise<boolean> {
   const r = await fetch('/api/auth/phone-available', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
   if (r.status === 429) throw new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.');
@@ -105,11 +120,12 @@ const supabaseAdapter = (): AuthAdapter => {
       const claims = c?.claims as { session_id?: string; amr?: unknown } | undefined;
       const { data: step } = smsSecondFactor && claims?.session_id ? await sb.from('sms_step_ups').select('session_id').eq('session_id', claims.session_id).maybeSingle() : { data: null };
       const phoneVerified = Boolean(u.phone_confirmed_at && u.phone);
+      const profile = profileFactsOf(u);
       return build({
-        id: u.id, email: u.email ?? null, name: (u.user_metadata?.full_name as string) || u.email?.split('@')[0] || 'Account',
-        phone: phoneVerified ? `+${u.phone!.replace(/\D/g, '')}` : ((u.user_metadata?.phone as string) ?? null),
-        emailVerified: Boolean(u.email_confirmed_at), phoneVerified, smsVerified: Boolean(step),
-      }, amrMethods(claims?.amr).includes('password'));
+        id: u.id, email: u.email ?? null, name: (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || u.email?.split('@')[0] || 'Account',
+        phone: profile.phone, emailVerified: Boolean(u.email_confirmed_at), phoneVerified, smsVerified: Boolean(step),
+        providers: profile.providers, missing: profileMissing(profile),
+      }, isPrimarySignIn(amrMethods(claims?.amr)));
     },
     onChange(cb) { const { data } = sb.auth.onAuthStateChange(() => cb()); return () => data.subscription.unsubscribe(); },
     async signUp({ name, email, phone, password, country, next }) {
@@ -126,6 +142,16 @@ const supabaseAdapter = (): AuthAdapter => {
     async signIn(email, password) {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw friendly(error);
+      return (await this.getUser())?.gate ?? 'login';
+    },
+    async signInWithGoogle(next) {
+      // PKCE: Supabase redirects to Google, then to /auth/callback?flow=oauth, which exchanges the code on the server.
+      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin()}/auth/callback?flow=oauth${nextQ(next)}`, queryParams: { prompt: 'select_account' } } });
+      if (error) throw new AuthError('UNKNOWN', 'Google sign-in could not start. Try again, or use your email and password.');
+    },
+    async completeProfile(input) {
+      await api('/api/auth/complete-profile', { ...input, phone: normalizePhone(input.phone) });
+      await sb.auth.refreshSession();
       return (await this.getUser())?.gate ?? 'login';
     },
     async resendEmail(email, next) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect(next) } }); if (error) throw friendly(error); },
@@ -150,7 +176,13 @@ const supabaseAdapter = (): AuthAdapter => {
  * ------------------------------------------------------------------------------------------------------------ */
 const KEY = 'inrgift.demo.auth.v3';
 export const DEMO_CODE = '123456';
-interface DemoAccount { id: string; email: string; signupPhone: string; phone: string | null; name: string; pw: string; emailVerified: boolean }
+interface DemoAccount {
+  id: string; email: string; signupPhone: string; phone: string | null; name: string; pw: string | null; emailVerified: boolean;
+  /** Signed up with email + password (missing on older demo state = true). */
+  emailIdentity?: boolean; google?: boolean; country?: string; termsAt?: string;
+}
+/** The account a demo "Continue with Google" signs in as (there is no Google in demo mode). */
+export const DEMO_GOOGLE_EMAIL = 'google.user@example.com';
 interface DemoChallenge extends PhoneChallenge { phoneE164: string; issuedAt: number; attempts: number }
 interface DemoState {
   accounts: DemoAccount[];
@@ -165,7 +197,10 @@ const current = (s: DemoState) => (s.session ? s.accounts.find((a) => a.id === s
 const toUser = (s: DemoState): AuthUser | null => {
   const a = current(s);
   if (!a || !s.session) return null;
-  return build({ id: a.id, email: a.email, name: a.name, phone: a.phone ?? a.signupPhone, emailVerified: a.emailVerified, phoneVerified: Boolean(a.phone), smsVerified: s.session.smsVerified }, s.session.amr.includes('password'));
+  const providers = [...(a.emailIdentity !== false ? ['email'] : []), ...(a.google ? ['google'] : [])];
+  const phone = a.phone ?? (a.signupPhone || null);
+  const missing = profileMissing({ providers, phone, country: a.country ?? null, passwordSet: Boolean(a.pw), termsAcceptedAt: a.termsAt ?? null });
+  return build({ id: a.id, email: a.email, name: a.name, phone, emailVerified: a.emailVerified, phoneVerified: Boolean(a.phone), smsVerified: s.session.smsVerified, providers, missing }, isPrimarySignIn(s.session.amr));
 };
 const write = (s: DemoState) => {
   localStorage.setItem(KEY, JSON.stringify(s));
@@ -188,17 +223,40 @@ const demoAdapter = (): AuthAdapter => ({
     if (passwordProblem(password)) throw new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
     if (s.accounts.some((a) => a.email === e)) throw new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
     if (phoneTaken(s, p)) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
-    const a: DemoAccount = { id: `demo-${s.accounts.length + 1}-${Date.now()}`, email: e, signupPhone: p, phone: null, name, pw: await hash(password), emailVerified: false };
+    const a: DemoAccount = { id: `demo-${s.accounts.length + 1}-${Date.now()}`, email: e, signupPhone: p, phone: null, name, pw: await hash(password), emailVerified: false, emailIdentity: true };
     s.accounts.push(a); s.lastSignup = a.id; s.session = null;
     log(s, 'Account created'); write(s);
   },
   async signIn(email, password) {
     const s = read();
     const a = s.accounts.find((x) => x.email === email.trim().toLowerCase());
-    if (!a || a.pw !== (await hash(password))) throw new AuthError('INVALID', 'Those details do not match. Check them and try again.');
+    if (!a || !a.pw || a.pw !== (await hash(password))) throw new AuthError('INVALID', 'Those details do not match. Check them and try again.');
     if (!a.emailVerified) throw new AuthError('EMAIL_UNCONFIRMED', 'Verify your email address first. We can send the link again.');
     s.session = { accountId: a.id, amr: ['password'], smsVerified: false, lastSmsAt: 0 }; s.challenge = null;
     log(s, 'Signed in with email and password'); write(s);
+    return toUser(s)!.gate;
+  },
+  async signInWithGoogle() {
+    // Stands in for Google + Supabase: Google's email arrives verified; an existing account with that verified email
+    // gains the Google identity (Supabase automatic linking); otherwise a Google-only account is created.
+    const s = read();
+    let a = s.accounts.find((x) => x.email === DEMO_GOOGLE_EMAIL);
+    if (a && !a.emailVerified) { a.emailIdentity = false; a.pw = null; } // like Supabase: unconfirmed identities are dropped
+    if (!a) { a = { id: `demo-g-${Date.now()}`, email: DEMO_GOOGLE_EMAIL, signupPhone: '', phone: null, name: 'Google User', pw: null, emailVerified: true, emailIdentity: false }; s.accounts.push(a); }
+    a.google = true; a.emailVerified = true;
+    s.session = { accountId: a.id, amr: ['oauth'], smsVerified: false, lastSmsAt: 0 }; s.challenge = null;
+    log(s, 'Signed in with Google'); write(s);
+  },
+  async completeProfile({ name, phone, country, password, terms }) {
+    const s = read(); const a = current(s); const u = toUser(s);
+    if (!a || !u || u.gate !== 'profile') throw new AuthError('INVALID', 'Sign in again to finish your profile.');
+    const p = normalizePhone(phone);
+    if (!isPhone(p)) throw new AuthError('INVALID', 'Enter the number with its country code.');
+    if (phoneTaken(s, p, a.id)) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
+    if (u.missing.includes('password')) { if (!password || passwordProblem(password)) throw new AuthError('WEAK_PASSWORD', 'Choose a stronger password.'); a.pw = await hash(password); }
+    if (u.missing.includes('terms')) { if (!terms) throw new AuthError('INVALID', 'Accept the terms to continue.'); a.termsAt = new Date().toISOString(); }
+    a.name = name.trim() || a.name; a.signupPhone = p; a.country = country;
+    log(s, 'Profile completed'); write(s);
     return toUser(s)!.gate;
   },
   async confirmEmail(email) {
@@ -257,8 +315,9 @@ const demoAdapter = (): AuthAdapter => ({
 });
 
 const offAdapter = (): AuthAdapter => {
-  const no = async (): Promise<never> => { throw new AuthError('NOT_CONFIGURED', 'Sign-in is not available on this site yet.'); };
-  return { mode: 'off', getUser: async () => null, onChange: () => () => {}, signUp: no, signIn: no, resendEmail: no, sendSms: no, verifySms: no, resetPassword: no, updatePassword: no, updateName: no, activity: async () => [], signOut: async () => {} };
+  // Only a deployment with no Supabase settings at all reaches this (see authMode, src/lib/config.ts).
+  const no = async (): Promise<never> => { throw new AuthError('NOT_CONFIGURED', 'Sign-in is not available on this site yet. Please email support@inrgift.com.'); };
+  return { mode: 'off', getUser: async () => null, onChange: () => () => {}, signUp: no, signIn: no, signInWithGoogle: no, completeProfile: no, resendEmail: no, sendSms: no, verifySms: no, resetPassword: no, updatePassword: no, updateName: no, activity: async () => [], signOut: async () => {} };
 };
 
 let adapter: AuthAdapter | null = null;

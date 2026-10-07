@@ -82,4 +82,10 @@ export const isDemoData = config.provider === 'demo' || config.fallbackProvider 
  * Demo prices must never be presented to crawlers as market data (docs/SEO.md).
  */
 export const isIndexable = process.env.SITE_INDEXABLE === 'true' || (!isDemoData && process.env.SITE_INDEXABLE !== 'false');
+/**
+ * The public pages (homepage and compliance pages, src/lib/route-registry.ts) show no market data, so they may be
+ * indexed even while the product serves demo data. SITE_INDEXABLE=false (for example on a preview) closes everything.
+ * Product pages are protected and always noindex.
+ */
+export const publicPagesIndexable = process.env.SITE_INDEXABLE !== 'false';
 export const DEMO_SESSION_COOKIE = 'inrgift_demo_session';

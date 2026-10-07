@@ -70,7 +70,7 @@ export function ProfilePage() {
       <Panel title="Your data">
         <p className="text-slate2">You hold {rows} saved items: watchlists, alerts, screens, comparisons, collections, research, notes, history and notifications.</p>
         <div className="mt-4 flex flex-wrap gap-2"><Button onClick={exportData}><Download size={16} />Export as JSON</Button><Button variant="danger" onClick={() => setConfirmClear(true)} disabled={!rows}><Trash2 size={16} />Delete workspace data</Button></div>
-        <p className="mt-3 text-xs text-faint">Deleting removes saved research data but keeps your sign-in. To close the account entirely, <Link className="link" href="/support">contact support</Link>.</p>
+        <p className="mt-3 text-xs text-faint">Deleting removes saved research data but keeps your sign-in. To close the account entirely, see <Link className="link" href="/account-closure">account closure</Link>.</p>
       </Panel>
       <Dialog open={confirmClear} onClose={() => setConfirmClear(false)} title="Delete all workspace data?" footer={<><Button onClick={() => setConfirmClear(false)}>Cancel</Button><Button variant="danger" disabled={typed !== 'DELETE'} onClick={clearAll}>Delete {rows} items</Button></>}>
         <p className="text-slate2">This removes every watchlist, alert, saved screen, comparison, collection, saved note and your history. It cannot be undone. Export first if you want a copy.</p>

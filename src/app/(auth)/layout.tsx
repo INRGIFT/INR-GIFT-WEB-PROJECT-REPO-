@@ -39,7 +39,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
       <div className="flex min-w-0 flex-col bg-white">
         <div className="flex h-16 items-center justify-between px-5 sm:px-8"><span className="lg:hidden"><Logo /></span><span className="hidden lg:block" /><Link href="/" className="text-[13px] font-medium text-slate2 hover:text-navy">Back to INRGIFT</Link></div>
         <main id="main" className="flex flex-1 items-start justify-center px-5 pb-16 pt-6 sm:px-8 lg:items-center lg:pt-0">{children}</main>
-        <p className="px-5 pb-5 text-center text-xs text-faint sm:px-8">INRGIFT is a research and information platform. It is not a broker or an investment adviser. <Link className="link" href="/legal/terms">Terms</Link> · <Link className="link" href="/legal/privacy">Privacy</Link></p>
+        <p className="px-5 pb-5 text-center text-xs text-faint sm:px-8">INRGIFT is a research and information platform. It is not a broker or an investment adviser. <Link className="link" href="/terms-and-conditions">Terms and Conditions</Link> · <Link className="link" href="/privacy-policy">Privacy Policy</Link> · <Link className="link" href="/support">Support</Link></p>
       </div>
     </div>
   );

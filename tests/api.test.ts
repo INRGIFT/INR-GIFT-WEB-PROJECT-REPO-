@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
 import { GET } from '@/app/api/v1/[...path]/route';
-import { POST } from '@/app/api/contact/route';
 
 /** Calls the /api/v1 router directly, the same way Next does. */
 async function api(path: string, ip = `10.0.0.${Math.floor(Math.random() * 250)}`) {
@@ -53,16 +52,5 @@ describe('/api/v1 contract', () => {
   });
   it('exposes no trading concepts anywhere in core payloads', async () => {
     for (const p of ['markets', 'assets?pageSize=500', 'heatmap', 'movers', 'research', 'themes', 'calendar']) expect(JSON.stringify((await api(p)).body)).not.toMatch(FORBIDDEN);
-  });
-});
-
-describe('/api/contact', () => {
-  const post = (body: unknown) => POST(new NextRequest('http://test/api/contact', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${Math.floor(Math.random() * 250)}` } }));
-  it('validates input and reports when delivery is not configured', async () => {
-    const bad = await post({ name: '', email: 'x', topic: 'support', message: 'hi' });
-    expect(bad.status).toBe(400);
-    const ok = await post({ name: 'Asha', email: 'asha@example.com', topic: 'data', message: 'The P/E for AAPL looks off.' });
-    expect(ok.status).toBe(503);
-    expect((await ok.json()).error.code).toBe('NOT_CONFIGURED');
   });
 });

@@ -44,10 +44,10 @@ const digits = (p: string) => p.replace(/\D/g, '');
 function phoneFor(s: ServerSession, purpose: SmsPurpose, requested?: string | null): string {
   switch (purpose) {
     case 'signup':
-      if (!s.facts.passwordSession || !s.emailConfirmed || s.phoneConfirmed) throw new SmsError('NOT_ALLOWED');
+      if (!s.facts.primarySignIn || !s.emailConfirmed || s.phoneConfirmed) throw new SmsError('NOT_ALLOWED');
       return requested ?? s.signupPhone ?? '';
     case 'login':
-      if (!s.facts.passwordSession || !s.emailConfirmed || !s.phone) throw new SmsError('NOT_ALLOWED');
+      if (!s.facts.primarySignIn || !s.emailConfirmed || !s.phone) throw new SmsError('NOT_ALLOWED');
       return s.phone;
     case 'reset':
       if (!s.phone) throw new SmsError('NOT_ALLOWED');
