@@ -7,7 +7,7 @@ import type { OtpCheck, SmsOtpProvider } from '@/services/providers/twofactor';
 const CODE = '482913';
 function session(over: Partial<ServerSession> = {}, facts: Partial<ServerSession['facts']> = {}): ServerSession {
   const f = { signedIn: true, emailConfirmed: true, phoneVerified: false, primarySignIn: true, profileComplete: true, smsVerified: false, ...facts };
-  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, profile: { providers: ['email'], phone: '+919876543210', country: 'India', passwordSet: false, termsAcceptedAt: null }, missing: [], facts: f, gate: workspaceGate(f, true), ...over };
+  const s: ServerSession = { userId: 'u1', sessionId: 's1', email: 'asha@example.com', amr: ['password'], emailConfirmed: f.emailConfirmed, phoneConfirmed: f.phoneVerified, phone: f.phoneVerified ? '+919876543210' : null, signupPhone: '+919876543210', smsVerified: f.smsVerified, profile: { providers: ['email'], phone: '+919876543210', country: 'India', passwordSet: false, termsAcceptedAt: null }, missing: [], account: { name: 'Asha Rao', country: 'India', createdAt: null, lastSignInAt: null }, session: { method: 'password', startedAt: null, tokenExpiresAt: null }, facts: f, gate: workspaceGate(f, true), ...over };
   return s;
 }
 function memoryStore(taken = new Set<string>()) {

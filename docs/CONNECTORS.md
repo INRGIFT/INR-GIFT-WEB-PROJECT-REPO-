@@ -105,7 +105,8 @@ To finish:
 Supabase generates every auth token; INRGIFT renders the email and Resend delivers it:
 Supabase → `POST /api/hooks/send-email` (Standard Webhooks signature checked with `SEND_EMAIL_HOOK_SECRET`) →
 `src/services/email` → `POST https://api.resend.com/emails` (`Authorization: Bearer RESEND_API_KEY`).
-Handled types: `signup` (link to `/auth/confirm?type=signup`), `recovery` (`/auth/confirm?type=recovery`),
+Handled types: `signup` (the six-digit code from `email_data.token`, email "Verify your INRGIFT email"; a link to
+`/auth/confirm?type=signup` only if a payload ever arrives without a code), `recovery` (`/auth/confirm?type=recovery`),
 `reauthentication` (code). `magiclink`, `invite` and `email_change` are refused (422): INRGIFT has no passwordless
 sign-in, and email changes go through support. Security notices (phone changed, password changed) are sent by the
 server through the same adapter. Sending an email never marks anything verified; Supabase does. Links in every
@@ -148,7 +149,8 @@ provider's short description only (no `full_content`). Details: `docs/CONTENT.md
 ## Manual production smoke test (real providers)
 1. `/api/health` → `integrations` shows supabase.secretKey, resend.configured + sendEmailHook, twofactor.configured,
    news.provider `newsdata.io` (it sends nothing and spends no quota).
-2. Sign up with a real inbox and phone → the Resend email arrives (check Resend logs) → the link lands on sign-in.
+2. Sign up with a real inbox and phone → "Verify your INRGIFT email" arrives with a six-digit code (check Resend logs)
+   → entering it shows "Email verified ✓" and moves to step 3.
 3. Sign in → an SMS from 2Factor.in arrives → a wrong code is refused → the right code opens the workspace.
 4. Sign out, sign in → a new SMS is required. Reset the password → SMS required before saving.
 5. `/resources/news` shows "Fresh from provider" or "Cached", source NewsData.io, and only market/business stories.

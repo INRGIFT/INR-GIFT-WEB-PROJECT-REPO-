@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/toast';
 import { useSession } from '@/features/auth/session-context';
 import { money } from '@/lib/format';
 import type { Asset, TableName, UserPrefs } from '@/lib/types';
-import { DEFAULT_PREFS, makeRepo, type NewRow, type Row, type WorkspaceRepo } from './repo';
+import { DEFAULT_PREFS, makeRepo, TABLES, type NewRow, type Row, type WorkspaceRepo } from './repo';
 
 type All = { [K in TableName]: Row<K>[] };
 const EMPTY: All = { watchlists: [], watchlist_items: [], alerts: [], saved_screens: [], saved_comparisons: [], saved_research: [], notes: [], recent_history: [], notifications: [], collections: [] };
@@ -16,6 +16,10 @@ const ANON_PREFS = 'inrgift.prefs.anon';
 interface Workspace {
   ready: boolean;
   data: All;
+  /** Tables that could not be loaded this time (their modules show an error with Retry, never a false "empty"). */
+  failed: TableName[];
+  /** Loads every table again. */
+  reload: () => void;
   prefs: UserPrefs;
   rates: Record<string, number>;
   setPrefs: (patch: Partial<UserPrefs>) => void;
@@ -38,34 +42,47 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Reference FX rates are market data: loaded through the protected API once someone is signed in, never embedded
   // in public pages.
   const [rates, setRates] = useState<Record<string, number>>({});
+  const rateUser = user?.id ?? null;
   useEffect(() => {
-    if (!user) { setRates({}); return; }
+    if (!rateUser) { setRates({}); return; }
     let live = true;
     fetch('/api/v1/fx-rates').then((r) => (r.ok ? r.json() : null)).then((j) => { if (live && j?.data) setRates(j.data as Record<string, number>); }).catch(() => {});
     return () => { live = false; };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rateUser]);
   const toast = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const repo = useRef<WorkspaceRepo | null>(null);
   const [data, setData] = useState<All>(EMPTY);
+  const [failed, setFailed] = useState<TableName[]>([]);
   const [prefs, setPrefsState] = useState<UserPrefs>(DEFAULT_PREFS);
   const [ready, setReady] = useState(false);
+  const [tick, setTick] = useState(0);
+  // Keyed on the account id, not the user object: token refreshes, tab focus and other auth events produce a new object
+  // for the same account and must not reload (and blank) the workspace.
+  const uid = user?.id ?? null;
 
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
-    if (!user) {
-      repo.current = null; setData(EMPTY); setReady(true);
+    if (!uid) {
+      repo.current = null; setData(EMPTY); setFailed([]); setReady(true);
       try { setPrefsState({ ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(ANON_PREFS) ?? '{}') }); } catch { /* keep defaults */ }
       return;
     }
-    setReady(false);
-    const r = makeRepo(user.id);
+    const r = repo.current && tick > 0 ? repo.current : makeRepo(uid);
     repo.current = r;
-    Promise.all([r.loadAll(), r.getPrefs()]).then(([all, p]) => { if (!cancelled) { setData(all); setPrefsState(p); setReady(true); } }).catch(() => { if (!cancelled) { setReady(true); toast('Your workspace could not load. Reload to try again.'); } });
+    if (tick === 0) setReady(false);
+    const timeout = <T,>(p: Promise<T>) => Promise.race([p, new Promise<never>((_, no) => setTimeout(() => no(new Error('timeout')), 15_000))]);
+    Promise.allSettled([timeout(r.loadAll()), timeout(r.getPrefs())]).then(([all, p]) => {
+      if (cancelled) return;
+      if (all.status === 'fulfilled') { setData(all.value.data); setFailed(all.value.failed); } else setFailed([...TABLES]);
+      if (p.status === 'fulfilled') setPrefsState(p.value);
+      setReady(true);
+    });
     return () => { cancelled = true; };
-  }, [user, loading, toast]);
+  }, [uid, loading, tick]);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
 
   const requireAuth = useCallback(() => { if (user) return true; router.push(`/login?next=${encodeURIComponent(pathname)}`); return false; }, [user, router, pathname]);
   const add = useCallback(async <T extends TableName>(table: T, row: NewRow<T>) => {
@@ -105,7 +122,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
   const showPrice = useCallback((a: Pick<Asset, 'price' | 'currency'>) => (a.price == null ? '—' : prefs.currency === 'INR' && a.currency !== 'INR' && rates[a.currency] ? money(a.price * rates[a.currency], 'INR') : money(a.price, a.currency)), [prefs.currency, rates]);
 
-  const value = useMemo(() => ({ ready, data, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice }), [ready, data, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice]);
+  const value = useMemo(() => ({ ready, data, failed, reload, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice }), [ready, data, failed, reload, prefs, rates, setPrefs, requireAuth, add, update, remove, isWatched, toggleWatch, track, showPrice]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

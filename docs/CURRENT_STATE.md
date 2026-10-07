@@ -5,6 +5,15 @@ It is **not production-ready**. Live market data, production email and SMS, lega
 not connected. `docs/RELEASE_READINESS.md` lists the gates.
 
 
+**Update (7 Oct 2026, master rebuild):** sign-up verifies the email with a six-digit code (Supabase `verifyOtp`) in
+step 2; every account gets a permanent **GIFT ID** once migration 0008 is applied (owner action; code works before
+and after); all product pages share one authenticated app shell with a grouped sidebar; `/app` greets "Hola AMIGO"
+and shows market overview, quick research, news, watchlist, saved research and alerts with per-module states;
+Profile, Security, Sessions and Preferences are rebuilt; the news page is "Global market news" with 20 categories and
+a market pulse. Verification: typecheck; 169 unit/API tests; `npm run test:db` (all migrations + RLS + GIFT ID, and
+0001–0006 + 0008 without 0007 + backfill); build (no env, demo, demo with SMS on); Playwright 118 + 6 skipped (SMS
+off) and 122 + 2 skipped (SMS on), desktop and Pixel 7.
+
 **Update (7 Oct 2026, compliance + Google):** `/`, Terms and Conditions, Privacy Policy, About, Support, Account
 Closure, Grievance Redressal and `/legal/*` are public; support, grievance and closure forms email support@inrgift.com
 through Resend; Google sign-in (Supabase OAuth) is built and appears once the Google provider is enabled in Supabase.

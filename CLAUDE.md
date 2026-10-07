@@ -51,7 +51,9 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
   `/grievance-redressal`, `/legal/*`; URLs fixed by the NSEIXGA document) plus auth infrastructure. Every other page and `/api`
   route requires a fully verified session; the default-deny classifier is `src/lib/route-registry.ts`, enforced in
   `src/middleware.ts`. New routes are protected automatically. Return paths go through `safeReturnPath` only.
-- **Accounts:** email + phone + password. Sign-in = email + password or Google (Supabase OAuth; a first Google sign-in completes
+- **Accounts:** email + phone + password; sign-up step 2 verifies the email with Supabase's six-digit code
+  (`verifyOtp`, type `email`; never stored by INRGIFT). Every account has a permanent **GIFT ID** (migration 0008):
+  shown and copied, never used to authenticate or authorise. Sign-in = email + password or Google (Supabase OAuth; a first Google sign-in completes
   phone, password, country, terms), then an SMS code when switched on. Never passwordless, other social login, or skip.
   The SMS step sits behind `NEXT_PUBLIC_SMS_SECOND_FACTOR` (off until 2Factor.in DLT approval; switch on together with
   migration 0007, `docs/AUTH-SECURITY.md`).
@@ -73,7 +75,8 @@ Charts are hand-written SVG behind `ChartShell`. No other runtime dependencies; 
 7. **Metrics** are declared once in `src/lib/metrics.ts`; tables, screener and compare read that registry.
 8. **Routes/nav** are declared in `src/lib/routes.ts`.
 9. **Design tokens** only. No raw hex in components except inside SVG chart renderers.
-10. Route groups: `(site)` public shell, `(workspace)` authenticated shell with sidebar, `(auth)` two-column auth layout.
+10. Route groups: `(site)` public pages (homepage and compliance pages), `(workspace)` every product page in the
+    authenticated app shell (`AppShell`, `APP_NAV` in `src/lib/routes.ts`), `(auth)` two-column auth layout.
 11. **Metadata** through `pageMetadata()` / `privateMetadata()` in `src/lib/seo.ts`; structured data through `src/lib/structured-data.tsx`.
 12. **Content** (learn, glossary, FAQ, legal, videos) only through the async getters in `src/services/content.ts` (the CMS seam).
 
@@ -94,6 +97,6 @@ format, heatmap, screener, compare, identity model, SEO, a route registry, CSP, 
 content library (44 guides, 36 terms), eight recorded tutorials, 2Factor.in SMS second factor, Resend email,
 NewsData.io news, Google sign-in, public compliance pages with support/grievance/closure forms, and authenticated product access. It is not production-ready: see
 `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`. Official brand files are
-integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006 applied; 0007 in the repo, applied only with the SMS switch; `.env.local`); production domain https://inrgift.com; GoDaddy
+integrated (`docs/BRAND_ASSET_INVENTORY.md`). A Supabase project is live (migrations 0001–0006 applied; 0007 in the repo, applied only with the SMS switch; 0008 GIFT ID to be applied on its own by the owner; `.env.local`); production domain https://inrgift.com; GoDaddy
 deployment is a validated source zip that GoDaddy installs and builds (`docs/DEPLOY.md`). Market data stays on DemoProvider until NSE access exists. Test builds use
 `NEXT_PUBLIC_AUTH_MODE=demo`. Start with `docs/ROADMAP.md`.

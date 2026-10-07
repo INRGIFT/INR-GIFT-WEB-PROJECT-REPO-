@@ -19,10 +19,12 @@ import { parseNewsQuery } from '@/services/news/news-query';
 import { getNews } from '@/services/news/news-service';
 
 const TITLES: Record<string, [string, string]> = {
-  news: ['Market news', 'Global business and market news, filtered for market relevance and linked to the assets and markets it concerns.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
+  news: ['Global market news', 'Market-moving news, macro developments, company events and financial intelligence.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
 type Props = { params: Promise<{ kind: string }>; searchParams: Promise<Record<string, string | undefined>> };
+/** Benchmarks in the news page's market pulse. Instruments the data source does not carry are left out. */
+const PULSE = ['NIFTY-50', 'SENSEX', 'SP-500', 'NASDAQ-COMPOSITE', 'FTSE-100', 'NIKKEI-225', 'USD-INR', 'GOLD', 'BRENT', 'US-10Y'];
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, sp] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: Object.keys(sp).length ? 'faceted' : 'index' }) : notFound(); }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
@@ -38,8 +40,10 @@ export default async function ResourcePage({ params, searchParams }: Props) {
   let body: ReactNode;
   if (kind === 'news') {
     const query = parseNewsQuery(await searchParams);
-    const [result, markets, assets] = await Promise.all([getNews(query), md.getMarkets(), md.getAssets({ cls: ['stock', 'etf', 'reit'] })]);
-    body = <NewsFeed query={query} result={result} markets={markets} companies={assets} />;
+    const [result, markets, pulseAssets] = await Promise.all([getNews(query), md.getMarkets(), Promise.all(PULSE.map((slug) => md.getAsset(undefined, slug)))]);
+    const assets = pulseAssets.filter((a): a is NonNullable<typeof a> => Boolean(a));
+    // The news page carries its own header (GLOBAL MARKET NEWS) and three-area layout.
+    return <PageContainer wide><NewsFeed query={query} result={result} markets={markets} pulse={{ assets, markets, meta: md.freshest(assets) }} /></PageContainer>;
   } else if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
     const events = await md.getCalendar(kind === 'earnings' ? 'earnings' : kind === 'dividends' ? 'dividend' : 'ipo');
     const markets = new Map((await md.getMarkets()).map((m) => [m.id, m]));

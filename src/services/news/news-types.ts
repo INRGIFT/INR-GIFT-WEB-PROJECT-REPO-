@@ -61,9 +61,9 @@ export interface NewsArticle extends Omit<RawArticle, 'id' | 'title' | 'url'> {
 }
 
 export type NewsSection =
-  | 'most-relevant' | 'latest' | 'global-markets' | 'india' | 'us' | 'europe' | 'asia-pacific' | 'fx' | 'commodities'
-  | 'bonds' | 'companies' | 'earnings' | 'ipo' | 'macro' | 'central-banks' | 'politics-markets' | 'geopolitics'
-  | 'trade-regulation' | 'country-risk';
+  | 'most-relevant' | 'latest' | 'global-markets' | 'stocks' | 'india' | 'us' | 'europe' | 'asia-pacific' | 'fx' | 'commodities'
+  | 'bonds' | 'etfs' | 'indices' | 'companies' | 'earnings' | 'dividends' | 'ipo' | 'mergers' | 'macro' | 'central-banks'
+  | 'politics-markets' | 'geopolitics' | 'regulation' | 'trade' | 'supply-chain' | 'trade-regulation' | 'country-risk';
 
 /** A validated request from INRGIFT's UI or API. Never forwarded to the provider as-is. */
 export interface NewsQuery {

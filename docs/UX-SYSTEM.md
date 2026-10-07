@@ -11,16 +11,22 @@ Route list below describes what exists; access is decided only by `src/lib/route
 
 ## Shells
 - **Public `(site)`**: header + main + footer + mobile bottom nav. No sidebar.
-- **Authenticated `(workspace)`**: header + personal sidebar (248px, collapses to 64px; icons only below `lg`) +
-  horizontal section tabs on phones + bottom nav. Sidebar groups: **My workspace** (Overview, Watchlist, Alerts) · **Discover** (Saved screens, Saved comparisons, Collections, Recent) · **Research** (Saved research, Notes, History) · **System** (Settings, Help). Notifications are in the header bell; Security is in the account menu and settings.
+- **Authenticated `(workspace)`** (every product page: markets, assets, discover, research, resources, search, `/app`,
+  account): `AppShell` (`src/components/layout/app-shell.tsx`). Fixed sidebar 264px, collapsible to 76px (remembered
+  per browser), groups **Workspace** (Home, Discover, Markets, Screeners, Compare, Research, News, Watchlists, Alerts,
+  Saved Research) · **Account** (Profile, Security, Sessions, Preferences) · **Support** (Support, Grievance Redressal,
+  Account Closure) · **More** (saved screens and comparisons, collections, notes, recent, history, notifications,
+  calendar, learn). Bottom: the signed-in person (initials, name, masked email, GIFT ID, email verification). Top bar:
+  page title, search, display currency, notifications bell only when there are notifications, account menu (name,
+  masked email, GIFT ID, Profile, Security, Sessions, Preferences, Sign out). Below 1024px the sidebar is a drawer
+  behind the menu button. Navigation lives in `APP_NAV` (`src/lib/routes.ts`).
 - **Auth `(auth)`**: two-column, navy brand panel left, form right. Built; brand panel shows a live IST session read-out.
 
 ## Navigation (`src/lib/routes.ts`)
 Top: Markets · Assets · Discover · Research · Resources (dropdowns). Utilities: search, display currency, open-market
 count, Demo data label, notifications + avatar when signed in, Sign in / Sign up otherwise.
-Mobile bottom nav: Home · Markets · Discover · Research · Workspace.
-Sidebar groups: My workspace (Overview, Watchlist, Alerts) · Discover (Saved Screens, Saved Comparisons, Collections,
-Recent) · Research (Saved Research, Notes, History) · System (Settings, Help). Counters when data exists. Never Portfolio.
+Public pages (homepage and compliance pages) keep the site header, footer and mobile bottom nav.
+Signed in, product pages use the app shell sidebar (`APP_NAV`, above). Counters only when the data loaded. Never Portfolio.
 
 ## Route map and status
 ✅ built · ✅ not built
@@ -33,13 +39,14 @@ fx, commodities, bonds, reits, funds) · ✅ `/stocks/[symbol]` `/etfs/[symbol]`
 glossary, data) · ✅ `/about` `/pricing` `/faq` `/support` `/contact` · ✅ `/legal/[doc]` · ✅ `/resources` `/resources/learn/[slug]` `/resources/glossary/[slug]` `/search` `/etfs/[symbol]/review`
 Auth: ✅ `/login` `/signup` `/verify` `/verify-phone` `/mfa` `/forgot-password` `/reset-password` `/onboarding` · ✅ `/auth/callback`
 Authenticated: ✅ `/app` · ✅ `/app/[section]` (watchlist, alerts, screens, comparisons, collections, recent, research,
-notes, history) · ✅ `/account/[section]` (profile, settings, security) · ✅ `/notifications`
+notes, history) · ✅ `/account/[section]` (profile, settings = Preferences, security, sessions) · ✅ `/notifications`
 
 ## Acceptance flows (more important than isolated polish)
 1. Search → asset → chart → metrics → compare → save → alert.
 2. Market → heatmap → sector → company → research → watchlist.
 3. Screener → filter → result → chart/research → compare → save.
-4. Sign up → verify email → verify phone → enrol MFA → onboarding → workspace.
+4. Sign up (step 1 account) → six-digit email code (step 2) → mobile number (step 3; SMS code once switched on) →
+   onboarding → "Your INRGIFT account is ready." (GIFT ID) → workspace home ("Hola AMIGO").
 The 23-step journey in `docs/QA.md` is the e2e target.
 
 ## Page patterns

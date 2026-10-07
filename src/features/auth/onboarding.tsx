@@ -11,6 +11,7 @@ import { CLASS_LABEL } from '@/lib/routes';
 import type { Asset, AssetClass, Region, Theme } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 import { safeReturnPath } from '@/lib/return-url';
+import { AccountReadyCard } from '@/features/account/gift-id';
 import { AuthCard } from './auth-ui';
 
 const REGIONS: Region[] = ['Asia-Pacific', 'North America', 'Europe', 'Middle East', 'Latin America', 'Africa'];
@@ -32,6 +33,7 @@ export function Onboarding() {
   const [themes, setThemes] = useState<string[]>(ws.prefs.themes);
   const [picked, setPicked] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
   const themesApi = useApi<Theme[]>('/api/v1/themes');
   const universe = useApi<Asset[]>(step === 4 ? '/api/v1/assets?class=stocks,etfs,indices,fx,commodities,reits&pageSize=500' : null);
   const suggestions = useMemo(() => {
@@ -51,8 +53,11 @@ export function Onboarding() {
       if (chosen.length) toast(`${chosen.length} assets added to your watchlist`);
     }
     await ws.add('notifications', { category: 'account', title: 'Your workspace is ready', body: 'Preferences saved. Change them any time in Settings.', href: '/account/settings', read: false });
-    router.replace(safeReturnPath(params.get('next')));
+    setSaving(false);
+    setDone(true);
   };
+  // Account-ready confirmation with the GIFT ID: shown once, after setup or Skip; Continue goes straight on.
+  if (done) return <div className="w-full max-w-[560px] animate-fade-up"><AccountReadyCard onContinue={() => router.replace(safeReturnPath(params.get('next')))} /></div>;
   if (!ws.ready) return <div className="w-full max-w-[520px] space-y-3"><Skeleton className="h-7 w-1/2" /><Skeleton className="h-40 w-full" /></div>;
   return (
     <div className="w-full max-w-[560px]">

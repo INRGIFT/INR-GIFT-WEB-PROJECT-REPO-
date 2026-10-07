@@ -151,3 +151,23 @@ describe('auth redirects', () => {
     expect(safeNext(null, '/onboarding')).toBe('/onboarding');
   });
 });
+
+describe('authenticated navigation', () => {
+  it('has the Workspace, Account and Support groups in order, and nothing that trades', async () => {
+    const { APP_NAV, APP_NAV_MORE, appTitle } = await import('@/lib/routes');
+    const { classifyPath } = await import('@/lib/route-registry');
+    expect(APP_NAV.map((g) => [g.group, g.items.map((i) => i.label)])).toEqual([
+      ['Workspace', ['Home', 'Discover', 'Markets', 'Screeners', 'Compare', 'Research', 'News', 'Watchlists', 'Alerts', 'Saved Research']],
+      ['Account', ['Profile', 'Security', 'Sessions', 'Preferences']],
+      ['Support', ['Support', 'Grievance Redressal', 'Account Closure']],
+    ]);
+    const all = [...APP_NAV.flatMap((g) => g.items), ...APP_NAV_MORE];
+    expect(JSON.stringify(all.map((i) => [i.label, i.href]))).not.toMatch(/portfolio|holding|order|position|broker|trade now|buy|sell|deposit|withdraw|p&l/i);
+    // Every product link is protected; the support links are the public compliance pages.
+    for (const i of all) expect(classifyPath(i.href), i.href).toBe(['/support', '/grievance-redressal', '/account-closure'].includes(i.href) ? 'public' : 'protected');
+    expect(appTitle('/resources/news')).toBe('News');
+    expect(appTitle('/account/sessions')).toBe('Sessions');
+    expect(appTitle('/stocks/AAPL')).toBe('Markets');
+    expect(appTitle('/app')).toBe('Home');
+  });
+});

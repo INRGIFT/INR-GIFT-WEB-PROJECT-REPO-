@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { config } from '@/lib/config';
+import { config, emailOtpMinutes } from '@/lib/config';
 import { safeReturnPath } from '@/lib/return-url';
 import { configured, serverEnv } from '@/lib/server-env';
 import { verifyStandardWebhook } from '@/lib/standard-webhooks';
@@ -19,8 +19,9 @@ const fail = (status: number, message: string) => NextResponse.json({ error: { h
 /**
  * Supabase Auth "Send Email" hook (Authentication → Hooks). Supabase generates the token and calls this endpoint with
  * a Standard Webhooks signature; INRGIFT renders the email and delivers it through Resend. Supabase stays the source
- * of truth: the link goes to /auth/confirm, which verifies the token with Supabase. Passwordless types (magic link,
- * invite) are refused, because every INRGIFT session must start with email + password.
+ * of truth: the sign-up email carries Supabase's six-digit code (checked by Supabase verifyOtp); the reset email
+ * links to /auth/confirm, which verifies the token with Supabase. Passwordless types (magic link, invite, email OTP
+ * sign-in) are refused, because every INRGIFT session must start with the password or Google.
  */
 export async function POST(req: NextRequest) {
   if (!configured.emailHook()) return fail(503, 'Email hook is not configured.');
@@ -38,7 +39,8 @@ export async function POST(req: NextRequest) {
   const link = (type: string) => `${site}/auth/confirm?token_hash=${encodeURIComponent(d.token_hash ?? '')}&type=${type}${next ? `&next=${encodeURIComponent(next)}` : ''}`;
   let mail;
   switch (d.email_action_type) {
-    case 'signup': mail = emailTemplates.confirmSignup(link('signup')); break;
+    // Sign-up: the six-digit code Supabase generated for this request (verifyOtp, type 'email'). Never logged or stored.
+    case 'signup': mail = d.token && /^\d{6,10}$/.test(d.token) ? emailTemplates.verifySignupCode(d.token, emailOtpMinutes) : emailTemplates.confirmSignup(link('signup')); break;
     case 'recovery': mail = emailTemplates.resetPassword(link('recovery')); break;
     case 'reauthentication': if (!d.token) return fail(400, 'Malformed payload.'); mail = emailTemplates.reauthenticate(d.token); break;
     default:

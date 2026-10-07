@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signInDemo, SMS_ON } from './fixtures';
+import { continueToInrgift, finishSignup, signInDemo, SMS_ON, verifyEmailCode } from './fixtures';
 
 /**
- * The acceptance journey from docs/QA.md, run in demo mode (no Supabase): accounts live in the browser, the email
- * link is a button and every SMS code is 123456. Required-credential cases are in e2e/auth.spec.ts.
+ * The acceptance journey from docs/QA.md, run in demo mode (no Supabase): accounts live in the browser and every
+ * email and SMS code is 123456. Required-credential cases are in e2e/auth.spec.ts.
  * Each test starts from a clean browser context, so state never leaks between tests.
  */
 const CODE = '123456';
@@ -20,18 +20,8 @@ async function signUp(page: Page) {
   await page.getByLabel('Confirm password').fill(PASSWORD);
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
-  await page.getByRole('button', { name: /Open the verification link/ }).click();
-  await page.getByLabel('Email', { exact: true }).fill(address);
-  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  if (SMS_ON) {
-    await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
-    await page.getByRole('button', { name: 'Send code' }).click();
-    await page.getByLabel('SMS code').fill(CODE);
-    await page.getByRole('button', { name: 'Verify number' }).click();
-  }
-  await expect(page.getByRole('heading', { name: 'How should prices appear?' })).toBeVisible();
+  await verifyEmailCode(page);
+  await finishSignup(page);
   return address;
 }
 
@@ -63,8 +53,9 @@ test('account journey: sign up, verify email and phone, onboarding, workspace, s
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: /and finish|^Finish$/ }).click();
+  await continueToInrgift(page);
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Hola AMIGO/ })).toBeVisible();
 
   // Watchlist: the onboarding picks are there; add one more by search.
   await page.goto('/app/watchlist');

@@ -33,10 +33,12 @@ The database enforces the same rule with a restrictive RLS policy on every works
 ## Flows
 - **Sign-up** (`/signup`): name, email, mobile number (E.164), password, confirmation, terms. Server checks number
   availability (`/api/auth/phone-available`, rate-limited); Supabase creates the user; a database trigger reserves the
-  number (unique). Supabase calls the Send Email Hook → Resend sends the confirmation link → `/auth/confirm` verifies
-  the token **and signs that link session out** → `/login` (email + password) → `/verify-phone`: 2Factor.in sends a
-  code → server checks it → `auth.users.phone` confirmed + SMS step-up for this session → onboarding → the original
-  destination (`next`).
+  number (unique). Supabase generates a six-digit code and calls the Send Email Hook → Resend sends "Verify your
+  INRGIFT email" with the code → **step 2, Verify your email**: `supabase.auth.verifyOtp({ email, token, type: 'email' })`
+  → the session that verification opens is **signed out at once** (only the password or Google opens INRGIFT sessions)
+  → **step 3** signs in with the password, which was kept in memory only (or asks for it after a refresh) →
+  [SMS on: `/verify-phone`: 2Factor.in sends a code → server checks it → `auth.users.phone` confirmed + SMS step-up for
+  this session] → onboarding → "Your INRGIFT account is ready." with the GIFT ID → the original destination (`next`).
 - **Sign-in** (`/login`): email + password (Supabase) → `/verify-phone` sends the code automatically → match → session
   step-up → destination. A wrong code leaves the session blocked; five wrong codes lock the challenge.
 - **Password reset**: `/forgot-password` → Resend email → `/auth/confirm?type=recovery` → `/reset-password` asks for an
@@ -47,10 +49,42 @@ The database enforces the same rule with a restrictive RLS policy on every works
   new number; the number changes only after it matches; Resend sends a notice. The old number is released.
 - **Lost phone** (SMS on only): `/support` (public) or support@inrgift.com. Support confirms identity out of band, then removes the phone
   with the Supabase dashboard/admin API; the person signs in with email + password and verifies a new number.
-- **Security page** (`/account/security`): email Verified/Pending, phone Verified/Pending, password Configured, SMS
-  two-factor Enabled (cannot be turned off), change number, change password, reset link, sign out.
-- With the SMS switch off, the flows above stop after email + password: sign-up → emailed link → sign in → onboarding
-  → destination; reset → emailed link → new password → sign in. The steps marked SMS are skipped, never faked.
+- **Security page** (`/account/security`): password (Set, change, reset link), sign-in identity (email and password,
+  Google connected or not), verification (email Verified/Pending; phone Saved, or Verified/Pending with SMS on; SMS
+  two-factor "Not yet active" until 2Factor.in DLT approval, then Enabled and not switchable off), sessions (sign out,
+  sign out on all devices), recent activity.
+- **Sessions page** (`/account/sessions`): only what can be verified: this session's sign-in method and start (JWT
+  `amr`), when its access token expires (JWT `exp`), this browser (its own user agent) and the last sign-in. Supabase
+  does not let a browser list other sessions, so none are shown; "Sign out on all devices" (`signOut({ scope: 'global' })`)
+  ends every session.
+- With the SMS switch off, the flows above stop after email + password: sign-up → six-digit email code → sign-in (step 3)
+  → onboarding → destination; reset → emailed link → new password → sign in. The steps marked SMS are skipped, never faked.
+
+## Email verification code (sign-up step 2)
+- Supabase generates, stores, expires and checks the code; INRGIFT never generates a second code and never stores it:
+  not in the database, localStorage, sessionStorage, the URL, logs or analytics. It exists only in the input until
+  submitted. The hook passes it straight to the email (`/api/hooks/send-email`, never logged).
+- Exactly six digits (numeric keyboard, paste of "123 456" accepted, `autocomplete="one-time-code"`).
+- Supabase answers wrong and expired codes with the same error; the screen says "This verification code has expired.
+  Request a new code." once the code's lifetime has passed since it was sent, otherwise "Incorrect verification code.
+  Check the code in your email and try again." Rate limits come from Supabase (429 → "Too many attempts…"); Resend
+  code has a 60-second cooldown.
+- Supabase dashboard settings this needs: Authentication → Providers → Email: **Confirm email on**, **Email OTP length
+  6**, **Email OTP expiration** = `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 seconds (default 60 minutes). The hook is what
+  sends the code, so no Supabase email template edit is needed.
+
+## GIFT ID
+- Every account's permanent reference, `GIFT-` + 8 Crockford base32 characters (no I, L, O, U), from 40 random bits
+  (`gen_random_uuid()`): no personal data, not sequential. Assigned by the database when the profile row is created
+  (email and Google sign-ups alike), unique (`profiles_gift_id_key`), immutable (trigger), never reissued
+  (`gift_id_registry` keeps every issued ID, marked retired when an account is deleted). Migration 0008.
+- **Never a credential.** No route, API or RLS policy authenticates or authorises with it; RLS keeps authorising by
+  `auth.uid()`. Clients cannot read the registry or call the GIFT ID functions. Knowing someone's GIFT ID gives no access.
+- Read only from the session: `GET /api/v1/me` looks up the profile row by the session's user id. The support,
+  grievance and closure forms add "GIFT ID (verified, from the signed-in session)" the same way; a GIFT ID typed into
+  a public form is passed on as "not verified" text, never looked up, and the response never reveals whether it exists.
+- Shown on the profile (INRGIFT ACCOUNT card, Copy GIFT ID), in the sidebar and account menu, and on the account-ready
+  screen after onboarding. Not sent to analytics, not put in URLs.
 
 ## Switching SMS on (after 2Factor.in DLT approval)
 Do these together, in order; 0007 and the switch belong together, because 0007's RLS requires an SMS step-up on every

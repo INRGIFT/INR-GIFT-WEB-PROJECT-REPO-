@@ -3,7 +3,25 @@
 Keep this file current. It is the handover record. Start with `docs/CURRENT_STATE.md` and `docs/RELEASE_READINESS.md`;
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
-## Done (typecheck, 144 unit/API tests, Playwright 106 + 6 skipped with SMS off / 110 + 2 skipped with SMS on, desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+## Done (typecheck, 169 unit/API tests, Playwright 118 + 6 skipped with SMS off / 122 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, build, GoDaddy source zip)
+- **Master rebuild (7 Oct 2026):**
+  - Sign-up step 2 is a **six-digit email code** (Supabase `verifyOtp`, type `email`; code email "Verify your INRGIFT
+    email" through the hook and Resend). Wrong, expired, rate-limited and resend states. The code is never stored.
+    Step 3 signs in with the in-memory password, then the mobile number.
+  - **GIFT ID** (`GIFT-XXXXXXXX`, migration 0008): database-assigned, unique, immutable, never reissued, backfilled.
+    Shown on the profile (copy), sidebar, account menu and the new account-ready screen after onboarding. Support,
+    grievance and closure forms add the session's verified GIFT ID; typed IDs stay unverified. Never a credential.
+  - **One authenticated app shell** for every product page: collapsible grouped sidebar (Workspace, Account, Support),
+    top bar, mobile drawer, user card. Product pages moved from `(site)` to `(workspace)`.
+  - **Workspace home** "Hola AMIGO, <name>": market overview with statuses and sources, quick research, news,
+    watchlist, saved research and alerts. Each module has its own loading, empty, error and retry states and its
+    own error boundary.
+  - Workspace reliability: loads keyed on the account id, per-table results, timeouts. A network blip is no longer
+    treated as a sign-out.
+  - **Account pages:** Profile (INRGIFT ACCOUNT card, verification incl. Google, security and preferences summaries),
+    Security, new Sessions page (only verifiable facts), Preferences.
+  - **News page redesign** "Global market news": 20 categories, filters, featured story, story cards, market pulse,
+    stale and outage states. `GET /api/v1/me` for the signed-in account.
 - **Compliance, Google and session hardening (7 Oct 2026):** public compliance pages with company details and forms
   (support, grievance, account closure → Resend → support@inrgift.com); Google sign-in via Supabase OAuth with the
   `/complete-profile` step; Secure/Lax session cookies; middleware CSRF guard; session context re-checks and cross-tab
@@ -85,6 +103,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
     `next` return path with query; noindex, robots and sitemap limited to public pages; marketing-only homepage.
 
 ## Not done — next, in order
+0. **Owner, for this release:** apply migration **0008 alone** (`docs/DEPLOY.md`, "Database migration 0008"; never
+   `supabase db push`, which would also apply 0007); set Supabase Email OTP length 6 and expiry 3600 s
+   (`docs/DEPLOY.md`, "Six-digit email verification code"); redeploy the new zip.
 1. **Google Cloud + Supabase Google provider** (`docs/DEPLOY.md`, "Google sign-in"), then the real-provider smoke test.
 1. **Owner configuration, then the real-provider smoke test** (`docs/CONNECTORS.md`, `docs/DEPLOY.md`): Supabase Site
    URL `https://inrgift.com` and redirect URLs, Send Email Hook, phone provider and MFA off; Resend key and verified
@@ -115,7 +136,10 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - Legal documents are drafted for INRGIFT's actual functionality but not reviewed by counsel; governing law is neutral pending the registered entity details.
 - Rate limits and the duplicate closure guard are in-memory per instance.
 - Middleware reads the user record and the SMS step-up (when SMS is on) on every protected request (two Supabase calls); add short-lived caching if latency matters.
-- Supabase cannot list other sessions from the browser; the security page says so.
+- Supabase cannot list other sessions from the browser; the Sessions page says so and offers sign-out everywhere.
+- Supabase returns one error for wrong and expired email codes; the UI tells them apart by the code's lifetime
+  (`NEXT_PUBLIC_EMAIL_OTP_MINUTES`), which must match the Supabase setting.
+- News cannot be saved: `saved_research` accepts documents and assets only, and no server-side news storage exists.
 - Primary buttons default to 44px; some dense toolbars pass `size` explicitly. Older components use arbitrary text sizes
   that match the type scale steps.
 

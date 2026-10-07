@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 import { PageViewTracker } from '@/components/layout/analytics-consent';
+import { AccountProvider } from '@/features/account/account-context';
 import { SessionProvider } from '@/features/auth/session-context';
 import { SearchProvider } from '@/features/search/search-command';
 import { AlertEngine } from '@/features/workspace/alert-engine';
@@ -11,11 +12,13 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
       <SessionProvider>
-        <WorkspaceProvider>
-          <SearchProvider>{children}</SearchProvider>
-          <AlertEngine />
-          <PageViewTracker />
-        </WorkspaceProvider>
+        <AccountProvider>
+          <WorkspaceProvider>
+            <SearchProvider>{children}</SearchProvider>
+            <AlertEngine />
+            <PageViewTracker />
+          </WorkspaceProvider>
+        </AccountProvider>
       </SessionProvider>
     </ToastProvider>
   );

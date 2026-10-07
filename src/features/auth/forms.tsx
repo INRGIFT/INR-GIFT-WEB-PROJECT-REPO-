@@ -8,7 +8,7 @@ import { Callout, Skeleton } from '@/components/ui/primitives';
 import { AltLink, AuthCard, AuthForm, FormError, gateHref, maskEmail, maskPhone, PasswordRules, safeNext, useAuthAction, useCooldown, useNext, useRedirectIfSignedIn } from './auth-ui';
 import { AuthError, isEmail, passwordProblem, type PhoneChallenge, type SmsPurpose } from './auth-service';
 import { validateSignup, type SignupErrors, type SignupInput } from './policy';
-import { smsSecondFactor } from '@/lib/config';
+import { emailOtpMinutes, smsSecondFactor } from '@/lib/config';
 import { useSession } from './session-context';
 import { COUNTRIES } from './countries';
 
@@ -92,7 +92,7 @@ export function LoginForm({ google = false }: { google?: boolean }) {
       {notice && <Callout tone={notice[0]} className="mb-4" title={notice[1]} />}
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
-        {unconfirmed && <p className="text-[13px]"><AltLink href={`/verify?email=${encodeURIComponent(email.trim())}`}>Send the verification link again</AltLink></p>}
+        {unconfirmed && <p className="text-[13px]"><a href={`/verify${nextSuffix(next, '?')}`} className="link font-semibold" onClick={() => rememberEmail(email.trim())}>Verify your email with the 6-digit code</a></p>}
         <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} error={emailErr} autoFocus />
         <PasswordField label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={pwErr} />
         <div className="flex justify-end"><AltLink href="/forgot-password">Forgot password?</AltLink></div>
@@ -104,12 +104,33 @@ export function LoginForm({ google = false }: { google?: boolean }) {
 }
 
 /* ------------------------------------ Sign up ------------------------------------ */
-/** Email, mobile number and password are all required; the account opens once email and phone are verified. */
+/**
+ * The address waiting for its sign-up code, kept for this tab so a refresh can resume step 2. Only the address: the
+ * code and the password are never stored anywhere (the password stays in memory for the automatic step-3 sign-in).
+ */
+const PENDING_EMAIL = 'inrgift.verify.email';
+const rememberEmail = (e: string | null) => { try { if (e) sessionStorage.setItem(PENDING_EMAIL, e); else sessionStorage.removeItem(PENDING_EMAIL); } catch { /* storage unavailable */ } };
+const recallEmail = () => { try { return sessionStorage.getItem(PENDING_EMAIL) ?? ''; } catch { return ''; } };
+const nextSuffix = (next: string, sep: '?' | '&') => (next !== '/app' ? `${sep}next=${encodeURIComponent(next)}` : '');
+
+/**
+ * Sign-up in three steps on one page:
+ *   1. Account       name, email, mobile number, country, password, terms → Supabase signUp
+ *   2. Verify email  the six-digit code Supabase generated, delivered by Resend → verifyOtp (type 'email')
+ *   3. Finish        signs in with the password just chosen (kept in memory only), then the mobile-number step:
+ *                    the SMS code when the SMS second factor is on, otherwise a confirmation of the saved number
+ * then onboarding and the workspace. A refresh during step 2 resumes it (?step=verify); step 3 then asks for the
+ * password because it is no longer in memory.
+ */
 export function SignupForm({ google = false }: { google?: boolean }) {
   const { auth } = useSession();
-  const router = useRouter();
   const next = useNext();
+  const params = useSearchParams();
   const { ready } = useRedirectIfSignedIn(next);
+  const [stage, setStage] = useState<'account' | 'email' | 'finish'>(() => (params.get('step') === 'verify' ? 'email' : 'account'));
+  const [email, setEmail] = useState(() => (params.get('step') === 'verify' ? recallEmail() : ''));
+  const secret = useRef<string | null>(null);
+  const sentAt = useRef<number | null>(null);
   const [f, setF] = useState<SignupInput & { country: string }>({ name: '', email: '', phone: '+91 ', country: 'India', password: '', confirm: '', terms: false });
   const [touched, setTouched] = useState(false);
   const [taken, setTaken] = useState<SignupErrors>({});
@@ -130,21 +151,29 @@ export function SignupForm({ google = false }: { google?: boolean }) {
         throw e;
       }
       track('signup_completed', {});
-      router.push(`/verify?email=${encodeURIComponent(f.email.trim())}${next !== '/app' ? `&next=${encodeURIComponent(next)}` : ''}`);
+      secret.current = f.password;
+      sentAt.current = Date.now();
+      const address = f.email.trim();
+      setEmail(address); rememberEmail(address);
+      setF((x) => ({ ...x, password: '', confirm: '' }));
+      window.history.replaceState(null, '', `/signup?step=verify${nextSuffix(next, '&')}`);
+      setStage('email');
     });
   };
   if (!ready) return <AuthSkeleton />;
+  if (stage === 'email') return <EmailCodeStep email={email} sentAt={sentAt} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />;
+  if (stage === 'finish') return <FinishSignup email={email} secret={secret} next={next} />;
   return (
-    <AuthCard title="Create your account" lead="Every INRGIFT account has three credentials: email, mobile number and password." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Sign in</AltLink></>}>
+    <AuthCard title="Create your account" lead="Every INRGIFT account has three credentials: email, mobile number and password." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${nextSuffix(next, '?')}`}>Sign in</AltLink></>}>
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} error={show('name')} maxLength={80} autoFocus />
-        <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={f.email} onChange={(e) => set('email', e.target.value)} error={show('email')} />
+        <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={f.email} onChange={(e) => set('email', e.target.value)} error={show('email')} hint="We send a 6-digit code to this address to verify it." />
         <TextField label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} error={show('phone')} hint={smsSecondFactor ? 'With country code. Each sign-in asks for a code sent here by SMS.' : 'With country code. Required for every account; SMS verification of this number is switched on later.'} />
         <SelectField label="Country of residence" value={f.country} onChange={(e) => set('country', e.target.value)}>{COUNTRIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
         <div><PasswordField label="Password" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} error={show('password')} /><PasswordRules value={f.password} /></div>
         <PasswordField label="Confirm password" autoComplete="new-password" value={f.confirm} onChange={(e) => set('confirm', e.target.value)} error={show('confirm')} />
-        <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/terms-and-conditions">Terms and Conditions</AltLink> and the <AltLink href="/privacy-policy">Privacy Policy</AltLink>, and understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
+        <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/terms-and-conditions">Terms and Conditions</AltLink> and have read the <AltLink href="/privacy-policy">Privacy Policy</AltLink>, and I understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
       </AuthForm>
       {google && <GoogleSignIn next={next} label="Sign up with Google" />}
@@ -153,28 +182,131 @@ export function SignupForm({ google = false }: { google?: boolean }) {
 }
 
 /* --------------------------------- Verify email --------------------------------- */
-export function VerifyEmail() {
-  const { auth, account } = useSession();
-  const router = useRouter();
-  const params = useSearchParams();
-  const email = params.get('email') ?? account?.email ?? '';
-  const next = safeNext(params.get('next'));
-  const nextQ = next !== '/app' ? `&next=${encodeURIComponent(next)}` : '';
-  const cool = useCooldown(45);
-  const [sent, setSent] = useState(false);
-  const { busy, error, run } = useAuthAction();
-  useEffect(() => { if (account?.emailVerified) router.replace(gateHref(account.gate)); }, [account, router]);
+/**
+ * Step 2: the six-digit code. Supabase answers a wrong and an expired code alike, so the message is chosen by time:
+ * past the configured lifetime since the code was sent → expired, otherwise → incorrect. The code lives only in this
+ * input until it is submitted.
+ */
+function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: string; sentAt: React.MutableRefObject<number | null>; next: string; onVerified: (email: string) => void }) {
+  const { auth } = useSession();
+  const [email, setEmail] = useState(initial);
+  const [askEmail, setAskEmail] = useState(!initial);
+  const [code, setCode] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [resent, setResent] = useState(false);
+  const cool = useCooldown(60);
+  const { busy, error, setError, run } = useAuthAction();
+  useEffect(() => { if (sentAt.current) cool.start(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const address = email.trim();
+  const verify = () => {
+    setResent(false);
+    if (!isEmail(address)) { setAskEmail(true); return setError('Enter the email address you signed up with.'); }
+    if (!/^\d{6}$/.test(code)) return setError('Enter the 6-digit code from the email.');
+    void run(async () => {
+      try { await auth.verifyEmailOtp(address, code); }
+      catch (e) {
+        setCode('');
+        const expired = e instanceof AuthError && e.code === 'INVALID' && sentAt.current !== null && Date.now() - sentAt.current > emailOtpMinutes * 60_000;
+        if (expired) throw new AuthError('EXPIRED', 'This verification code has expired. Request a new code.');
+        throw e;
+      }
+      rememberEmail(null);
+      track('verification_completed', { step: 'email' });
+      setVerified(true);
+      setTimeout(() => onVerified(address), 900);
+    });
+  };
+  const resend = () => {
+    if (!isEmail(address)) { setAskEmail(true); return setError('Enter the email address you signed up with.'); }
+    void run(async () => { await auth.resendEmail(address, next); sentAt.current = Date.now(); rememberEmail(address); setResent(true); setCode(''); cool.start(); });
+  };
   return (
-    <AuthCard title="Check your email" step={[2, STEPS, 'Verify email']} lead={email ? <>We sent a verification link to <b className="text-navy">{maskEmail(email)}</b>. After opening it, sign in with your email and password to verify your phone.</> : 'We sent a verification link to your email address.'}
-      footer={<>Wrong address? <AltLink href="/signup">Start again</AltLink></>}>
-      <div className="space-y-4">
+    <AuthCard title="Verify your email" step={[2, STEPS, 'Verify email']}
+      lead={address && !askEmail ? <>We sent a 6-digit verification code to <b className="text-navy">{maskEmail(address)}</b>.</> : 'Enter the email address you signed up with and the 6-digit code we sent to it.'}
+      footer={<>Wrong address? <AltLink href={`/signup${nextSuffix(next, '?')}`}>Start again</AltLink></>}>
+      {verified ? (
+        <div role="status" aria-live="polite"><Callout tone="success" title="Email verified ✓">Continuing to the last step…</Callout></div>
+      ) : (
+        <AuthForm onSubmit={verify}>
+          <FormError error={error} />
+          {resent && <Callout tone="success" title="A new code is on its way.">It replaces the previous code. Check spam if it has not arrived in a few minutes.</Callout>}
+          {askEmail && <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+          <CodeField label="Email verification code" value={code} onChange={setCode} autoFocus={!askEmail} hint={`The code expires ${emailOtpMinutes >= 60 && emailOtpMinutes % 60 === 0 ? `${emailOtpMinutes / 60} hour${emailOtpMinutes === 60 ? '' : 's'}` : `${emailOtpMinutes} minutes`} after it is sent and works once.`} />
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Verifying…' : 'Verify email'}</Button>
+          <p className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <span className="text-slate2">Did not get it? Check spam.</span>
+            <button type="button" className="link disabled:text-faint disabled:no-underline" disabled={cool.left > 0 || busy} onClick={resend}>{cool.left > 0 ? `Resend code in ${cool.left}s` : 'Resend code'}</button>
+          </p>
+        </AuthForm>
+      )}
+    </AuthCard>
+  );
+}
+
+/**
+ * Step 3. The code confirmed the email but does not open the account: the password does (policy.ts). With the
+ * password still in memory from step 1 the sign-in is automatic; otherwise (a resumed step 2) it is asked for. Then:
+ * the SMS step on /verify-phone when the SMS second factor is on, or a confirmation of the saved mobile number.
+ */
+function FinishSignup({ email, secret, next }: { email: string; secret: React.MutableRefObject<string | null>; next: string }) {
+  const { auth, account, refresh } = useSession();
+  const router = useRouter();
+  const [phase, setPhase] = useState<'signing-in' | 'password' | 'phone'>(() => (secret.current ? 'signing-in' : 'password'));
+  const [pw, setPw] = useState('');
+  const [touched, setTouched] = useState(false);
+  const started = useRef(false);
+  const { busy, error, run } = useAuthAction();
+  const signIn = async (password: string) => {
+    const gate = await auth.signIn(email, password);
+    await refresh();
+    if (gate === 'ok') setPhase('phone');
+    else router.replace(gateHref(gate, next));
+  };
+  useEffect(() => {
+    if (phase !== 'signing-in' || started.current) return;
+    started.current = true;
+    const password = secret.current;
+    secret.current = null; // used once, then forgotten
+    void run(async () => { try { await signIn(password ?? ''); } catch (e) { setPhase('password'); throw e; } });
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (phase === 'signing-in') return <AuthCard title="Signing you in" step={[3, STEPS, 'Mobile number']}><div role="status" aria-live="polite" className="space-y-3"><p className="text-slate2">Email verified ✓. Opening your account…</p><Skeleton className="h-11 w-full" /></div></AuthCard>;
+  if (phase === 'password') return (
+    <AuthCard title="Sign in to finish" step={[3, STEPS, 'Mobile number']} lead={<>Your email <b className="text-navy">{maskEmail(email)}</b> is verified. Enter your password to continue.</>}>
+      <AuthForm onSubmit={() => { setTouched(true); if (pw) void run(() => signIn(pw)); }}>
         <FormError error={error} />
-        {sent && <Callout tone="success" title="A new link is on its way.">Links expire after one hour. Check spam if it has not arrived in a few minutes.</Callout>}
-        {auth.mode === 'demo' && <Button variant="primary" size="lg" className="w-full" disabled={busy} onClick={() => run(async () => { await auth.confirmEmail?.(email); track('verification_completed', { step: 'email' }); router.push(`/login?notice=verified&email=${encodeURIComponent(email)}${nextQ}`); })}>Open the verification link (demo)</Button>}
-        <Button size="lg" className="w-full" disabled={!email || cool.left > 0 || busy} onClick={() => run(async () => { await auth.resendEmail(email, next); setSent(true); cool.start(); })}>{cool.left > 0 ? `Resend available in ${cool.left}s` : 'Resend the link'}</Button>
+        <PasswordField label="Password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} error={touched && !pw ? 'Enter your password.' : null} autoFocus />
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Continue'}</Button>
+      </AuthForm>
+    </AuthCard>
+  );
+  return (
+    <AuthCard title="Your mobile number" step={[3, STEPS, 'Mobile number']} lead="Email verified ✓ and you are signed in.">
+      <div className="space-y-4">
+        <div className="rounded-ctl border border-line bg-bg px-4 py-3">
+          <p className="text-xs font-semibold text-faint">Mobile number on your account</p>
+          <p className="num mt-0.5 text-lg font-bold text-navy">{account?.phone ? maskPhone(account.phone) : '—'}</p>
+        </div>
+        <Callout tone="info" title="SMS verification is not switched on yet">Your number is saved on your account. When SMS verification starts, we will ask you to confirm it with a code.</Callout>
+        <Button variant="primary" size="lg" className="w-full" onClick={() => router.replace(`/onboarding${nextSuffix(next, '?')}`)}>Continue</Button>
       </div>
     </AuthCard>
   );
+}
+
+/** /verify: step 2 on its own (from the sign-in page, or a refreshed tab), then step 3 asks for the password. */
+export function VerifyEmail() {
+  const next = useNext();
+  const { account } = useSession();
+  const [stage, setStage] = useState<'email' | 'finish'>('email');
+  const [email, setEmail] = useState('');
+  const [ready, setReady] = useState(false);
+  const secret = useRef<string | null>(null);
+  const sentAt = useRef<number | null>(null);
+  useEffect(() => { setEmail(recallEmail() || account?.email || ''); setReady(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!ready) return <AuthSkeleton />;
+  return stage === 'email'
+    ? <EmailCodeStep email={email} sentAt={sentAt} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />
+    : <FinishSignup email={email} secret={secret} next={next} />;
 }
 
 /* ----------------------------- SMS code entry (shared) ----------------------------- */

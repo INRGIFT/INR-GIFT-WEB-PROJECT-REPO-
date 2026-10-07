@@ -11,7 +11,7 @@ export type ProviderKind = 'demo' | 'nse' | 'real';
  * Only names in this list ever reach the browser, and none of them is a secret.
  */
 export const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'NEXT_PUBLIC_AUTH_MODE', 'NEXT_PUBLIC_SMS_SECOND_FACTOR', 'NEXT_PUBLIC_LOGO_PROVIDER', 'NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY'] as const;
+  'NEXT_PUBLIC_AUTH_MODE', 'NEXT_PUBLIC_SMS_SECOND_FACTOR', 'NEXT_PUBLIC_LOGO_PROVIDER', 'NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY', 'NEXT_PUBLIC_EMAIL_OTP_MINUTES'] as const;
 export type PublicEnvKey = (typeof PUBLIC_ENV_KEYS)[number];
 declare global { interface Window { __INRGIFT_ENV__?: Partial<Record<PublicEnvKey, string>> } }
 // Literal reads, so Next can inline whatever existed at build time.
@@ -24,6 +24,7 @@ const BUILT: Record<PublicEnvKey, string | undefined> = {
   NEXT_PUBLIC_SMS_SECOND_FACTOR: process.env.NEXT_PUBLIC_SMS_SECOND_FACTOR,
   NEXT_PUBLIC_LOGO_PROVIDER: process.env.NEXT_PUBLIC_LOGO_PROVIDER,
   NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_EMAIL_OTP_MINUTES: process.env.NEXT_PUBLIC_EMAIL_OTP_MINUTES,
 };
 const isBrowser = typeof window !== 'undefined';
 /** One browser-safe setting, as described above. Empty string when unset. */
@@ -79,6 +80,11 @@ export const redirectBase = (requestUrl: string) => (process.env.NODE_ENV === 'p
  * password, email confirmation and a password sign-in are still required, and no SMS is ever attempted.
  */
 export const smsSecondFactor = publicSetting('NEXT_PUBLIC_SMS_SECOND_FACTOR') === 'on';
+/**
+ * Lifetime of the sign-up email code, in minutes. Supabase sets the real lifetime (Authentication → Email → Email OTP
+ * Expiration, default 3600 s); keep NEXT_PUBLIC_EMAIL_OTP_MINUTES equal to it so the email and the form say the same.
+ */
+export const emailOtpMinutes = Math.min(1440, Math.max(1, Math.round(Number(publicSetting('NEXT_PUBLIC_EMAIL_OTP_MINUTES')) || 60)));
 export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
   : demoRequested || (process.env.NODE_ENV !== 'production' && !LIVE_SITE) ? 'demo' : 'off';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).

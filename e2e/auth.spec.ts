@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SMS_ON } from './fixtures';
+import { finishSignup, skipOnboarding, SMS_ON, verifyEmailCode } from './fixtures';
 
 /**
  * Required credentials: email + phone + password, with the SMS code as the second factor at every sign-in.
- * Runs against a demo build (NEXT_PUBLIC_AUTH_MODE=demo): accounts live in the browser, the email link is a button and
- * every SMS code is 123456. The rules are the shared ones in src/features/auth/policy.ts; Supabase enforces the same
+ * Runs against a demo build (NEXT_PUBLIC_AUTH_MODE=demo): accounts live in the browser and every email and SMS code is
+ * 123456. The rules are the shared ones in src/features/auth/policy.ts; Supabase enforces the same
  * rules in production (middleware + RLS, verified by `npm run test:db`). Numbers refer to the required test cases.
  * The SMS step follows the build's switch (NEXT_PUBLIC_SMS_SECOND_FACTOR): run once with it off (production today, until
  * 2Factor.in DLT approval) and once with it on; SMS-only cases are skipped when it is off.
@@ -28,11 +28,6 @@ async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
-async function openEmailLink(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
-  await page.getByRole('button', { name: /Open the verification link/ }).click();
-  await expect(page.getByText('Email verified. Sign in with your email and password')).toBeVisible();
-}
 async function enterSms(page: Page, code: string, button: RegExp | string) {
   await page.getByLabel('SMS code').fill(code);
   await page.getByRole('button', { name: button }).click();
@@ -46,14 +41,9 @@ async function secondStep(page: Page) {
 /** Sign up and verify email (and phone when SMS is on); ends on onboarding with an activated account. */
 async function activate(page: Page, v = A) {
   await fillSignup(page, v);
-  await openEmailLink(page);
-  await signIn(page, v.email);
-  if (SMS_ON) {
-    await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
-    await page.getByRole('button', { name: 'Send code' }).click();
-    await enterSms(page, CODE, 'Verify number');
-  }
-  await expect(page.getByRole('heading', { name: 'How should prices appear?' })).toBeVisible();
+  await verifyEmailCode(page);
+  await expect(page.getByText('Email verified ✓')).toBeVisible();
+  await finishSignup(page);
 }
 async function signOut(page: Page) {
   await page.goto('/account/security');
@@ -79,7 +69,7 @@ test('sign-up requires email, phone, password and confirmation (cases 2–5)', a
 
 test('email + phone + password signs up and activates; duplicates are rejected (cases 1, 6, 7, 8)', async ({ page }) => {
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await expect(page).toHaveURL(/\/app$/);
   await page.goto('/account/security');
   if (SMS_ON) {
@@ -97,17 +87,42 @@ test('email + phone + password signs up and activates; duplicates are rejected (
   await expect(page.getByText('An account already uses that mobile number')).toBeVisible();
 });
 
+test('email code: a wrong code stays on step 2, the correct code verifies and moves to step 3', async ({ page }) => {
+  await fillSignup(page, A);
+  await verifyEmailCode(page, '000000');
+  await expect(page.getByText('Incorrect verification code. Check the code in your email and try again.')).toBeVisible();
+  await expect(page.getByText('Step 2 of 3 · Verify email')).toBeVisible();
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByText('Enter the 6-digit code from the email.')).toBeVisible();
+  // Paste with spaces still gives six digits.
+  await page.getByLabel('Email verification code').fill('123 456');
+  await expect(page.getByLabel('Email verification code')).toHaveValue('123456');
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByText('Email verified ✓')).toBeVisible();
+  // Step 3: the mobile number. With SMS on, that is the SMS code screen; otherwise a confirmation of the saved number.
+  if (SMS_ON) await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
+  else await expect(page.getByText('Step 3 of 3 · Mobile number')).toBeVisible();
+  // The code and the password are never kept in browser storage.
+  const stored = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
+  expect(stored).not.toContain(PASSWORD);
+  expect(stored).not.toMatch(/"(otp|code|token)"\s*:\s*"\d{6}"/);
+});
+
 test('unverified email or phone keeps the workspace closed (cases 9, 10, 12)', async ({ page }) => {
   await fillSignup(page, A);
-  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
   await page.goto('/app');
   await expect(page).toHaveURL(/\/login\?next=%2Fapp/);
   await signIn(page, A.email);
   await expect(page.getByText('Verify your email address first')).toBeVisible();
-  await page.goto(`/verify?email=${encodeURIComponent(A.email)}`);
-  await openEmailLink(page);
-  if (!SMS_ON) return;
-  await signIn(page, A.email);
+  await page.getByRole('link', { name: 'Verify your email with the 6-digit code' }).click();
+  await expect(page).toHaveURL(/\/verify/);
+  await verifyEmailCode(page);
+  // Resumed outside the sign-up page: the password is not in memory, so step 3 asks for it.
+  if (!SMS_ON) { await finishSignup(page, { password: PASSWORD }); return; }
+  await expect(page.getByRole('heading', { name: 'Sign in to finish' })).toBeVisible();
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
   await expect(page.getByText(/Skip/)).toHaveCount(0);
   for (const path of ['/app', '/app/watchlist', '/account/security']) {
@@ -119,7 +134,7 @@ test('unverified email or phone keeps the workspace closed (cases 9, 10, 12)', a
 test('wrong SMS code blocks; correct code opens; sign-out requires all three again (cases 11, 13, 14)', async ({ page }) => {
   test.skip(!SMS_ON, 'SMS second factor is switched off in this build');
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await expect(page).toHaveURL(/\/app$/);
   await signOut(page);
   await page.goto('/app');
@@ -135,13 +150,13 @@ test('wrong SMS code blocks; correct code opens; sign-out requires all three aga
   await expect(page).toHaveURL(/\/verify-phone/);
   await enterSms(page, CODE, 'Verify and continue');
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Hola AMIGO/ })).toBeVisible();
 });
 
 test('password reset needs the SMS code and does not bypass it at the next sign-in (case 15)', async ({ page }) => {
   test.skip(!SMS_ON, 'SMS second factor is switched off in this build');
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await signOut(page);
   await page.goto('/forgot-password');
   await page.getByLabel('Email', { exact: true }).fill(A.email);
@@ -171,7 +186,7 @@ test('password reset needs the SMS code and does not bypass it at the next sign-
 test('changing the phone number needs the current SMS session and verification of the new number', async ({ page }) => {
   test.skip(!SMS_ON, 'SMS second factor is switched off in this build');
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await page.goto('/account/security');
   await page.getByRole('link', { name: 'Change number' }).click();
   await expect(page.getByRole('heading', { name: 'Change your mobile number' })).toBeVisible();
@@ -186,7 +201,7 @@ test('changing the phone number needs the current SMS session and verification o
 
 test('after sign-in the visitor lands on the page they asked for, query included (case L)', async ({ page }) => {
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await signOut(page);
   await page.goto('/discover/screener?region=Europe');
   await expect(page).toHaveURL(/\/login\?next=%2Fdiscover%2Fscreener%3Fregion%3DEurope/);
@@ -210,20 +225,15 @@ test('sign-up keeps the original destination through email and phone verificatio
   await page.getByLabel('Confirm password').fill(PASSWORD);
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Create account' }).click();
-  await openEmailLink(page);
-  await signIn(page, A.email);
-  if (SMS_ON) {
-    await page.getByRole('button', { name: 'Send code' }).click();
-    await enterSms(page, CODE, 'Verify number');
-  }
-  await expect(page.getByRole('heading', { name: 'How should prices appear?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await verifyEmailCode(page);
+  await finishSignup(page);
+  await skipOnboarding(page);
   await expect(page).toHaveURL(/\/research\/stocks$/);
 });
 
 test('malicious return URLs are ignored (case M)', async ({ page }) => {
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   for (const evil of ['https://external-site.com', '//evil.com', '/\\evil.com', 'javascript:alert(1)']) {
     await signOut(page);
     await page.goto(`/login?next=${encodeURIComponent(evil)}`);
@@ -236,7 +246,7 @@ test('malicious return URLs are ignored (case M)', async ({ page }) => {
 test('with SMS switched off: email + password opens the workspace, a wrong password does not, sign-out closes it', async ({ page }) => {
   test.skip(SMS_ON, 'covered by the SMS cases above');
   await activate(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await expect(page).toHaveURL(/\/app$/);
   await signOut(page);
   await page.goto('/app');
@@ -245,7 +255,7 @@ test('with SMS switched off: email + password opens the workspace, a wrong passw
   await expect(page.getByText('Those details do not match')).toBeVisible();
   await signIn(page, A.email);
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Hola AMIGO/ })).toBeVisible();
   await page.goto('/verify-phone');
   await expect(page).not.toHaveURL(/\/verify-phone/);
 });

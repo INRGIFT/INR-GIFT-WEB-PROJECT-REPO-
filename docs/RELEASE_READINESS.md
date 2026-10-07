@@ -7,12 +7,14 @@ necessary, not sufficient. The product currently serves demo data, and several l
 
 | Gate | State | Owner |
 | --- | --- | --- |
-| Typecheck, unit/API tests (144), build | Pass | — |
+| Typecheck, unit/API tests (169), build | Pass | — |
+| Migration 0008 (GIFT ID) applied alone to the live project; Supabase Email OTP length 6, expiry 3600 s | Open (`docs/DEPLOY.md`) | Owner |
+| Real sign-up with the six-digit email code on the deployed site | Open; needs Resend + hook | Owner + engineering |
 | Live `/login` uses Supabase (runtime settings fix) | Fixed in code; live site needs a redeploy of the new zip | Owner |
 | Google provider in Google Cloud + Supabase | Open | Owner |
 | Legal documents reviewed by counsel (registered entity, governing law) | Open | Owner |
-| Playwright (access gate, compliance pages and forms, Google flow, session lifecycle, journeys, auth cases 1–15, axe, six widths, failure cases) | Pass on demo builds: SMS off 106 + 6 skipped, SMS on 110 + 2 skipped | — |
-| Migrations + RLS (`npm run test:db`, incl. 0007) | Pass on local Postgres; live project on 0001–0006; **0007 deliberately not applied** until SMS is switched on | Owner, after DLT |
+| Playwright (access gate, compliance pages and forms, Google flow, session lifecycle, journeys, auth cases 1–15, axe, six widths, failure cases) | Pass on demo builds: SMS off 118 + 6 skipped, SMS on 122 + 2 skipped | — |
+| Migrations + RLS (`npm run test:db`, incl. 0007 and 0008; and 0008 without 0007 with backfill) | Pass on local Postgres; live project on 0001–0006; **0007 deliberately not applied** until SMS is switched on; 0008 to be applied alone | Owner |
 | GoDaddy source zip validated; clean extract → `npm ci` → `npm run build` → `npm start` on `PORT` serves pages, 404, API, health | Pass locally (simulated GoDaddy flow) | — |
 | `NEXT_PUBLIC_SITE_URL=https://inrgift.com` in GoDaddy before the build (canonical, email links, redirects; a production build also defaults to it) | Open | Owner |
 | GoDaddy runs the build step and has the memory for `next build` (DEPLOY.md, remaining GoDaddy questions) | Unverified on the real account | Owner |

@@ -106,16 +106,28 @@ describe('Send Email Hook route', () => {
     return { status: r.status, sent };
   };
   afterEach(() => vi.unstubAllEnvs());
-  it('sends the sign-up confirmation through Resend with a link to /auth/confirm', async () => {
-    // The payload's site_url is ignored: links always use INRGIFT's configured site URL (https://inrgift.com in production).
-    const { status, sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_1', token: '123456', site_url: 'https://attacker.example' } });
+  it('sends the sign-up email with Supabase\'s six-digit code (no link, nothing stored or logged)', async () => {
+    const log = vi.spyOn(console, 'log'); const err = vi.spyOn(console, 'error');
+    const { status, sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_1', token: '482913', site_url: 'https://attacker.example' } });
+    expect(status).toBe(200);
+    expect(sent[0].to).toBe('a@example.com');
+    expect(sent[0].subject).toBe('Verify your INRGIFT email');
+    expect(sent[0].text).toContain('482913');
+    expect(sent[0].html).toContain('482913');
+    expect(sent[0].text).toMatch(/expires 1 hour after it was sent/);
+    expect(sent[0].text).toContain('support@inrgift.com');
+    expect(sent[0].html).not.toContain('/auth/confirm');
+    expect(sent[0].text).not.toContain('attacker.example');
+    // the code is never written to logs
+    expect([...log.mock.calls, ...err.mock.calls].flat().join(' ')).not.toContain('482913');
+    log.mockRestore(); err.mockRestore();
+  });
+  it('falls back to the confirmation link only when Supabase sends no code', async () => {
+    const { status, sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_1' } });
     const { config } = await import('@/lib/config');
     const site = config.siteUrl.replace(/\/$/, '');
     expect(status).toBe(200);
-    expect(sent[0].to).toBe('a@example.com');
-    expect(sent[0].html).toContain(`${site}/auth/confirm?token_hash=th_1&amp;type=signup`);
     expect(sent[0].text).toContain(`${site}/auth/confirm?token_hash=th_1&type=signup`);
-    expect(sent[0].text).not.toContain('attacker.example');
   });
   it('rejects unsigned calls and refuses passwordless email types', async () => {
     expect((await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'x' } }, false)).status).toBe(401);

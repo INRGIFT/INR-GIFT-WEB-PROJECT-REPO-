@@ -7,7 +7,9 @@ import { rateLimit } from '@/lib/rate-limit';
 import { configured } from '@/lib/server-env';
 import { log } from '@/lib/telemetry/log';
 import { sendEmail } from '@/services/email/email-service';
-import { formSubmission } from '@/services/email/templates';
+import { emailTemplates, formSubmission } from '@/services/email/templates';
+import { giftIdFor } from '@/features/account/account-server';
+import { readServerSession } from '@/features/auth/server-facts';
 import { supabaseServer } from '@/supabase/server';
 
 export const runtime = 'nodejs';
@@ -36,18 +38,26 @@ function sameOrigin(req: NextRequest): boolean {
 }
 const reference = (kind: FormKind) => `INR-${PREFIX[kind]}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
 
+interface Sender { rows: [string, string][]; giftId: string | null; verifiedEmail: string | null }
 /**
  * Who submitted, as far as the server can tell, from the Supabase session cookie only (never from anything the form
- * sends): whether a signed-in session's verified email matches the one given, and then that account's id.
+ * sends): a signed-in, verified session's GIFT ID (looked up by its user id), and for closure requests whether the
+ * session's verified email matches the one given, then that account's id. A GIFT ID typed into the form is never used
+ * to identify anyone.
  */
-async function sessionMatch(email: string): Promise<[string, string][]> {
-  if (!isSupabaseConfigured) return [['Signed-in session check', 'Not checked (sign-in not configured here)']];
+async function sender(kind: FormKind, email: string): Promise<Sender> {
+  const none = (why: string): Sender => ({ rows: kind === 'account-closure' ? [['Signed-in session check', why]] : [], giftId: null, verifiedEmail: null });
+  if (!isSupabaseConfigured) return none('Not checked (sign-in not configured here)');
   try {
-    const { data } = await (await supabaseServer()).auth.getUser();
-    if (!data.user?.email) return [['Signed-in session check', 'Not signed in when submitting']];
-    if (data.user.email.toLowerCase() !== email.toLowerCase()) return [['Signed-in session check', 'No: signed in with a different email']];
-    return [['Signed-in session check', 'Yes: submitted from a signed-in session with this verified email'], ['Account ID (from session)', data.user.id]];
-  } catch { return [['Signed-in session check', 'Could not be checked']]; }
+    const sb = await supabaseServer();
+    const session = await readServerSession(sb);
+    if (!session || session.gate !== 'ok' || !session.email) return none('Not signed in when submitting');
+    const giftId = await giftIdFor(sb, session);
+    const rows: [string, string][] = giftId ? [['GIFT ID (verified, from the signed-in session)', giftId]] : [];
+    const matches = session.email.toLowerCase() === email.toLowerCase();
+    if (kind === 'account-closure') rows.push(['Signed-in session check', matches ? 'Yes: submitted from a signed-in session with this verified email' : 'No: signed in with a different email'], ...(matches ? [['Account ID (from session)', session.userId] as [string, string]] : []));
+    return { rows, giftId, verifiedEmail: matches ? session.email : null };
+  } catch { return none('Could not be checked'); }
 }
 
 /**
@@ -83,9 +93,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
   if (!configured.email()) return fail(503, 'NOT_CONFIGURED', `This form cannot be sent right now. Please email ${COMPANY.supportEmail} instead.`);
 
   const ref = reference(kind);
+  const who = await sender(kind, email);
   const rows = rowsFor(kind, values);
-  rows.push(['Reference', ref], ['Submitted at', new Date().toISOString()]);
-  if (kind === 'account-closure') rows.push(...(await sessionMatch(email)));
+  rows.push(['Reference', ref], ['Submitted at', new Date().toISOString()], ...who.rows);
   const subject = kind === 'account-closure' ? 'INRGIFT Account Closure Request'
     : kind === 'grievance' ? `INRGIFT Grievance ${ref}: ${String(values.subject).slice(0, 120)}`
     : `INRGIFT Support: ${optionLabel(FORMS.support.fields.find((f) => f.name === 'category')!, String(values.category))}: ${String(values.subject).slice(0, 120)}`;
@@ -98,6 +108,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
   if (kind === 'account-closure') {
     recentClosures.set(emailKey, { ref, at: Date.now() });
     if (recentClosures.size > 5000) recentClosures.clear();
+    // Acknowledgement only to the signed-in session's own verified address (never to an address typed into the form).
+    if (who.verifiedEmail) await sendEmail(who.verifiedEmail, emailTemplates.closureReceived(ref, who.giftId), 'closure_ack');
   }
   log('info', 'form_submitted', { kind, reference: ref });
   return json(201, { data: { reference: ref } });
@@ -107,5 +119,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
 function rowsFor(kind: FormKind, v: FormValues): [string, string][] {
   return FORMS[kind].fields
     .filter((f) => v[f.name] !== '' && v[f.name] !== undefined)
-    .map((f) => [f.type === 'checkbox' ? `Confirmed: ${f.label}` : f.label, f.type === 'checkbox' ? (v[f.name] ? 'Yes' : 'No') : f.type === 'select' ? optionLabel(f, String(v[f.name])) : String(v[f.name])] as [string, string]);
+    .map((f) => [f.type === 'checkbox' ? `Confirmed: ${f.label}` : f.name === 'giftId' ? 'GIFT ID (as entered by the sender, not verified)' : f.label, f.type === 'checkbox' ? (v[f.name] ? 'Yes' : 'No') : f.type === 'select' ? optionLabel(f, String(v[f.name])) : String(v[f.name])] as [string, string]);
 }

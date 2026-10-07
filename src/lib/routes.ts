@@ -26,9 +26,56 @@ export const NAV = [
 
 export const ACCOUNT_NAV = [['Workspace', '/app'], ['Notifications', '/notifications'], ['Profile', '/account/profile'], ['Settings', '/account/settings'], ['Security', '/account/security']] as const;
 
-export const WORKSPACE_NAV = [
-  { group: 'My workspace', items: [['Overview', '/app', 'LayoutDashboard', null], ['Watchlist', '/app/watchlist', 'Star', 'watchlist_items'], ['Alerts', '/app/alerts', 'Bell', 'alerts']] },
-  { group: 'Discover', items: [['Saved screens', '/app/screens', 'Filter', 'saved_screens'], ['Saved comparisons', '/app/comparisons', 'Columns2', 'saved_comparisons'], ['Collections', '/app/collections', 'LayoutGrid', 'collections'], ['Recent', '/app/recent', 'Clock', null]] },
-  { group: 'Research', items: [['Saved research', '/app/research', 'FileText', 'saved_research'], ['Notes', '/app/notes', 'StickyNote', 'notes'], ['History', '/app/history', 'History', null]] },
-  { group: 'System', items: [['Settings', '/account/settings', 'Settings', null], ['Help', '/support', 'LifeBuoy', null]] },
-] as const;
+
+/**
+ * The authenticated application's vertical navigation (src/components/layout/app-shell.tsx). Each item names its
+ * icon (lucide), and `match` decides which item is current for a path, so asset and research pages light up the right
+ * section. `table` shows a real count from the workspace for that item; nothing else is counted.
+ */
+export interface AppNavItem { label: string; href: string; icon: string; match: RegExp; table?: 'watchlist_items' | 'alerts' | 'saved_research' }
+export const APP_NAV: { group: string; items: AppNavItem[] }[] = [
+  { group: 'Workspace', items: [
+    { label: 'Home', href: '/app', icon: 'LayoutDashboard', match: /^\/app\/?$/ },
+    { label: 'Discover', href: '/discover', icon: 'Compass', match: /^\/discover(?!\/(screener|compare))(\/|$)/ },
+    { label: 'Markets', href: '/markets', icon: 'Globe2', match: /^\/(markets|assets|stocks|etfs|indices|fx|commodities|bonds|reits)(\/|$)/ },
+    { label: 'Screeners', href: '/discover/screener', icon: 'SlidersHorizontal', match: /^\/discover\/screener(\/|$)/ },
+    { label: 'Compare', href: '/discover/compare', icon: 'Columns2', match: /^\/discover\/compare(\/|$)/ },
+    { label: 'Research', href: '/research', icon: 'FileText', match: /^\/research(\/|$)/ },
+    { label: 'News', href: '/resources/news', icon: 'Newspaper', match: /^\/resources\/news(\/|$)/ },
+    { label: 'Watchlists', href: '/app/watchlist', icon: 'Star', match: /^\/app\/watchlist(\/|$)/, table: 'watchlist_items' },
+    { label: 'Alerts', href: '/app/alerts', icon: 'Bell', match: /^\/app\/alerts(\/|$)/, table: 'alerts' },
+    { label: 'Saved Research', href: '/app/research', icon: 'Bookmark', match: /^\/app\/research(\/|$)/, table: 'saved_research' },
+  ] },
+  { group: 'Account', items: [
+    { label: 'Profile', href: '/account/profile', icon: 'UserRound', match: /^\/account(\/profile)?\/?$/ },
+    { label: 'Security', href: '/account/security', icon: 'Shield', match: /^\/account\/security(\/|$)/ },
+    { label: 'Sessions', href: '/account/sessions', icon: 'MonitorSmartphone', match: /^\/account\/sessions(\/|$)/ },
+    { label: 'Preferences', href: '/account/settings', icon: 'Settings', match: /^\/account\/settings(\/|$)/ },
+  ] },
+  { group: 'Support', items: [
+    { label: 'Support', href: '/support', icon: 'LifeBuoy', match: /^\/support(\/|$)/ },
+    { label: 'Grievance Redressal', href: '/grievance-redressal', icon: 'MessageSquareWarning', match: /^\/grievance-redressal(\/|$)/ },
+    { label: 'Account Closure', href: '/account-closure', icon: 'DoorOpen', match: /^\/account-closure(\/|$)/ },
+  ] },
+];
+/** The rest of the workspace, one level down in the sidebar ("More"). */
+export const APP_NAV_MORE: AppNavItem[] = [
+  { label: 'Saved screens', href: '/app/screens', icon: 'Filter', match: /^\/app\/screens(\/|$)/ },
+  { label: 'Saved comparisons', href: '/app/comparisons', icon: 'Columns2', match: /^\/app\/comparisons(\/|$)/ },
+  { label: 'Collections', href: '/app/collections', icon: 'LayoutGrid', match: /^\/app\/collections(\/|$)/ },
+  { label: 'Notes', href: '/app/notes', icon: 'StickyNote', match: /^\/app\/notes(\/|$)/ },
+  { label: 'Recent', href: '/app/recent', icon: 'Clock', match: /^\/app\/recent(\/|$)/ },
+  { label: 'History', href: '/app/history', icon: 'History', match: /^\/app\/history(\/|$)/ },
+  { label: 'Notifications', href: '/notifications', icon: 'Inbox', match: /^\/notifications(\/|$)/ },
+  { label: 'Calendar', href: '/resources/calendar', icon: 'CalendarDays', match: /^\/resources\/(calendar|earnings|dividends|ipo)(\/|$)/ },
+  { label: 'Learn and glossary', href: '/resources/learn', icon: 'GraduationCap', match: /^\/resources(\/(learn|glossary|data)(\/|$)|\/?$)/ },
+];
+/** Title for the application top bar: the navigation item that owns the path, else the section, else INRGIFT. */
+export function appTitle(pathname: string): string {
+  const all = [...APP_NAV.flatMap((g) => g.items), ...APP_NAV_MORE];
+  const hit = all.find((i) => i.match.test(pathname));
+  if (hit) return hit.label;
+  if (pathname.startsWith('/search')) return 'Search';
+  if (pathname.startsWith('/resources')) return 'Resources';
+  return 'INRGIFT';
+}

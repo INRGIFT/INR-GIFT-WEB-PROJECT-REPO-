@@ -13,6 +13,10 @@ export interface ServerSession {
   smsVerified: boolean;
   /** Identity providers, profile facts and what the profile still lacks (Google-only accounts). */
   profile: ProfileFacts; missing: ProfileField[];
+  /** Account details for the account pages: real values from Supabase only, null when absent. */
+  account: { name: string | null; country: string | null; createdAt: string | null; lastSignInAt: string | null };
+  /** This session from its verified token: how it was opened, when, and when the current access token expires. */
+  session: { method: 'password' | 'google' | 'other'; startedAt: string | null; tokenExpiresAt: string | null };
   facts: AuthFacts; gate: Gate;
 }
 const e164 = (p: string | null | undefined) => (p ? `+${p.replace(/\D/g, '')}` : null);
@@ -23,7 +27,7 @@ const e164 = (p: string | null | undefined) => (p ? `+${p.replace(/\D/g, '')}` :
  */
 export async function readServerSession(sb: SupabaseClient): Promise<ServerSession | null> {
   const { data } = await sb.auth.getClaims();
-  const claims = data?.claims as { sub?: string; session_id?: string; amr?: unknown } | undefined;
+  const claims = data?.claims as { sub?: string; session_id?: string; amr?: unknown; exp?: number } | undefined;
   if (!claims?.sub || !claims.session_id) return null;
   const { data: u } = await sb.auth.getUser();
   const user = u.user;
@@ -35,8 +39,18 @@ export async function readServerSession(sb: SupabaseClient): Promise<ServerSessi
   const profile = profileFactsOf(user);
   const missing = profileMissing(profile);
   const facts: AuthFacts = { signedIn: true, emailConfirmed: Boolean(user.email_confirmed_at), phoneVerified: phoneConfirmed, primarySignIn: isPrimarySignIn(amr), profileComplete: missing.length === 0, smsVerified: Boolean(step) };
+  // amr arrives as [{ method, timestamp }]; the latest password/OAuth entry is when this session was opened.
+  const opened = Array.isArray(claims.amr) ? (claims.amr as { method?: string; timestamp?: number }[]).filter((e) => e && (e.method === 'password' || e.method === 'oauth') && typeof e.timestamp === 'number').sort((a, b) => b.timestamp! - a.timestamp!)[0] : undefined;
+  const iso = (secs: number | undefined) => (typeof secs === 'number' && secs > 0 ? new Date(secs * 1000).toISOString() : null);
+  const meta = (user.user_metadata ?? {}) as { full_name?: unknown; name?: unknown; country?: unknown };
   return {
     userId: user.id, sessionId: claims.session_id, email: user.email ?? null, amr,
+    account: {
+      name: typeof meta.full_name === 'string' && meta.full_name ? meta.full_name : typeof meta.name === 'string' && meta.name ? meta.name : null,
+      country: typeof meta.country === 'string' && meta.country ? meta.country : null,
+      createdAt: user.created_at ?? null, lastSignInAt: user.last_sign_in_at ?? null,
+    },
+    session: { method: amr.includes('password') ? 'password' : amr.includes('oauth') ? 'google' : 'other', startedAt: iso(opened?.timestamp), tokenExpiresAt: iso(claims.exp) },
     emailConfirmed: facts.emailConfirmed, phoneConfirmed, phone: phoneConfirmed ? e164(user.phone) : null,
     signupPhone: e164(user.user_metadata?.phone as string | undefined), smsVerified: facts.smsVerified, profile, missing, facts, gate: workspaceGate(facts),
   };

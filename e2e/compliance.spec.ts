@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SMS_ON } from './fixtures';
+import { skipOnboarding, SMS_ON } from './fixtures';
 
 /**
  * Compliance pages (public), their forms, and Google sign-in. Runs on a demo build: "Continue with Google" is simulated
@@ -91,7 +91,7 @@ test('Google: first sign-in completes phone, password, country and terms before 
   await expect(page).not.toHaveURL(/\/app$/);
   await page.goto('/complete-profile?next=%2Fresearch%2Fstocks');
   await completeGoogleProfile(page);
-  await page.getByRole('button', { name: 'Skip setup' }).click();
+  await skipOnboarding(page);
   await expect(page).toHaveURL(/\/research\/stocks$/);
   // Sign out, then sign in with the email and the password set above.
   await page.goto('/account/security');

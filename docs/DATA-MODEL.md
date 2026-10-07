@@ -42,6 +42,12 @@ data_entitlements. Public read via RLS, service-role write; quarantine is not re
 **0003_workspace_collections.sql:** `collections` (owner-only, ≤100 instrument ids), `alerts.note`,
 `notifications.ref_id` (links a notification to the alert that fired it).
 **0004_support_requests.sql:** contact messages; insert-only for anon and authenticated, no read policy.
+**0008_gift_id.sql:** `profiles.gift_id` (`GIFT-` + 8 Crockford base32 characters; not null, unique, immutable by
+trigger, assigned on insert whatever a client sends) and `public.gift_id_registry` (every issued ID with its account,
+assigned and retired times; never deleted, no client access). Functions `generate_gift_id`, `assign_gift_id` (bounded
+retries), `account_by_gift_id` (service role only). Backfills existing accounts and verifies the result. Independent
+of 0007. TypeScript: `AccountProfile` (`giftId`, name, email, phone, country, verification, providers, passwordSet,
+dates, session) in `src/features/account/types.ts`, served by `GET /api/v1/me`.
 
 **Status:** all four migrations are written and reviewed by eye only. They have never been run against a Postgres or
 Supabase instance. Run them first thing and fix whatever surfaces.

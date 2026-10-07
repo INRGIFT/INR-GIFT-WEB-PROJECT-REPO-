@@ -54,16 +54,16 @@ const page = (pattern: string, feature: string, layout: Layout = 'site'): RouteS
 /** Every page in src/app (tests/telemetry.test.ts checks none is missing). Access comes from classifyPath. */
 export const ROUTES: RouteSpec[] = [
   page('/', 'home'),
-  page('/markets', 'markets'), page('/markets/all', 'markets'), page('/markets/[market]', 'markets'),
-  page('/assets', 'assets'), page('/assets/[cls]', 'assets'),
-  page('/stocks/[symbol]', 'asset-detail'), page('/etfs/[symbol]', 'asset-detail'), page('/etfs/[symbol]/review', 'etf-review'),
-  page('/indices/[index]', 'asset-detail'), page('/fx/[pair]', 'asset-detail'), page('/commodities/[commodity]', 'asset-detail'),
-  page('/bonds/[bond]', 'asset-detail'), page('/reits/[reit]', 'asset-detail'),
-  page('/discover', 'discover'), page('/discover/heatmap', 'heatmap'), page('/discover/screener', 'screener'), page('/discover/compare', 'compare'),
-  page('/discover/collections', 'collections'), page('/discover/collections/[id]', 'collections'), page('/discover/trending', 'trending'),
-  page('/research', 'research'), page('/research/[kind]', 'research'), page('/research/[kind]/[slug]', 'research'),
-  page('/resources', 'resources'), page('/resources/[kind]', 'resources'), page('/resources/learn/[slug]', 'learn'), page('/resources/glossary/[slug]', 'glossary'),
-  page('/search', 'search'),
+  page('/markets', 'markets', 'workspace'), page('/markets/all', 'markets', 'workspace'), page('/markets/[market]', 'markets', 'workspace'),
+  page('/assets', 'assets', 'workspace'), page('/assets/[cls]', 'assets', 'workspace'),
+  page('/stocks/[symbol]', 'asset-detail', 'workspace'), page('/etfs/[symbol]', 'asset-detail', 'workspace'), page('/etfs/[symbol]/review', 'etf-review', 'workspace'),
+  page('/indices/[index]', 'asset-detail', 'workspace'), page('/fx/[pair]', 'asset-detail', 'workspace'), page('/commodities/[commodity]', 'asset-detail', 'workspace'),
+  page('/bonds/[bond]', 'asset-detail', 'workspace'), page('/reits/[reit]', 'asset-detail', 'workspace'),
+  page('/discover', 'discover', 'workspace'), page('/discover/heatmap', 'heatmap', 'workspace'), page('/discover/screener', 'screener', 'workspace'), page('/discover/compare', 'compare', 'workspace'),
+  page('/discover/collections', 'collections', 'workspace'), page('/discover/collections/[id]', 'collections', 'workspace'), page('/discover/trending', 'trending', 'workspace'),
+  page('/research', 'research', 'workspace'), page('/research/[kind]', 'research', 'workspace'), page('/research/[kind]/[slug]', 'research', 'workspace'),
+  page('/resources', 'resources', 'workspace'), page('/resources/[kind]', 'resources', 'workspace'), page('/resources/learn/[slug]', 'learn', 'workspace'), page('/resources/glossary/[slug]', 'glossary', 'workspace'),
+  page('/search', 'search', 'workspace'),
   page('/about', 'company'), page('/pricing', 'company'), page('/faq', 'company'), page('/support', 'company'),
   page('/terms-and-conditions', 'legal'), page('/privacy-policy', 'legal'), page('/account-closure', 'legal'), page('/grievance-redressal', 'legal'),
   page('/legal', 'legal'), page('/legal/[doc]', 'legal'),
@@ -74,7 +74,7 @@ export const ROUTES: RouteSpec[] = [
   page('/app/comparisons', 'saved-comparisons', 'workspace'), page('/app/collections', 'collections', 'workspace'), page('/app/recent', 'history', 'workspace'),
   page('/app/research', 'saved-research', 'workspace'), page('/app/notes', 'notes', 'workspace'), page('/app/history', 'history', 'workspace'),
   page('/account', 'account', 'workspace'), page('/account/profile', 'account', 'workspace'), page('/account/settings', 'preferences', 'workspace'),
-  page('/account/security', 'security', 'workspace'), page('/notifications', 'notifications', 'workspace'),
+  page('/account/security', 'security', 'workspace'), page('/account/sessions', 'sessions', 'workspace'), page('/notifications', 'notifications', 'workspace'),
 ];
 const toRegex = (pattern: string) => new RegExp(`^${pattern === '/' ? '/' : pattern.replace(/\[[^\]]+\]/g, '[^/]+')}/?$`);
 const COMPILED = ROUTES.map((r) => ({ r, re: toRegex(r.pattern) }));

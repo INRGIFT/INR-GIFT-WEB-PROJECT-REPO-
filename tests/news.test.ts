@@ -170,3 +170,31 @@ describe('news service', () => {
     expect((await getNews(parseNewsQuery({ company: 'RELIANCE' }))).articles.map((a) => a.article_id)).toEqual(['r']);
   });
 });
+
+describe('news categories', () => {
+  const only = (items: RawArticle[]) => setNewsSource({ name: 'newsdata.io', async latest() { return { items, nextPage: null }; } });
+  it('every category in the rail is a section the service supports, with a bounded provider query', async () => {
+    const { CATEGORIES } = await import('@/features/news/news-feed');
+    const { SECTIONS } = await import('@/services/news/news-provider');
+    expect(CATEGORIES).toHaveLength(20);
+    for (const c of CATEGORIES) {
+      expect(SECTIONS[c], c).toBeTruthy();
+      expect(parseNewsQuery({ section: c }).section).toBe(c);
+      const p = await providerParams(parseNewsQuery({ section: c }), 10);
+      expect((p.q ?? '').length).toBeLessThanOrEqual(512);
+    }
+    expect(CATEGORIES.map((c) => SECTIONS[c].label)).toContain('Commodities');
+  });
+  it('Dividends and M&A narrow corporate actions by their own words; Supply chain narrows trade', async () => {
+    const stories = [
+      raw('Infosys declares special dividend as quarterly profit rises', { id: 'div', categories: ['business'] }),
+      raw('Tata Steel agrees takeover of European steelmaker in $2 billion acquisition', { id: 'ma', categories: ['business'] }),
+      raw('Shipping freight rates jump as Red Sea supply chain disruption hits exporters', { id: 'sc', categories: ['business'] }),
+      raw('US tariffs on steel imports widen trade deficit concerns', { id: 'tr', categories: ['business'] }),
+    ];
+    only(stories); expect((await getNews(parseNewsQuery({ section: 'dividends' }))).articles.map((a) => a.article_id)).toEqual(['div']);
+    clearNewsCache(); only(stories); expect((await getNews(parseNewsQuery({ section: 'mergers' }))).articles.map((a) => a.article_id)).toEqual(['ma']);
+    clearNewsCache(); only(stories); expect((await getNews(parseNewsQuery({ section: 'supply-chain' }))).articles.map((a) => a.article_id)).toEqual(['sc']);
+    clearNewsCache(); only(stories); expect((await getNews(parseNewsQuery({ section: 'trade' }))).articles.map((a) => a.article_id).sort()).toEqual(['sc', 'tr']);
+  });
+});

@@ -17,6 +17,8 @@ export interface FieldDef {
   wide?: boolean;
   /** Message when a required field is empty or a box is unticked. */
   requiredMessage?: string;
+  /** Normalise before checking (GIFT IDs are case-insensitive). */
+  upper?: boolean;
   pattern?: RegExp;
   patternMessage?: string;
 }
@@ -43,13 +45,19 @@ export const CLOSURE_REASONS = [
 const name: FieldDef = { name: 'name', label: 'Full name', type: 'text', required: true, max: 80, autoComplete: 'name', requiredMessage: 'Enter your full name.' };
 const emailField = (label: string, hint?: string): FieldDef => ({ name: 'email', label, type: 'email', required: true, max: 254, autoComplete: 'email', hint, requiredMessage: 'Enter your email address.', pattern: EMAIL, patternMessage: 'Enter a valid email address.' });
 const phone = (required: boolean): FieldDef => ({ name: 'phone', label: 'Phone number', type: 'tel', required, max: 20, autoComplete: 'tel', hint: required ? 'With country code, for example +91 98765 43210.' : 'Optional. With country code.', requiredMessage: 'Enter your phone number.', pattern: PHONE, patternMessage: 'Enter the number with its country code, for example +91 98765 43210.' });
+/**
+ * Optional GIFT ID typed by the sender: format-checked only and labelled "as entered, not verified" for support. It is
+ * never looked up, so the form never reveals whether an ID exists. A signed-in sender's real GIFT ID is added by the
+ * server from the session.
+ */
+const giftId: FieldDef = { name: 'giftId', label: 'GIFT ID', type: 'text', max: 13, upper: true, hint: 'Optional. Your permanent account reference from the Profile page, for example GIFT-7K4M92PX. If you are signed in, we add it for you.', pattern: /^GIFT-[0-9A-HJKMNP-TV-Z]{8}$/, patternMessage: 'A GIFT ID looks like GIFT-7K4M92PX: GIFT- and 8 letters or digits.' };
 const reference: FieldDef = { name: 'reference', label: 'Account or reference ID', type: 'text', max: 64, hint: 'Optional. An earlier request reference or anything that identifies your account.', pattern: REFERENCE, patternMessage: 'Use letters, numbers, spaces and . _ # / - only.' };
 
 export const FORMS: Record<FormKind, FormDef> = {
   support: {
     kind: 'support', submitLabel: 'Send to support',
     fields: [
-      name, emailField('Email', 'We reply to this address.'), phone(false),
+      name, emailField('Email', 'We reply to this address.'), phone(false), giftId,
       { name: 'category', label: 'Category', type: 'select', required: true, max: 40, options: SUPPORT_CATEGORIES, requiredMessage: 'Choose a category.' },
       { name: 'subject', label: 'Subject', type: 'text', required: true, min: 3, max: 150, wide: true, requiredMessage: 'Enter a subject.' },
       { name: 'message', label: 'Message', type: 'textarea', required: true, min: 20, max: 4000, wide: true, hint: 'For a data issue, include the asset, the figure and where you saw it. Never include your password.', requiredMessage: 'Describe what you need.' },
@@ -59,7 +67,7 @@ export const FORMS: Record<FormKind, FormDef> = {
   grievance: {
     kind: 'grievance', submitLabel: 'Submit grievance',
     fields: [
-      name, emailField('Registered email', 'The email address on your INRGIFT account, if you have one.'), phone(true),
+      name, emailField('Registered email', 'The email address on your INRGIFT account, if you have one.'), phone(true), giftId,
       { name: 'category', label: 'Grievance category', type: 'select', required: true, max: 40, options: GRIEVANCE_CATEGORIES, requiredMessage: 'Choose a category.' },
       { name: 'subject', label: 'Subject', type: 'text', required: true, min: 3, max: 150, wide: true, requiredMessage: 'Enter a subject.' },
       { name: 'description', label: 'Description', type: 'textarea', required: true, min: 30, max: 5000, wide: true, hint: 'What happened, when, and what outcome you are asking for. Never include your password.', requiredMessage: 'Describe your grievance.' },
@@ -70,7 +78,7 @@ export const FORMS: Record<FormKind, FormDef> = {
   'account-closure': {
     kind: 'account-closure', submitLabel: 'Submit closure request',
     fields: [
-      emailField('Registered email', 'The email address registered on the account to be closed.'), name, reference, phone(false),
+      emailField('Registered email', 'The email address registered on the account to be closed.'), name, giftId, reference, phone(false),
       { name: 'reason', label: 'Reason for closure', type: 'select', max: 40, options: CLOSURE_REASONS, hint: 'Optional.' },
       { name: 'confirmRegisteredEmail', label: 'I confirm that I am submitting this request from my registered email address.', type: 'checkbox', required: true, max: 5, wide: true, requiredMessage: 'Confirm that this is your registered email address.' },
       { name: 'acknowledgeChecklist', label: 'I have completed the checklist above before requesting closure.', type: 'checkbox', required: true, max: 5, wide: true, requiredMessage: 'Confirm that you have completed the checklist.' },
@@ -99,7 +107,8 @@ export function validateForm(kind: FormKind, input: Record<string, unknown>): { 
       if (f.required && !on) errors[f.name] = f.requiredMessage ?? 'Required.';
       continue;
     }
-    const v = typeof raw === 'string' ? clean(raw, f.type === 'textarea') : '';
+    const cleaned = typeof raw === 'string' ? clean(raw, f.type === 'textarea') : '';
+    const v = f.upper ? cleaned.toUpperCase() : cleaned;
     values[f.name] = v;
     if (!v) { if (f.required) errors[f.name] = f.requiredMessage ?? `Enter ${f.label.toLowerCase()}.`; continue; }
     if (v.length > f.max) errors[f.name] = `Use at most ${f.max} characters.`;

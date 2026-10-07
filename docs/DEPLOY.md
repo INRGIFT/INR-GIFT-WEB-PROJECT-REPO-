@@ -125,6 +125,7 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `SUPPORT_PHONE` | Optional. Shown on Support, the footer and legal pages only when set. Leave empty until a real number exists |
 | `SUPPORT_INBOX_EMAIL` | Optional. Where form submissions go; default `support@inrgift.com` |
 | `GOOGLE_SIGN_IN` | Optional. `off` hides "Continue with Google"; otherwise it follows the Google provider switch in Supabase |
+| `NEXT_PUBLIC_EMAIL_OTP_MINUTES` | Optional, default `60`. Lifetime of the six-digit sign-up code, used in the email and the "expired" message; must equal Supabase's Email OTP expiration (section 6) |
 | `NEXT_PUBLIC_SMS_SECOND_FACTOR` | **Leave empty (off)** until DLT approval, the 2Factor key and migration 0007 are in place; then `on` and rebuild (`docs/AUTH-SECURITY.md`) |
 | `NEWSIO_API_KEY` | NewsData.io API key |
 | `NEWSIO_PAGE_SIZE` / `NEWSIO_CACHE_SECONDS` | Optional: 10 / 900 by default (free-plan safe) |
@@ -179,10 +180,30 @@ No Google secret is ever placed in the repository, the zip, GoDaddy or the brows
 5. Check: `https://inrgift.com/api/health` shows `integrations.google.signIn: "enabled"` (within 5 minutes), and
    `/login` shows **Continue with Google**.
 
+### Six-digit email verification code (sign-up step 2)
+Supabase → Authentication → **Sign In / Providers → Email**:
+- **Confirm email:** on.
+- **Email OTP length:** `6`.
+- **Email OTP expiration:** `3600` seconds (60 minutes), or whatever `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 is set to.
+The Send Email hook (below) delivers the code through Resend, so no Supabase email template needs editing. Check: a new
+sign-up receives "Verify your INRGIFT email" with a six-digit code and no link.
+
 Then, under Authentication → Hooks, enable the **Send Email** hook (HTTPS) at `https://inrgift.com/api/hooks/send-email`
 and copy its secret into `SEND_EMAIL_HOOK_SECRET`. With the hook on, every auth email goes through Resend and the
 Supabase email templates and SMTP are not used. Leave **Phone** provider and **MFA** off in Supabase: SMS goes through
 2Factor.in via INRGIFT's server, never Supabase.
+
+### Database migration 0008 (GIFT ID)
+Apply `supabase/migrations/0008_gift_id.sql` **on its own**, after the new code is deployed (the code works before and
+after: without the column, the GIFT ID shows as "being assigned").
+1. Supabase → SQL Editor → New query → paste the **whole** file → Run. PostgreSQL runs a multi-statement batch as one
+   transaction, so if the verification at the end of the file fails, nothing is kept. Or use the Supabase MCP
+   `apply_migration` with the file's contents.
+2. **Never** `supabase db push`: it would also apply 0007, which must stay unapplied until SMS is switched on.
+3. Check (SQL Editor): `select count(*) filter (where gift_id is null) as missing, count(*) as accounts, count(distinct gift_id) as ids from public.profiles;`
+   → `missing` 0 and `accounts` = `ids` = `select count(*) from auth.users`.
+4. If the Supabase CLI is used later, record it as applied: `supabase migration repair --status applied 0008`.
+Rollback: the column, triggers and functions can be dropped, but **keep `gift_id_registry`**, or IDs could be reissued.
 
 ## 7. Smoke test after deploy
 
@@ -194,7 +215,9 @@ Supabase email templates and SMTP are not used. Leave **Phone** provider and **M
 - Google (after the Google steps): Continue with Google → Google → back on inrgift.com → "Finish setting up your
   account" (mobile number, password, country, terms) → onboarding → workspace; sign out; sign in with that email and
   password.
-- Sign up with email, mobile number and password; the confirmation email arrives from Resend with a link to
-  `https://inrgift.com/auth/confirm…`; sign in with email + password; finish onboarding; add a watchlist item; sign
-  out and back in. The watchlist item should persist; that is the Supabase round trip.
+- Sign up with email, mobile number and password; "Verify your INRGIFT email" arrives from Resend with a six-digit
+  code; a wrong code says "Incorrect verification code…"; the right one shows "Email verified ✓" and moves to step 3
+  (mobile number) → onboarding → "Your INRGIFT account is ready." with a GIFT ID (after migration 0008) → `/app`
+  ("Hola AMIGO, <first name>"). Add a watchlist item; sign out and back in. The item should persist; that is the
+  Supabase round trip. `/account/profile` shows the same GIFT ID with Copy GIFT ID.
 - `/robots.txt` disallows everything while the site serves demo data.

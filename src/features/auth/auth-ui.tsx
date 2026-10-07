@@ -69,7 +69,7 @@ export function FormError({ error }: { error: string | null }) { return error ? 
 function DemoNotice() {
   const { auth } = useSession();
   if (auth.mode !== 'demo') return null;
-  return <p className="mt-4 rounded-ctl border border-warn/30 bg-warn/5 px-3 py-2 text-[13px] text-slate2"><b className="text-warn">Demo mode.</b> Accounts and data stay in this browser and no email or SMS is sent. The email link is a button, and every SMS code is <span className="num font-semibold text-navy">{DEMO_CODE}</span>.</p>;
+  return <p className="mt-4 rounded-ctl border border-warn/30 bg-warn/5 px-3 py-2 text-[13px] text-slate2"><b className="text-warn">Demo mode.</b> Accounts and data stay in this browser and no email or SMS is sent. Every email and SMS code is <span className="num font-semibold text-navy">{DEMO_CODE}</span>.</p>;
 }
 /** Live password rules, shown as a checklist with text, not colour alone. */
 export function PasswordRules({ value }: { value: string }) {

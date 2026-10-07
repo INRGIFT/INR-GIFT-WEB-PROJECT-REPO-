@@ -146,7 +146,8 @@ create or replace function public.session_fully_verified() returns boolean langu
          from claims, jsonb_array_elements(case when jsonb_typeof(claims.j -> 'amr') = 'array' then claims.j -> 'amr' else '[]'::jsonb end) e
        ),
        sid as (select case when (select j ->> 'session_id' from claims) ~* '^[0-9a-f-]{36}$' then (select j ->> 'session_id' from claims)::uuid end as id)
-  select exists (select 1 from amr where method = 'password')
+  -- Opened with the password or Google (OAuth); never a link, recovery or code session (src/features/auth/policy.ts).
+  select exists (select 1 from amr where method in ('password', 'oauth'))
      and exists (select 1 from public.sms_step_ups s, sid where s.session_id = sid.id and s.user_id = auth.uid())
      and exists (select 1 from auth.users u where u.id = auth.uid() and u.email_confirmed_at is not null and u.phone_confirmed_at is not null);
 $$;
