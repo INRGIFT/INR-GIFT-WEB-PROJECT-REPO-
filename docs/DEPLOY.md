@@ -129,8 +129,15 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `INGEST_SECRET` | A long random string, only if `/api/internal/ingest` is used |
 | `SITE_INDEXABLE` | Leave empty. Demo data is never indexed. |
 
-`NEXT_PUBLIC_*` values are compiled in during `npm run build`, which runs on GoDaddy. They must be set there before
-the build, and changing one requires a rebuild. Never set `NEXT_PUBLIC_AUTH_MODE` in production. The Supabase secret key and the
+`NEXT_PUBLIC_*` values no longer need to exist at build time. **Incident, 7 Oct 2026:** GoDaddy's variables reached
+the running server but not `next build`, so the browser bundle had no Supabase settings and `/login` showed "Sign-in is
+not available on this site yet." Since then the server reads these settings at runtime and writes the browser-safe ones
+into each page (`src/lib/config.ts`, `src/app/layout.tsx`); a restart picks up a change, no rebuild needed. Secrets
+are never part of that hand-off.
+
+**Check a deployment:** `https://inrgift.com/api/health` shows `release.commit` (the commit the zip was packaged
+from), `configuration.authMode` (`supabase` expected), and booleans `siteUrlConfigured`,
+`supabaseUrlConfigured`, `supabasePublishableKeyConfigured`. It never shows a value or key. Never set `NEXT_PUBLIC_AUTH_MODE` in production. The Supabase secret key and the
 Resend, 2Factor.in and NewsData.io keys are server-only: never `NEXT_PUBLIC_`, never in the zip or the repository,
 only in GoDaddy's environment variables. After the first deploy, configure the Supabase hook and settings listed in
 `docs/CONNECTORS.md` and run its manual production smoke test.

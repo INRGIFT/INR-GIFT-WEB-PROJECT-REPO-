@@ -27,5 +27,10 @@ fi
 mkdir -p deploy
 rm -f deploy/*.zip
 git archive --format=zip --output="$ZIP" HEAD -- "${PATHS[@]}"
+# Release stamp (commit only, no secrets): /api/health reports it, so the live site can be matched to a commit.
+STAMP=$(mktemp -d)
+printf '{"commit":"%s","committedAt":"%s"}\n' "$(git rev-parse HEAD)" "$(git log -1 --format=%cI HEAD)" > "$STAMP/release.json"
+(cd "$STAMP" && zip -q "$OLDPWD/$ZIP" release.json)
+rm -rf "$STAMP"
 echo "built $ZIP from $(git rev-parse --short HEAD) ($(du -h "$ZIP" | cut -f1))"
 scripts/validate-godaddy-zip.sh "$ZIP"

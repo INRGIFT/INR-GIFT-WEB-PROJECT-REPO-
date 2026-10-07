@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Providers } from '@/components/layout/providers';
-import { config } from '@/lib/config';
+import { config, publicEnv } from '@/lib/config';
 import { SITE } from '@/lib/seo';
 import './globals.css';
 
@@ -26,6 +26,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en-IN">
       <head>
+        {/* Browser-safe settings from the running server (src/lib/config.ts): works even when the host did not provide
+            NEXT_PUBLIC_* values to `next build`. Must stay first in <head>, before any app script runs. */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__INRGIFT_ENV__=${JSON.stringify(publicEnv()).replace(/</g, '\\u003c')};` }} />
         <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
         <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>

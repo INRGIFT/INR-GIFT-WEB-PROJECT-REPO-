@@ -4,6 +4,9 @@ Keep this file current. It is the handover record. Start with `docs/CURRENT_STAT
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
 ## Done (typecheck, 119 unit/API tests, Playwright 88 + 6 skipped with SMS off / 92 + 2 skipped with SMS on, desktop and Pixel 7, local RLS checks incl. migration 0007, build, GoDaddy source zip)
+- **Sign-in incident fix (7 Oct 2026):** live `/login` showed "Sign-in is not available" because GoDaddy's build had no
+  `NEXT_PUBLIC_*` values; settings are now read at runtime and handed to the browser; `/api/health` reports
+  configuration booleans and the packaged commit.
 - **Production-readiness audit (7 Oct 2026, inrgift.com):** SMS second factor behind `NEXT_PUBLIC_SMS_SECOND_FACTOR`
   (off until 2Factor.in DLT approval: sign-in is email + password with a confirmed email, no 2Factor call, no 0007
   dependency); production site URL defaults to `https://inrgift.com`; email links and auth/middleware redirects use the
