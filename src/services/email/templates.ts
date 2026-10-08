@@ -38,6 +38,26 @@ ${action ? `<p style="margin:20px 0"><a href="${esc(action.href)}" style="backgr
   return frame(title, inner, `${title}\n\n${lines.join('\n\n')}${action ? `\n\n${action.label}: ${action.href}` : ''}\n\n${foot}`);
 }
 /**
+ * A notification email (src/services/notifications): greeting by the person's real first name (or a plain "Hello,"),
+ * an intro, a table of facts, closing lines, an optional INRGIFT link, and the security footnote where it applies.
+ * Every value is escaped; every value comes from the event record or the account, never invented.
+ */
+export function detailEmail(subject: string, o: { firstName?: string | null; intro: string; rows?: [label: string, value: string][]; after?: string[]; action?: { label: string; href: string }; foot?: string }): RenderedEmail {
+  const greeting = o.firstName ? `Hello ${o.firstName},` : 'Hello,';
+  const rows = o.rows ?? [];
+  const cell = 'padding:8px 10px;border-bottom:1px solid #E6EAF2;font-size:13px;vertical-align:top';
+  const inner = `<h1 style="font-size:20px;margin:0 0 12px;color:#071A33">${esc(subject)}</h1>
+<p style="font-size:14px;line-height:1.6;margin:0 0 8px">${esc(greeting)}</p>
+<p style="font-size:14px;line-height:1.6;margin:0 0 14px">${esc(o.intro)}</p>
+${rows.length ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 14px">${rows.map(([k, v]) => `<tr><th align="left" style="${cell};width:38%;color:#5F6B84;font-weight:600">${esc(k)}</th><td style="${cell};color:#0B0E14;word-break:break-word">${esc(v)}</td></tr>`).join('')}</table>` : ''}
+${(o.after ?? []).map((l) => `<p style="font-size:13px;line-height:1.6;margin:0 0 10px;color:#3B4660">${esc(l)}</p>`).join('')}
+${o.action ? `<p style="margin:18px 0"><a href="${esc(o.action.href)}" style="background:#245BFE;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:700;display:inline-block">${esc(o.action.label)}</a></p>` : ''}
+${o.foot ? `<p style="font-size:12px;color:#5F6B84;margin:16px 0 0">${esc(o.foot)}</p>` : ''}`;
+  const text = [subject, '', greeting, '', o.intro, ...(rows.length ? ['', ...rows.map(([k, v]) => `${k}: ${v}`)] : []), ...((o.after ?? []).length ? ['', ...(o.after ?? [])] : []), ...(o.action ? ['', `${o.action.label}: ${o.action.href}`] : []), ...(o.foot ? ['', o.foot] : [])].join('\n');
+  return frame(subject, inner, text);
+}
+
+/**
  * A support, grievance or account-closure submission for the support inbox. Every value is escaped; multi-line text
  * keeps its line breaks. The subject is fixed by INRGIFT plus cleaned single-line input (no header injection).
  */

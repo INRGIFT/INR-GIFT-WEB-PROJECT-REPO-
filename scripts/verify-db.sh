@@ -16,6 +16,7 @@ PSQL=("${RUN[@]}" "$BIN/psql" -h "$DIR" -p "$PORT" -U postgres -d postgres -v ON
 for f in "$ROOT"/supabase/migrations/*.sql; do echo "apply $(basename "$f")"; "${PSQL[@]}" -f "$f"; done
 "${PSQL[@]}" -f "$ROOT/supabase/tests/rls.test.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/tests/gift-id.test.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/tests/notifications.test.sql"
 # Pass 2: production today. 0001-0006 with existing accounts, then 0008 WITHOUT 0007 (0007 stays unapplied until the
 # SMS second factor is switched on): the GIFT ID backfill and the GIFT ID tests must hold there too.
 "${PSQL[@]}" -c "create database pass2"
@@ -46,4 +47,7 @@ for p in "${pids[@]}"; do wait "$p"; done
   assert not exists (select gift_id from public.profiles group by gift_id having count(*) > 1), 'no duplicate GIFT IDs';
 end \$\$;"
 echo "GIFT ID concurrency tests passed"
+echo "pass 2: apply 0009_notifications.sql (without 0007)"; "${PSQL2[@]}" -f "$ROOT/supabase/migrations/0009_notifications.sql"
+"${PSQL2[@]}" -c "do \$\$ begin assert (select count(*) from public.notification_events where event_type = 'GIFT_ID_ASSIGNED') = (select count(*) from public.gift_id_registry r join auth.users u on u.id = r.user_id where r.retired_at is null), 'every existing account is queued its GIFT ID email once'; end \$\$;"
+"${PSQL2[@]}" -f "$ROOT/supabase/tests/notifications.test.sql"
 echo "database verification passed"
