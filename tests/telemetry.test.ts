@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assetQuality, assetTitle, marketQuality } from '@/lib/indexability';
-import { classifyPath, isNoindexPath, isPrivatePath, matchRoute, ROUTES } from '@/lib/route-registry';
+import { classifyPath, isNoindexPath, isPrivatePath, isUnknownPage, matchRoute, ROUTES } from '@/lib/route-registry';
 import { loginHref, safeReturnPath } from '@/lib/return-url';
 import { DemoProvider } from '@/providers/demo';
 import { readdirSync, statSync } from 'node:fs';
@@ -32,6 +32,14 @@ describe('route registry', () => {
     expect(isNoindexPath('/account-closure')).toBe(false);
     expect(matchRoute('/markets/all')?.pattern).toBe('/markets/all');
     expect(matchRoute('/markets/India')?.pattern).toBe('/markets/[market]');
+  });
+  it('unknown page paths are 404s, not sign-in redirects; APIs and real pages stay protected', () => {
+    for (const p of ['/this-page-does-not-exist', '/some-future-route', '/discover/does-not-exist', '/app/unknown/deeper', '/refund-policy', '/about-us/'])
+      expect(isUnknownPage(p), p).toBe(true);
+    for (const p of ['/', '/about', '/login', '/news', '/app', '/app/watchlist', '/stocks/AAPL', '/stocks/NOPE', '/resources/learn', '/account/settings', '/api', '/api/v1/assets', '/api/v1/unknown', '/api/contact', '/robots.txt'])
+      expect(isUnknownPage(p), p).toBe(false);
+    expect(classifyPath('/news')).toBe('protected');
+    expect(matchRoute('/news')?.pattern).toBe('/news');
   });
   it('return URLs keep path and query, and never leave the site', () => {
     expect(safeReturnPath('/markets/US')).toBe('/markets/US');

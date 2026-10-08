@@ -117,10 +117,18 @@ describe('Google accounts and the profile step', () => {
     expect(workspaceGate(facts({ profileComplete: false }), false)).toBe('profile');
     expect(workspaceGate(facts({ profileComplete: false }), true)).toBe('profile');
     // user_metadata cannot fake the password or the terms: those are read from server-written app_metadata only
-    const faked = profileFactsOf({ identities: [{ provider: 'google' }], user_metadata: { phone: '+919876543210', country: 'India', password_set: true, terms_accepted_at: '2026-10-07' } });
+    const faked = profileFactsOf({ identities: [{ provider: 'google' }], user_metadata: { full_name: 'Asha', phone: '+919876543210', country: 'India', password_set: true, terms_accepted_at: '2026-10-07' } });
     expect(profileMissing(faked).sort()).toEqual(['password', 'terms']);
-    const done = profileFactsOf({ identities: [{ provider: 'google' }], user_metadata: { phone: '+91 98765 43210', country: 'India' }, app_metadata: { inrgift: { password_set: true, terms_accepted_at: '2026-10-07T00:00:00Z' } } });
+    const done = profileFactsOf({ identities: [{ provider: 'google' }], user_metadata: { name: 'Asha Rao', phone: '+91 98765 43210', country: 'India' }, app_metadata: { inrgift: { password_set: true, terms_accepted_at: '2026-10-07T00:00:00Z' } } });
     expect(profileMissing(done)).toEqual([]);
+  });
+  it('a first Apple sign-in without a shared name must also give the name; a relay address is a normal email', () => {
+    const apple = profileFactsOf({ identities: [{ provider: 'apple' }], app_metadata: { provider: 'apple', providers: ['apple'] }, user_metadata: { email: 'x1@privaterelay.appleid.com' } });
+    expect(profileMissing(apple).sort()).toEqual(['country', 'name', 'password', 'phone', 'terms']);
+    const blank = profileFactsOf({ identities: [{ provider: 'apple' }], user_metadata: { full_name: '   ' } });
+    expect(profileMissing(blank)).toContain('name');
+    const named = profileFactsOf({ identities: [{ provider: 'apple' }], user_metadata: { full_name: 'Riya Mehta', phone: '+919876543210', country: 'India' }, app_metadata: { inrgift: { password_set: true, terms_accepted_at: '2026-10-07T00:00:00Z' } } });
+    expect(profileMissing(named)).toEqual([]);
   });
   it('email + password accounts (also when Google is linked) need nothing more; SMS stays a later step', () => {
     const linked = profileFactsOf({ identities: [{ provider: 'email' }, { provider: 'google' }], user_metadata: { phone: '+919876543210', country: 'India' } });
@@ -147,6 +155,8 @@ describe('/auth/callback (Google and email links)', () => {
   });
   it('without a code (or without Supabase) nothing is exchanged', async () => {
     expect((await call('flow=oauth&next=%2Fapp')).location).toBe('http://localhost/login?error=oauth&next=%2Fapp');
+    expect((await call('flow=oauth&provider=apple&error=access_denied')).location).toBe('http://localhost/login?error=oauth&provider=apple');
+    expect((await call('flow=oauth&provider=evil&error=access_denied')).location).toBe('http://localhost/login?error=oauth');
     expect((await call('flow=signup')).location).toBe('http://localhost/login?error=link');
   });
 });
@@ -158,7 +168,7 @@ describe('Google sign-in availability', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example-project.supabase.co');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
     vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
-    const g = await import('@/features/auth/google');
+    const g = await import('@/features/auth/oauth-providers');
     const settings = (google: boolean) => (async () => new Response(JSON.stringify({ external: { google, email: true } }), { status: 200 })) as unknown as typeof fetch;
     expect(await g.googleSignInAvailable(settings(true))).toBe(true);
     g.resetGoogleCache();
@@ -168,6 +178,22 @@ describe('Google sign-in availability', () => {
     g.resetGoogleCache();
     vi.stubEnv('GOOGLE_SIGN_IN', 'off');
     expect(await g.googleSignInAvailable(settings(true))).toBe(false);
+  });
+  it('Apple follows Supabase too, independently of Google', async () => {
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example-project.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
+    const g = await import('@/features/auth/oauth-providers');
+    const settings = (external: Record<string, boolean>) => (async () => new Response(JSON.stringify({ external }), { status: 200 })) as unknown as typeof fetch;
+    expect(await g.oauthAvailability(settings({ google: false, apple: true }))).toEqual({ google: false, apple: true });
+    g.resetOAuthCache();
+    expect(await g.oauthAvailability(settings({ google: true }))).toEqual({ google: true, apple: false });
+    g.resetOAuthCache();
+    expect(await g.oauthAvailability((async () => new Response('{}', { status: 500 })) as unknown as typeof fetch)).toEqual({ google: false, apple: false });
+    g.resetOAuthCache();
+    vi.stubEnv('APPLE_SIGN_IN', 'off');
+    expect(await g.oauthAvailability(settings({ google: true, apple: true }))).toEqual({ google: true, apple: false });
   });
   it('the profile completion API refuses when Supabase is not configured', async () => {
     vi.resetModules();

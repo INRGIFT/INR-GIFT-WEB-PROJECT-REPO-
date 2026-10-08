@@ -24,7 +24,7 @@ export const SITE_NAV: [label: string, href: string, active: RegExp][] = [
   ['Screeners', '/discover/screener', /^\/discover\/screener(\/|$)/],
   ['Compare', '/discover/compare', /^\/discover\/compare(\/|$)/],
   ['Research', '/research', /^\/research(\/|$)/],
-  ['News', '/resources/news', /^\/resources\/news(\/|$)/],
+  ['News', '/news', /^\/news(\/|$)/],
 ];
 const SUPPORT_LINKS: [string, string][] = [['Support', LEGAL_PATHS.support], ['Grievance Redressal', LEGAL_PATHS.grievance], ['Account Closure', LEGAL_PATHS.accountClosure], ['About', LEGAL_PATHS.about], ['Legal', LEGAL_PATHS.legal]];
 const initialsOf = (name?: string | null) => (name ?? '').split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'ME';

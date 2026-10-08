@@ -86,11 +86,11 @@ export function NewsCategories() {
   return (
     <nav aria-label="News categories" className="mt-8">
       <ul className="flex flex-wrap gap-2">
-        {HOME_NEWS_SECTIONS.map((id) => <li key={id}><Link href={`/resources/news?section=${id}`} className="inline-flex h-8 items-center rounded-full border border-line2 bg-white px-3.5 text-[13px] font-medium text-slate2 transition-colors duration-micro hover:border-brand hover:text-brand-ink">{SECTIONS[id].label}</Link></li>)}
+        {HOME_NEWS_SECTIONS.map((id) => <li key={id}><Link href={`/news?section=${id}`} className="inline-flex h-8 items-center rounded-full border border-line2 bg-white px-3.5 text-[13px] font-medium text-slate2 transition-colors duration-micro hover:border-brand hover:text-brand-ink">{SECTIONS[id].label}</Link></li>)}
       </ul>
     </nav>
   );
 }
 export function NewsCta() {
-  return <SessionCta out={['Sign In for Market News', loginHref('/resources/news')]} inside={['Open News', '/resources/news']} arrow />;
+  return <SessionCta out={['Sign In for Market News', loginHref('/news')]} inside={['Open News', '/news']} arrow />;
 }

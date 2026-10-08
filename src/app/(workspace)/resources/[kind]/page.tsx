@@ -14,17 +14,12 @@ import { learnHref } from '@/lib/routes';
 import { definedTermSet, JsonLd } from '@/lib/structured-data';
 import { getGlossary, getLearnArticles, getVideoFor, getVideos } from '@/services/content';
 import * as md from '@/services/market-data';
-import { NewsFeed } from '@/features/news/news-feed';
-import { parseNewsQuery } from '@/services/news/news-query';
-import { getNews } from '@/services/news/news-service';
 
 const TITLES: Record<string, [string, string]> = {
-  news: ['Global market news', 'Market-moving news, macro developments, company events and financial intelligence.'], earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
+  earnings: ['Earnings calendar', 'Upcoming results with estimates where the source provides them.'], dividends: ['Dividend calendar', 'Ex-dates, pay dates and amounts.'], ipo: ['IPO calendar', 'Upcoming, priced and recently listed offerings.'],
   calendar: ['Market calendar', 'Holidays, earnings, dividends, listings and macro events on one timeline.'], learn: ['Learn', 'Short explanations of how markets, funds and valuation work.'], glossary: ['Glossary', 'Definitions, formulas and why each term matters.'], data: ['Data and methodology', 'Where INRGIFT data comes from and how to read it.'],
 };
 type Props = { params: Promise<{ kind: string }>; searchParams: Promise<Record<string, string | undefined>> };
-/** Benchmarks in the news page's market pulse. Instruments the data source does not carry are left out. */
-const PULSE = ['NIFTY-50', 'SENSEX', 'SP-500', 'NASDAQ-COMPOSITE', 'FTSE-100', 'NIKKEI-225', 'USD-INR', 'GOLD', 'BRENT', 'US-10Y'];
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> { const [{ kind }, sp] = await Promise.all([params, searchParams]); const t = TITLES[kind]; return t ? pageMetadata({ title: t[0], description: t[1], path: `/resources/${kind}`, index: Object.keys(sp).length ? 'faceted' : 'index' }) : notFound(); }
 
 const Table = ({ head, children }: { head: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr>{head.map((h, i) => <th key={h} scope="col" className={cn('whitespace-nowrap border-b border-line px-4 py-2.5 text-xs font-semibold text-faint', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
@@ -33,18 +28,12 @@ const who = (e: CalendarEvent) => <td className="border-b border-line px-4 py-2"
 function group(events: CalendarEvent[]) { const today = new Date().toISOString().slice(0, 10); const add = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10); return ([['Today', (d: string) => d === today], ['Tomorrow', (d: string) => d === add(1)], ['This week', (d: string) => d > add(1) && d <= add(7)], ['Next week', (d: string) => d > add(7) && d <= add(14)], ['Later', (d: string) => d > add(14)]] as const).map(([label, test]) => [label, events.filter((e) => test(e.date))] as const).filter(([, l]) => l.length); }
 const STATUS_HELP: [DataStatus, string, string][] = [['LIVE', 'Streaming or polled within seconds of the exchange.', 'Updated hh:mm IST'], ['DELAYED', 'Exchange-mandated delay, usually 15 minutes.', 'As of hh:mm IST'], ['END_OF_DAY', 'The session has ended; values are the official close.', 'Close, date and time in IST'], ['CLOSED', 'No session today, for example a market holiday.', 'Date of the last close'], ['UNAVAILABLE', 'The source has no value. The last available figure is shown, clearly labelled.', 'Last available timestamp'], ['STALE', 'A newer value is overdue, or the value came from the last-known-good cache after a provider failure.', 'Last updated timestamp'], ['ERROR', 'The request failed. Other modules on the page are unaffected.', 'A message and a retry'], ['DEMO', 'Values come from the demo provider: simulated for development and previews, never market prices. Shown instead of Live, Delayed or End of day while the demo provider is active.', 'Demo data, with the time the demo values were produced']];
 
-export default async function ResourcePage({ params, searchParams }: Props) {
+export default async function ResourcePage({ params }: Props) {
   const { kind } = await params;
   if (!TITLES[kind]) notFound();
   const [title, lead] = TITLES[kind];
   let body: ReactNode;
-  if (kind === 'news') {
-    const query = parseNewsQuery(await searchParams);
-    const [result, markets, pulseAssets] = await Promise.all([getNews(query), md.getMarkets(), Promise.all(PULSE.map((slug) => md.getAsset(undefined, slug)))]);
-    const assets = pulseAssets.filter((a): a is NonNullable<typeof a> => Boolean(a));
-    // The news page carries its own header (GLOBAL MARKET NEWS) and three-area layout.
-    return <PageContainer wide><NewsFeed query={query} result={result} markets={markets} pulse={{ assets, markets, meta: md.freshest(assets) }} /></PageContainer>;
-  } else if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
+  if (kind === 'earnings' || kind === 'dividends' || kind === 'ipo') {
     const events = await md.getCalendar(kind === 'earnings' ? 'earnings' : kind === 'dividends' ? 'dividend' : 'ipo');
     const markets = new Map((await md.getMarkets()).map((m) => [m.id, m]));
     const mk = (e: CalendarEvent) => { const m = e.marketId ? markets.get(e.marketId) : null; return <td className={cell}>{m ? <Link className="link" href={marketHref(m.slug)}>{m.name}</Link> : '—'}</td>; };

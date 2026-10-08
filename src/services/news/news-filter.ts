@@ -30,13 +30,29 @@ const GEOPOLITICS = ['sanctions', 'sanction', 'war', 'conflict', 'military', 'mi
 const BUSINESS = ['company', 'companies', 'firm', 'ceo', 'chief executive', 'investment', 'investors', 'funding', 'valuation', 'layoffs', 'plant', 'factory', 'startup', 'conglomerate', 'bank', 'banks', 'banking', 'lender', 'insurer', 'financial services', 'capex'];
 /** Off-topic signals. They lower the score; they do not blindly remove market stories (see score()). */
 const OFF_TOPIC = ['cricket', 'football', 'soccer', 'ipl', 'tennis', 'olympics', 'world cup', 'match', 'tournament', 'goal', 'wicket', 'bollywood', 'hollywood', 'movie', 'movies', 'film', 'box office', 'actor', 'actress', 'singer', 'album', 'concert', 'celebrity', 'celebrities', 'fashion', 'recipe', 'recipes', 'travel', 'horoscope', 'gossip', 'wedding', 'dating', 'murder', 'arrested', 'stabbing', 'assault', 'diet', 'workout', 'skincare', 'viral video', 'smartphone review', 'gaming'];
+/**
+ * Promotional crypto/token copy (paid placements, presales, "next 100x" pieces). These are advertising, not market
+ * reporting, so they are pushed below the feed threshold whatever else they mention.
+ */
+const PROMO = ['presale', 'pre-sale', 'token presale', 'crypto presale', 'airdrop', 'meme coin', 'memecoin', 'meme coins', '100x', '1000x', '50x', 'next big crypto', 'best crypto to buy', 'crypto to buy now', 'top crypto to buy', 'token sale', 'whitelist', 'giveaway', 'sponsored', 'paid content', 'price prediction', 'altcoin to buy', 'early investors'];
+/** Municipal and local-government vocabulary: local politics stays out unless the story has a strong market core. */
+const LOCAL = ['mayor', 'mayoral', 'city council', 'council member', 'councilmember', 'councilwoman', 'councilman', 'county commissioner', 'county board', 'school board', 'school district', 'police chief', 'sheriff', 'zoning', 'city hall', 'municipal election', 'ward', 'alderman', 'homeless', 'homelessness'];
+/**
+ * Paid press-release distribution sites (anyone can publish there). Major wires (PR Newswire, GlobeNewswire, Business
+ * Wire) also carry real company announcements, so they get only a small penalty; open release boards a large one.
+ * Matched on the provider's source id or the article's host, never guessed from the headline.
+ */
+const RELEASE_BOARDS = ['openpr', 'einpresswire', 'issuewire', 'prfree', 'pressreleasepoint', 'newswire.com', 'prlog'];
+const WIRES = ['prnewswire', 'globenewswire', 'businesswire', 'accessnewswire', 'accesswire'];
 const OFF_CATEGORIES = new Set(['sports', 'entertainment', 'lifestyle', 'food', 'tourism', 'health', 'education']);
 const ON_CATEGORIES = new Set(['business']);
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 const compile = (terms: string[]) => new RegExp(`(?:^|[^a-z0-9&])(${terms.map(esc).sort((a, b) => b.length - a.length).join('|')})(?=$|[^a-z0-9&])`, 'gi');
 const TOPIC_RE = Object.fromEntries(Object.entries(TOPIC_TERMS).map(([k, v]) => [k, compile(v)])) as Record<keyof typeof TOPIC_TERMS, RegExp>;
-const POLITICS_RE = compile(POLITICS), GEO_RE = compile(GEOPOLITICS), BUSINESS_RE = compile(BUSINESS), OFF_RE = compile(OFF_TOPIC);
+const POLITICS_RE = compile(POLITICS), GEO_RE = compile(GEOPOLITICS), BUSINESS_RE = compile(BUSINESS), OFF_RE = compile(OFF_TOPIC), PROMO_RE = compile(PROMO), LOCAL_RE = compile(LOCAL);
+/** The publisher's identity from provider fields only: source id plus the article and source hosts. */
+const sourceKey = (raw: RawArticle) => { const host = (u: string | null) => { try { return u ? new URL(u).hostname.toLowerCase() : ''; } catch { return ''; } }; return `${(raw.source_id ?? '').toLowerCase()} ${host(raw.url)} ${host(raw.source_url)}`; };
 const hits = (re: RegExp, text: string) => new Set(Array.from(text.matchAll(re), (m) => m[1].toLowerCase()));
 
 /* --------------------------------------------- Entities --------------------------------------------- */
@@ -111,6 +127,15 @@ export function classify(raw: RawArticle & { title: string }, idx: EntityIndex):
   // Off-topic signals penalise, but a story with a strong market core (e.g. a sports franchise IPO) is not dropped.
   const off = hits(OFF_RE, text).size + (raw.categories.some((c) => OFF_CATEGORIES.has(c.toLowerCase())) ? 2 : 0);
   if (off) { const pen = (market >= 6 ? 1 : 3) * Math.min(off, 3); score -= pen; reasons.push(`off-topic signals (−${pen})`); }
+  // Local politics counts as off-topic unless the story has a strong market core (e.g. a city's bond rating).
+  const local = hits(LOCAL_RE, text).size;
+  if (local) { const pen = (market >= 6 ? 1 : 2.5) * Math.min(local, 2); score -= pen; reasons.push(`local politics (−${pen})`); }
+  // Token promotions are advertising: always below the feed threshold.
+  const promo = hits(PROMO_RE, text).size;
+  if (promo) { const pen = 4 + 2 * Math.min(promo, 3); score -= pen; reasons.push(`promotional copy (−${pen})`); }
+  const src = sourceKey(raw);
+  if (RELEASE_BOARDS.some((b) => src.includes(b))) { score -= 5; reasons.push('press-release board (−5)'); }
+  else if (WIRES.some((w) => src.includes(w))) { score -= 1.5; reasons.push('press-release wire (−1.5)'); }
   if (topics.size && [...topics].some((t) => t !== 'business' && t !== 'politics-markets' && t !== 'geopolitics')) topics.add('markets');
   const relevance: NewsRelevance = score >= RELEVANCE_THRESHOLDS.high ? 'high' : score >= RELEVANCE_THRESHOLDS.medium ? 'medium' : 'low';
   const order: NewsTopic[] = ['earnings', 'ipo', 'corporate-actions', 'central-banks', 'macro', 'fx', 'commodities', 'bonds', 'etfs', 'indices', 'equities', 'trade', 'regulation', 'geopolitics', 'politics-markets', 'business', 'markets'];

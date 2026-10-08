@@ -92,7 +92,7 @@ test('account journey: sign up, verify email and phone, onboarding, workspace, s
 });
 
 test('signed out: direct URLs to product pages go to sign in, never to content', async ({ page }) => {
-  for (const path of ['/markets', '/discover', '/resources/news', '/stocks/AAPL', '/etfs/SPY', '/indices/NIFTY-50', '/fx/USD-INR', '/research', '/app', '/account/profile', '/notifications']) {
+  for (const path of ['/markets', '/discover', '/news', '/stocks/AAPL', '/etfs/SPY', '/indices/NIFTY-50', '/fx/USD-INR', '/research', '/app', '/account/profile', '/notifications']) {
     await page.goto(path);
     await expect(page, path).toHaveURL(new RegExp(`/login\\?next=${encodeURIComponent(path)}$`));
     await expect(page.getByRole('heading', { name: 'Sign in to INRGIFT' })).toBeVisible();

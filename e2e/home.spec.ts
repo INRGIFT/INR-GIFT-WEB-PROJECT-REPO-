@@ -5,7 +5,7 @@ import { signInDemo } from './fixtures';
  * The public homepage (demo build): brand, navigation, the server-prepared demo snapshot (labelled DEMO, never live),
  * the three existing product tours, honest news and footer, and the product staying behind sign-in.
  */
-const NAV: [string, string][] = [['Markets', '/markets'], ['Discover', '/discover'], ['Screeners', '/discover/screener'], ['Compare', '/discover/compare'], ['Research', '/research'], ['News', '/resources/news']];
+const NAV: [string, string][] = [['Markets', '/markets'], ['Discover', '/discover'], ['Screeners', '/discover/screener'], ['Compare', '/discover/compare'], ['Research', '/research'], ['News', '/news']];
 
 test('brand hero, navigation and calls to action; product links lead to sign-in', async ({ page, isMobile }) => {
   await page.goto('/');
@@ -84,7 +84,7 @@ test('news, research, screen and compare previews: honest states and real produc
   await page.goto('/');
   const news = page.getByRole('region', { name: 'Know what moved the market.' });
   await expect(news.getByText(/demo headlines are never shown publicly/)).toBeVisible();
-  await expect(news.getByRole('navigation', { name: 'News categories' }).getByRole('link', { name: 'Top stories' })).toHaveAttribute('href', '/resources/news?section=most-relevant');
+  await expect(news.getByRole('navigation', { name: 'News categories' }).getByRole('link', { name: 'Top stories' })).toHaveAttribute('href', '/news?section=most-relevant');
   const screen = page.getByRole('region', { name: 'Find what matters.' });
   await expect(screen.getByText('Market cap (USD) is at least 100 bn USD')).toBeVisible();
   await expect(screen.getByText(/^\d+ (match|matches)/)).toBeVisible();

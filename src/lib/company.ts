@@ -12,6 +12,14 @@ export const COMPANY = {
   supportEmail: 'support@inrgift.com',
   address: ['904 WHITE ORCHID', 'near SHELL PETROL PUMP', 'Adajan', 'Surat, Gujarat 395009', 'India'],
   site: 'https://inrgift.com',
+  /**
+   * INRGIFT's official social profiles (owner-supplied, exact URLs). Only these two exist; no other network is linked.
+   * Display text is fixed by the owner: "Instagram @inrgift" and "X @INRGIFT".
+   */
+  social: [
+    { network: 'Instagram', handle: '@inrgift', label: 'Instagram @inrgift', href: 'https://www.instagram.com/inrgift?stkn=MTcxcnZ6enJuMnI1bQ==' },
+    { network: 'X', handle: '@INRGIFT', label: 'X @INRGIFT', href: 'https://x.com/INRGIFT' },
+  ],
 } as const;
 export const ADDRESS_ONE_LINE = COMPANY.address.join(', ');
 /** The compliance URLs referenced by the NSEIXGA white-label documentation. Never change these paths. */

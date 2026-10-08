@@ -119,12 +119,14 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API keys → secret key (server only; records verified phones) |
 | `SEND_EMAIL_HOOK_SECRET` | Supabase → Authentication → Hooks → Send Email secret (`v1,whsec_…`) |
 | `RESEND_API_KEY` | Resend API key (sending access) |
-| `RESEND_FROM_EMAIL` | e.g. `INRGIFT <no-reply@<your-domain>>` on a domain verified in Resend |
+| `RESEND_FROM_EMAIL` | `INRGIFT Support <support@inrgift.com>` (inrgift.com verified in Resend; a bare address gets the "INRGIFT Support" name) |
 | `TWO_FACTOR_API_KEY` | 2Factor.in API key |
 | `TWO_FACTOR_OTP_TEMPLATE` | 2Factor OTP template name approved for INRGIFT (DLT) — after DLT approval |
 | `SUPPORT_PHONE` | Optional. Shown on Support, the footer and legal pages only when set. Leave empty until a real number exists |
 | `SUPPORT_INBOX_EMAIL` | Optional. Where form submissions go; default `support@inrgift.com` |
 | `GOOGLE_SIGN_IN` | Optional. `off` hides "Continue with Google"; otherwise it follows the Google provider switch in Supabase |
+| `APPLE_SIGN_IN` | Optional. `off` hides "Continue with Apple"; otherwise it follows the Apple provider switch in Supabase |
+| `INRGIFT_RELEASE_COMMIT` | Optional. The commit id, for `/api/health` when the host builds without `release.json` or `.git` |
 | `NEXT_PUBLIC_EMAIL_OTP_MINUTES` | Optional, default `60`. Lifetime of the six-digit sign-up code, used in the email and the "expired" message; must equal Supabase's Email OTP expiration (section 6) |
 | `NEXT_PUBLIC_SMS_SECOND_FACTOR` | **Leave empty (off)** until DLT approval, the 2Factor key and migration 0007 are in place; then `on` and rebuild (`docs/AUTH-SECURITY.md`) |
 | `NEWSIO_API_KEY` | NewsData.io API key |
@@ -189,7 +191,12 @@ The Send Email hook (below) delivers the code through Resend, so no Supabase ema
 sign-up receives "Verify your INRGIFT email" with a six-digit code and no link.
 
 Then, under Authentication → Hooks, enable the **Send Email** hook (HTTPS) at `https://inrgift.com/api/hooks/send-email`
-and copy its secret into `SEND_EMAIL_HOOK_SECRET`. With the hook on, every auth email goes through Resend and the
+and copy its secret into `SEND_EMAIL_HOOK_SECRET` on GoDaddy, then restart the app (environment variables are read at
+start). Until **both** are done, Supabase's built-in mailer sends its own "Supabase Auth" link email instead of the
+INRGIFT code email (the cause of the 7 Oct 2026 sign-up emails, `docs/CONNECTORS.md`). Check: `/api/health` →
+`integrations.resend.sendEmailHook: true`; a brand-new sign-up receives "Verify your INRGIFT email" from
+INRGIFT Support <support@inrgift.com> with six digits and no link; Supabase → Logs → Auth shows no `mail.send` from
+`mail.app.supabase.io` for it. With the hook on, every auth email goes through Resend and the
 Supabase email templates and SMTP are not used. Leave **Phone** provider and **MFA** off in Supabase: SMS goes through
 2Factor.in via INRGIFT's server, never Supabase.
 
@@ -207,13 +214,15 @@ Rollback: the column, triggers and functions can be dropped, but **keep `gift_id
 
 ## 7. Smoke test after deploy
 
-- `/` loads with the official logo, favicon and share image. Signed out, `/markets`, `/legal/terms` and `/app`
-  redirect to `https://inrgift.com/login?next=…`, and `/api/v1/assets` answers 401.
+- `/` loads with the official logo, favicon and share image. Signed out, `/markets` and `/app` redirect to
+  `https://inrgift.com/login?next=…`, `/legal/terms` redirects to `/terms-and-conditions`, an unknown path such as
+  `/this-page-does-not-exist` shows the 404 page, and `/api/v1/assets` answers 401.
+- `/api/health` → `release.commit` names the deployed commit (from `release.json` in the zip, or the build).
 - `/api/health` reports `auth: supabase`, `demo: false` and `twofactor.secondFactor: off` (until SMS is switched on).
 - `/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`, `/grievance-redressal` open
   signed out; a test support form submission reaches support@inrgift.com with a reference.
-- Google (after the Google steps): Continue with Google → Google → back on inrgift.com → "Finish setting up your
-  account" (mobile number, password, country, terms) → onboarding → workspace; sign out; sign in with that email and
+- Google (after the Google steps): Continue with Google → Google → back on inrgift.com → "Complete your INRGIFT
+  profile" (mobile number, password, country, terms) → onboarding → workspace; sign out; sign in with that email and
   password.
 - Sign up with email, mobile number and password; "Verify your INRGIFT email" arrives from Resend with a six-digit
   code; a wrong code says "Incorrect verification code…"; the right one shows "Email verified ✓" and moves to step 3

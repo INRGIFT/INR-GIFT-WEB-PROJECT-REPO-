@@ -24,7 +24,7 @@ export function NewsFilters({ values, markets, regions, assets, topics }: { valu
   const active = [values.market, values.region, values.assetClass, values.hours, values.source, values.topic].filter((v) => v !== undefined && v !== '').length;
   const [open, setOpen] = useState(false);
   return (
-    <form method="get" action="/resources/news" role="search" aria-label="Search and filter news" className="rounded-card border border-line bg-white p-3 shadow-card sm:p-4">
+    <form method="get" action="/news" role="search" aria-label="Search and filter news" className="rounded-card border border-line bg-white p-3 shadow-card sm:p-4">
       {values.section !== 'most-relevant' && <input type="hidden" name="section" value={values.section} />}
       {values.company && <input type="hidden" name="company" value={values.company} />}
       <div className="flex flex-wrap items-end gap-2">
@@ -37,7 +37,7 @@ export function NewsFilters({ values, markets, regions, assets, topics }: { valu
           <SlidersHorizontal size={15} aria-hidden />Filters{active > 0 && <span className="num rounded-full bg-brand-soft px-1.5 text-[11px] font-semibold text-brand-ink">{active}</span>}
         </button>
         <button type="submit" className="inline-flex h-10 items-center rounded-ctl bg-brand px-4 font-medium text-white hover:bg-brand-ink">Apply</button>
-        {(active > 0 || values.q) && <Link href={values.section === 'most-relevant' ? '/resources/news' : `/resources/news?section=${values.section}`} className="link inline-flex h-10 items-center px-1 text-[13px]">Clear filters</Link>}
+        {(active > 0 || values.q) && <Link href={values.section === 'most-relevant' ? '/news' : `/news?section=${values.section}`} className="link inline-flex h-10 items-center px-1 text-[13px]">Clear filters</Link>}
       </div>
       <div id={`${id}-filters`} className={cn('mt-3 gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-3 xl:grid-cols-6', open ? 'grid' : 'hidden')}>
         <Select name="market" label="Market" value={values.market} options={[{ value: '', label: 'All markets' }, ...markets]} />

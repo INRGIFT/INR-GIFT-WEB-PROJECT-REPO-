@@ -167,7 +167,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <Panel title={cls === 'stock' ? 'Dividends' : 'Distributions'} footer={foot} flush>
             {dividends == null ? <Unavailable>No distribution data from the current source.</Unavailable> : !dividends.length ? <EmptyState title="No distributions on record">{a.name} has paid no distributions in the available history.</EmptyState> : (
-              <table className="w-full border-collapse text-[13px]"><thead><tr><Th left>Ex-date</Th><Th>Pay date</Th><Th>Amount</Th></tr></thead><tbody>{dividends.slice(0, 6).map((d) => <tr key={d.exDate}><Td left>{dateShort(d.exDate)}</Td><Td>{dateShort(d.payDate)}</Td><Td>{money(d.amount, d.currency)}</Td></tr>)}</tbody></table>
+              <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]"><thead><tr><Th left>Ex-date</Th><Th>Pay date</Th><Th>Amount</Th></tr></thead><tbody>{dividends.slice(0, 6).map((d) => <tr key={d.exDate}><Td left>{dateShort(d.exDate)}</Td><Td>{dateShort(d.payDate)}</Td><Td>{money(d.amount, d.currency)}</Td></tr>)}</tbody></table></div>
             )}
           </Panel>
           <Panel title="Technical summary" footer={foot}>

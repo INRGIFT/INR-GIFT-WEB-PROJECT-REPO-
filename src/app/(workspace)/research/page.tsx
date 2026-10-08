@@ -17,7 +17,7 @@ export default async function ResearchHub() {
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel title="Latest" flush><ResearchList docs={docs.slice(0, 10)} /></Panel>
         <div className="space-y-4">
-          <Panel title="Market news" flush footer={<Link href="/resources/news" className="link ml-auto">All news</Link>}>{news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-2.5 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span><span className="mt-1 flex gap-1.5 text-xs text-faint"><Badge>{n.category}</Badge>{dateShort(n.publishedAt)}</span></Link>)}</Panel>
+          <Panel title="Market news" flush footer={<Link href="/news" className="link ml-auto">All news</Link>}>{news.map((n) => <Link key={n.id} href={n.url} className="block border-b border-line px-4 py-2.5 last:border-0 hover:bg-bg"><span className="block font-semibold">{n.headline}</span><span className="mt-1 flex gap-1.5 text-xs text-faint"><Badge>{n.category}</Badge>{dateShort(n.publishedAt)}</span></Link>)}</Panel>
           <Panel title="How we write research"><p className="text-slate2">Each note names its asset, market, topic and date, and separates measured data from commentary. Methods are on the <Link className="link" href="/resources/data">data and methodology</Link> page.</p></Panel>
         </div>
       </div>

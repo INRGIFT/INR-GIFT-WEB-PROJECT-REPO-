@@ -27,7 +27,7 @@ const href = (q: NewsQuery, patch: Partial<NewsQuery>) => {
   const p = new URLSearchParams();
   Object.entries({ ...q, cursor: undefined, ...patch }).forEach(([k, v]) => { if (v !== undefined && v !== '' && !(k === 'section' && v === 'most-relevant')) p.set(k, String(v)); });
   const s = p.toString();
-  return `/resources/news${s ? `?${s}` : ''}`;
+  return `/news${s ? `?${s}` : ''}`;
 };
 const external = (url: string) => /^https?:/.test(url);
 const linkProps = (url: string) => (external(url) ? { target: '_blank', rel: 'noopener noreferrer nofollow' } : {});
@@ -36,7 +36,7 @@ const linkProps = (url: string) => (external(url) ? { target: '_blank', rel: 'no
 export interface MarketPulse { assets: Asset[]; markets: MarketView[]; meta: DataMeta | null }
 
 /**
- * /resources/news: GLOBAL MARKET NEWS. Server rendered from the news service (NewsData.io when its key is set on the
+ * /news: GLOBAL MARKET NEWS. Server rendered from the news service (NewsData.io when its key is set on the
  * server, demo headlines otherwise). Three areas on large screens: category rail, feed (featured story by INRGIFT's
  * relevance ranking, then stories), and a market pulse with data statuses. Every story links to its publisher; nothing
  * is rewritten or invented, and INRGIFT's own classifications are labelled as such.
@@ -84,8 +84,8 @@ export function NewsFeed({ query, result, markets, pulse }: { query: NewsQuery; 
           ) : !featured ? (
             <div className="rounded-card border border-line bg-white shadow-card">
               {query.q
-                ? <NoResults query={query.q} action={<Link href="/resources/news" className="link text-[13px] font-semibold">Clear search and filters</Link>}>No market stories matched your filters. Try a company or market name, or a broader word.</NoResults>
-                : <EmptyState icon={<Newspaper size={22} strokeWidth={1.75} />} title="No market stories matched your filters." action={<>{filtered && <Link href={href({ section: query.section }, {})} className="link text-[13px] font-semibold">Clear filters</Link>}{query.section !== 'most-relevant' && <Link href="/resources/news" className="link text-[13px] font-semibold">Top stories</Link>}</>}>
+                ? <NoResults query={query.q} action={<Link href="/news" className="link text-[13px] font-semibold">Clear search and filters</Link>}>No market stories matched your filters. Try a company or market name, or a broader word.</NoResults>
+                : <EmptyState icon={<Newspaper size={22} strokeWidth={1.75} />} title="No market stories matched your filters." action={<>{filtered && <Link href={href({ section: query.section }, {})} className="link text-[13px] font-semibold">Clear filters</Link>}{query.section !== 'most-relevant' && <Link href="/news" className="link text-[13px] font-semibold">Top stories</Link>}</>}>
                     {query.hours && query.hours < 48 ? 'Widen the time range to 48 hours, ' : 'Try '}another category, or remove a filter such as source or market.
                   </EmptyState>}
             </div>

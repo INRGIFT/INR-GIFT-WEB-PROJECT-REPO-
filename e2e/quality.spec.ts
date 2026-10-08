@@ -10,7 +10,7 @@ const PUBLIC = ['/', '/terms-and-conditions', '/privacy-policy', '/about', '/sup
 const AUTH = ['/login', '/signup', '/verify', '/verify-phone', '/complete-profile', '/forgot-password', '/reset-password'];
 const PROTECTED = ['/markets', '/markets/all', '/markets/India', '/assets', '/assets/stocks', '/assets/funds', '/stocks/AAPL', '/etfs/SPY', '/etfs/SPY/review', '/indices/NIFTY-50', '/fx/USD-INR', '/commodities/GOLD', '/bonds/US-10Y', '/reits/PLD',
   '/discover', '/discover/heatmap', '/discover/screener', '/discover/compare', '/discover/collections', '/discover/trending', '/research', '/research/stocks', '/research/etfs', '/research/markets', '/research/themes', '/research/sectors', '/research/countries', '/research/sectors/technology',
-  '/resources', '/resources/news', '/resources/earnings', '/resources/dividends', '/resources/ipo', '/resources/calendar', '/resources/learn', '/resources/learn/etf-basics', '/resources/glossary', '/resources/glossary/beta', '/resources/data',
+  '/resources', '/news', '/resources/earnings', '/resources/dividends', '/resources/ipo', '/resources/calendar', '/resources/learn', '/resources/learn/etf-basics', '/resources/glossary', '/resources/glossary/beta', '/resources/data',
   '/search', '/pricing', '/faq', '/app', '/app/watchlist', '/app/alerts', '/app/screens', '/app/comparisons', '/app/collections', '/app/research', '/app/notes', '/app/history', '/app/recent', '/account/profile', '/account/settings', '/account/security', '/account/sessions', '/notifications', '/onboarding'];
 const APIS = ['/api/v1/assets', '/api/v1/assets/AAPL', '/api/v1/search?q=apple', '/api/v1/markets', '/api/v1/fx-rates', '/api/v1/news', '/api/v1/news/feed', '/api/v1/research'];
 const base = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
@@ -19,10 +19,23 @@ const signedIn = async (playwright: { request: { newContext: (o: object) => Prom
 test.describe('access: homepage and compliance pages are public', () => {
   test('anonymous: public and auth pages answer 200; every product page redirects to sign in with the full return path', async ({ request }) => {
     for (const path of [...PUBLIC, ...AUTH]) expect.soft((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
-    for (const path of [...PROTECTED, '/discover/screener?market=us&sector=technology', '/stocks/AAPL.png', '/some-future-route']) {
+    for (const path of [...PROTECTED, '/discover/screener?market=us&sector=technology', '/stocks/AAPL.png']) {
       const r = await request.get(path, { maxRedirects: 0 });
       expect.soft(r.status(), path).toBe(307);
       expect.soft(r.headers().location ?? '', path).toContain(`/login?next=${encodeURIComponent(path)}`);
+    }
+  });
+  test('anonymous: a path no page answers is a 404 (noindex), not a sign-in redirect; short names redirect', async ({ request }) => {
+    for (const path of ['/some-future-route', '/this-page-does-not-exist', '/discover/does-not-exist', '/refund-policy']) {
+      const r = await request.get(path, { maxRedirects: 0 });
+      expect.soft(r.status(), path).toBe(404);
+      expect.soft(r.headers()['x-robots-tag'] ?? '', path).toContain('noindex');
+    }
+    const moved: [string, string][] = [['/resources/news?section=fx', '/news?section=fx'], ['/screeners', '/discover/screener'], ['/compare', '/discover/compare'], ['/watchlists', '/app/watchlist'], ['/alerts', '/app/alerts'], ['/saved-research', '/app/research'], ['/account/preferences', '/account/settings'], ['/sign-up', '/signup'], ['/risk-disclosure', '/legal/risk-disclaimer'], ['/open-source', '/legal/open-source']];
+    for (const [from, to] of moved) {
+      const r = await request.get(from, { maxRedirects: 0 });
+      expect.soft(r.status(), from).toBe(308);
+      expect.soft(new URL(r.headers().location ?? '', base).pathname + new URL(r.headers().location ?? '', base).search, from).toBe(to);
     }
   });
   test('anonymous: data APIs answer 401 JSON and leak nothing; prefetch requests are redirected too', async ({ request }) => {
@@ -87,7 +100,7 @@ test.describe('access: homepage and compliance pages are public', () => {
     for (const t of ['Market news', 'Upcoming', 'Reference rate']) await expect(page.getByText(t, { exact: true })).toHaveCount(0);
     await page.getByRole('main').getByRole('link', { name: 'Explore Markets' }).first().click();
     await expect(page).toHaveURL(/\/login\?next=%2Fmarkets/);
-    await expect(page.getByRole('link', { name: 'Create your account' })).toHaveAttribute('href', '/signup?next=%2Fmarkets');
+    await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/signup?next=%2Fmarkets');
   });
 });
 
@@ -98,7 +111,7 @@ test.describe('accessibility', () => {
     return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
   };
   for (const path of ['/', '/login', '/signup', '/support', '/account-closure', '/grievance-redressal', '/terms-and-conditions']) test(`no serious or critical axe violations on ${path} (public)`, async ({ page }) => { await page.goto(path); expect(await check(page)).toEqual([]); });
-  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/resources/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/account/security']) {
+  for (const path of ['/markets', '/stocks/AAPL', '/etfs/SPY', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT', '/research/sectors/technology', '/news', '/resources/learn/etf-basics', '/resources/glossary/beta', '/account/security']) {
     test(`no serious or critical axe violations on ${path} (signed in)`, async ({ page }) => { await signInDemo(page); await page.goto(path); expect(await check(page)).toEqual([]); });
   }
 });
@@ -110,7 +123,7 @@ test.describe('responsive', () => {
       await page.goto('/');
       expect.soft(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `/ at ${width}px`).toBeLessThanOrEqual(1);
       await signInDemo(page);
-      for (const path of ['/markets', '/stocks/AAPL', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT,NVDA', '/research/sectors/technology', '/resources/news']) {
+      for (const path of ['/markets', '/stocks/AAPL', '/discover/heatmap', '/discover/screener', '/discover/compare?s=AAPL,MSFT,NVDA', '/research/sectors/technology', '/news']) {
         await page.goto(path);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect.soft(overflow, `${path} at ${width}px`).toBeLessThanOrEqual(1);
@@ -132,7 +145,7 @@ test('reduced motion: transitions are effectively disabled', async ({ browser })
 test.describe('news', () => {
   test('filters, search, relevance filtering, empty and provider-error states', async ({ page }) => {
     await signInDemo(page);
-    await page.goto('/resources/news');
+    await page.goto('/news');
     await expect(page.getByText('Demo headlines', { exact: true })).toBeVisible();
     await expect(page.getByText(/low-relevance stor(y|ies) hidden/)).toBeVisible();
     await expect(page.getByText('Demo: Cricket league final draws record television audience')).toHaveCount(0);
@@ -143,7 +156,7 @@ test.describe('news', () => {
     await page.getByLabel('Search news').fill('zzzz no such story');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByText(/No results for|No stories/)).toBeVisible();
-    await page.goto('/resources/news?q=provider-outage-test');
+    await page.goto('/news?q=provider-outage-test');
     await expect(page.getByText('News is unavailable')).toBeVisible();
     await expect(page.getByText(/Market data, research and your workspace are not affected/)).toBeVisible();
   });

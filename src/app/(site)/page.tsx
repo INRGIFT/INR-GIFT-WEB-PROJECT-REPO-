@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { googleSignInAvailable } from '@/features/auth/google';
+import { oauthAvailability } from '@/features/auth/oauth-providers';
 import { HomeHero } from '@/features/home/hero';
 import { HomeNews, HomeNewsSkeleton, NewsCategories, NewsCta } from '@/features/home/home-news';
 import { HomeSection, SectionHeading } from '@/features/home/home-ui';
@@ -28,10 +28,10 @@ export const metadata = pageMetadata({
 });
 
 export default async function HomePage() {
-  const [snap, videos, google] = await Promise.all([
+  const [snap, videos, oauth] = await Promise.all([
     getHomeSnapshot(),
     getVideos().then((all) => HOME_VIDEO_IDS.map((id) => all.find((v) => v.id === id)).filter((v): v is NonNullable<typeof v> => Boolean(v))),
-    googleSignInAvailable().catch(() => false),
+    oauthAvailability().catch(() => ({ google: false, apple: false })),
   ]);
   return (
     <>
@@ -65,7 +65,7 @@ export default async function HomePage() {
       <Infrastructure />
       <WorkspacePreview />
       <BuiltInIndia snap={snap} />
-      <Trust google={google} />
+      <Trust oauth={oauth} />
       <FinalCta />
     </>
   );

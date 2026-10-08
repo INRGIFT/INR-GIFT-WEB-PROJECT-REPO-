@@ -216,7 +216,7 @@ test('after sign-in the visitor lands on the page they asked for, query included
 test('sign-up keeps the original destination through email and phone verification', async ({ page }) => {
   await page.goto('/research/stocks');
   await expect(page).toHaveURL(/\/login\?next=%2Fresearch%2Fstocks/);
-  await page.getByRole('link', { name: 'Create your account' }).click();
+  await page.getByRole('link', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/signup\?next=%2Fresearch%2Fstocks/);
   await page.getByLabel('Full name').fill('Asha Rao');
   await page.getByLabel('Email', { exact: true }).fill(A.email);

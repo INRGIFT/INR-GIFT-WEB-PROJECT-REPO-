@@ -12,8 +12,12 @@ export const serverEnv = {
   /** Supabase Auth → Hooks → Send Email: the "v1,whsec_…" secret shown there. */
   sendEmailHookSecret: () => v('SEND_EMAIL_HOOK_SECRET'),
   resendApiKey: () => v('RESEND_API_KEY'),
-  /** e.g. "INRGIFT <no-reply@yourdomain>", on a domain verified in Resend. */
-  resendFrom: () => v('RESEND_FROM_EMAIL'),
+  /**
+   * The sender of every INRGIFT email: "INRGIFT Support <support@inrgift.com>" (owner decision), on inrgift.com verified
+   * in Resend. A bare address in RESEND_FROM_EMAIL gets the "INRGIFT Support" display name, so no email ever arrives
+   * from an unnamed address; an explicit "Name <address>" value is used as given.
+   */
+  resendFrom: () => { const f = v('RESEND_FROM_EMAIL'); return f && !f.includes('<') ? `INRGIFT Support <${f}>` : f; },
   twoFactorApiKey: () => v('TWO_FACTOR_API_KEY'),
   /** Optional 2Factor OTP template name (the last AUTOGEN path segment), as approved on the 2Factor account. */
   twoFactorTemplate: () => v('TWO_FACTOR_OTP_TEMPLATE'),

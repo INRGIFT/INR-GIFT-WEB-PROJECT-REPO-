@@ -24,11 +24,11 @@ export function LegalShell({ title, lead, current, updated, crumbs, children }: 
       <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
         <nav aria-label="Legal and support" className="md:sticky md:top-24">
           <ul className="space-y-0.5 text-[13px]">{LEGAL_NAV.map(([l, h]) => <li key={h}><Link href={h} aria-current={h === current ? 'page' : undefined} className={cn('block rounded-lg px-2.5 py-1.5', h === current ? 'bg-brand-soft font-semibold text-brand-ink' : 'text-slate2 hover:bg-hover hover:text-navy')}>{l}</Link></li>)}</ul>
-          <CompanyContact compact className="mt-5 hidden rounded-card border border-line bg-white p-4 md:block" />
+          <CompanyContact compact social={false} className="mt-5 hidden rounded-card border border-line bg-white p-4 md:block" />
         </nav>
         <div className="min-w-0 space-y-4">
           {children}
-          <CompanyContact className="rounded-card border border-line bg-white p-4 md:hidden" />
+          <CompanyContact social={false} className="rounded-card border border-line bg-white p-4 md:hidden" />
         </div>
       </div>
     </PageContainer>

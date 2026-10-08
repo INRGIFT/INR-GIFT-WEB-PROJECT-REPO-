@@ -24,8 +24,9 @@ import { CopyGiftId, GiftIdValue } from './gift-id';
 import type { AccountProfile } from './types';
 
 const crumbs = (label: string): [string, string?][] => [['Workspace', '/app'], ['Account'], [label]];
+/** The value takes the label's line only when it has 12rem there; on a narrow phone it drops below the label instead of overflowing. */
 function Row({ label, value, action }: { label: ReactNode; value: ReactNode; action?: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line py-3 last:border-0"><dt className="w-40 shrink-0 text-[13px] text-faint">{label}</dt><dd className="min-w-0 flex-1">{value}</dd>{action && <dd className="shrink-0">{action}</dd>}</div>;
+  return <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line py-3 last:border-0"><dt className="w-40 shrink-0 text-[13px] text-faint">{label}</dt><dd className="min-w-0 flex-1 basis-48 break-words">{value}</dd>{action && <dd className="shrink-0">{action}</dd>}</div>;
 }
 const Verified = ({ ok, yes = 'Verified', no = 'Not verified' }: { ok: boolean; yes?: string; no?: string }) => ok ? <Badge tone="up"><CheckCircle2 size={12} aria-hidden />{yes}</Badge> : <Badge tone="warn"><CircleAlert size={12} aria-hidden />{no}</Badge>;
 function Loading() { return <PageContainer><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full rounded-card" /></PageContainer>; }
@@ -33,7 +34,10 @@ function Loading() { return <PageContainer><Skeleton className="h-8 w-48" /><Ske
 function AccountError({ onRetry }: { onRetry: () => void }) {
   return <Callout tone="error" title="Your account details could not load." action={<RetryButton onRetry={onRetry} label="Try again" />}>Nothing has changed on your account. Check your connection and try again.</Callout>;
 }
-const METHOD: Record<NonNullable<AccountProfile['session']>['method'], string> = { password: 'Email and password', google: 'Google', other: 'Another method' };
+const METHOD: Record<NonNullable<AccountProfile['session']>['method'], string> = { password: 'Email and password', oauth: 'Google or Apple', other: 'Another method' };
+/** The session token says "oauth" without naming the provider; name it when only one is connected. */
+const methodLabel = (m: NonNullable<AccountProfile['session']>['method'], providers: string[]) =>
+  m !== 'oauth' ? METHOD[m] : providers.includes('google') && !providers.includes('apple') ? 'Google' : providers.includes('apple') && !providers.includes('google') ? 'Apple' : METHOD.oauth;
 const SMS_LATER = 'SMS verification will be available after 2Factor/DLT setup.';
 
 /** The browser and platform of this device, from its own user agent. Read after mount (no server guess). */
@@ -73,7 +77,7 @@ export function AccountCard() {
         <CardField label="Phone" value={profile.phone ? maskPhone(profile.phone) : 'Not added'} />
         <CardField label="Country" value={profile.country ?? 'Not provided'} />
         <CardField label="Account created" value={profile.createdAt ? <time dateTime={profile.createdAt}>{dateShort(profile.createdAt)}</time> : '—'} />
-        <CardField label="Sign-in methods" value={[profile.passwordSet ? 'Email and password' : null, profile.providers.includes('google') ? 'Google' : null].filter(Boolean).join(' · ') || '—'} />
+        <CardField label="Sign-in methods" value={[profile.passwordSet ? 'Email and password' : null, profile.providers.includes('google') ? 'Google' : null, profile.providers.includes('apple') ? 'Apple' : null].filter(Boolean).join(' · ') || '—'} />
       </dl>
     </section>
   );
@@ -105,6 +109,7 @@ export function ProfilePage() {
   };
   const rows = TABLES.reduce((s, t) => s + ws.data[t].length, 0);
   const google = (profile?.providers ?? user.providers).includes('google');
+  const apple = (profile?.providers ?? user.providers).includes('apple');
   const emailVerified = profile?.emailVerified ?? user.emailVerified;
   const phone = profile?.phone ?? user.phone;
   return (
@@ -125,6 +130,7 @@ export function ProfilePage() {
           <Row label="Mobile number" value={<span className="flex flex-wrap items-center gap-2">{phone ? maskPhone(phone) : 'Not added'} {phone && (smsSecondFactor ? <Verified ok={profile?.phoneVerified ?? user.phoneVerified} /> : <Badge>Saved</Badge>)}</span>}
             action={smsSecondFactor ? <ButtonLink size="sm" href="/verify-phone?mode=change&next=/account/profile">Change number</ButtonLink> : undefined} />
           <Row label="Google" value={google ? <Badge tone="up"><CheckCircle2 size={12} aria-hidden />Connected</Badge> : <span className="text-slate2">Not connected</span>} />
+          <Row label="Apple" value={apple ? <Badge tone="up"><CheckCircle2 size={12} aria-hidden />Connected</Badge> : <span className="text-slate2">Not connected</span>} />
         </dl>
         {!smsSecondFactor && <p className="mt-2 text-xs text-faint">{SMS_LATER}</p>}
       </Panel>
@@ -132,7 +138,7 @@ export function ProfilePage() {
         <dl>
           <Row label="Password" value={profile ? <Verified ok={profile.passwordSet} yes="Set" no="Not set" /> : <Skeleton className="h-5 w-16" />} />
           <Row label="Last sign-in" value={profile?.lastSignInAt ? <time dateTime={profile.lastSignInAt}>{dateTimeIST(profile.lastSignInAt)}</time> : '—'} />
-          <Row label="This session" value={profile?.session ? `${METHOD[profile.session.method]}${profile.session.startedAt ? `, since ${dateTimeIST(profile.session.startedAt)}` : ''}` : auth.mode === 'demo' ? 'Demo session in this browser' : '—'} action={<ButtonLink size="sm" href="/account/sessions">Sessions</ButtonLink>} />
+          <Row label="This session" value={profile?.session ? `${methodLabel(profile.session.method, profile.providers)}${profile.session.startedAt ? `, since ${dateTimeIST(profile.session.startedAt)}` : ''}` : auth.mode === 'demo' ? 'Demo session in this browser' : '—'} action={<ButtonLink size="sm" href="/account/sessions">Sessions</ButtonLink>} />
         </dl>
       </Panel>
       <Panel title="Preferences" tools={<ButtonLink size="sm" href="/account/settings">Edit</ButtonLink>}>
@@ -198,7 +204,7 @@ export function SettingsPage() {
 
 /* ------------------------------------ Security ------------------------------------ */
 /**
- * Password, sign-in identities (email, Google), verification and sessions. With the SMS second factor switched on,
+ * Password, sign-in identities (email, Google, Apple), verification and sessions. With the SMS second factor switched on,
  * the code is required at every sign-in and cannot be turned off; the number can only be replaced by verifying a new
  * one (VerifyPhone ?mode=change). Until then the page says so plainly.
  */
@@ -218,6 +224,7 @@ export function SecurityPage() {
   const changePw = async () => { const p = passwordProblem(pw); if (p) return setPwErr(p); setBusy(true); try { await auth.updatePassword(pw); setPwOpen(false); setPw(''); toast('Password changed'); setEvents(await auth.activity()); } catch (e) { setPwErr(authMessage(e)); } finally { setBusy(false); } };
   const signOut = async (scope: 'local' | 'global') => { await auth.signOut(scope); router.push(scope === 'global' ? '/login' : '/'); router.refresh(); };
   const google = (profile?.providers ?? user.providers).includes('google');
+  const apple = (profile?.providers ?? user.providers).includes('apple');
   const passwordSet = profile?.passwordSet ?? !user.missing.includes('password');
   const activated = user.emailVerified && (!smsSecondFactor || user.phoneVerified);
   return (
@@ -234,8 +241,9 @@ export function SecurityPage() {
         <dl>
           <Row label="Email address" value={<span className="flex flex-wrap items-center gap-2">{user.email ?? '—'} {passwordSet && <Badge>With password</Badge>}</span>} />
           <Row label="Google" value={google ? <Badge tone="up"><CheckCircle2 size={12} aria-hidden />Connected</Badge> : <span className="text-slate2">Not connected</span>} />
+          <Row label="Apple" value={apple ? <Badge tone="up"><CheckCircle2 size={12} aria-hidden />Connected</Badge> : <span className="text-slate2">Not connected</span>} />
         </dl>
-        <p className="mt-2 text-xs text-faint">Every session starts with your email and password or with Google. INRGIFT never signs you in with a link or a code alone.</p>
+        <p className="mt-2 text-xs text-faint">Every session starts with your email and password, or with Google or Apple. INRGIFT never signs you in with a link or a code alone.</p>
       </Panel>
       <Panel title="Verification">
         <dl>
@@ -250,7 +258,7 @@ export function SecurityPage() {
       </Panel>
       <Panel title="Sessions" tools={<ButtonLink size="sm" href="/account/sessions">Session details</ButtonLink>}>
         <dl>
-          <Row label="This session" value={profile?.session ? `${METHOD[profile.session.method]}${profile.session.startedAt ? `, since ${dateTimeIST(profile.session.startedAt)}` : ''}` : auth.mode === 'demo' ? 'Demo session in this browser' : 'Signed in'} />
+          <Row label="This session" value={profile?.session ? `${methodLabel(profile.session.method, profile.providers)}${profile.session.startedAt ? `, since ${dateTimeIST(profile.session.startedAt)}` : ''}` : auth.mode === 'demo' ? 'Demo session in this browser' : 'Signed in'} />
         </dl>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" onClick={() => signOut('local')}><LogOut size={14} aria-hidden />Sign out</Button>
@@ -290,7 +298,7 @@ export function SessionsPage() {
       <Panel title="This device" tools={<span className="inline-flex items-center gap-1.5 text-xs font-semibold text-up"><span aria-hidden>●</span>Current session</span>}>
         <dl>
           <Row label="Device" value={device ? <span className="inline-flex items-center gap-2"><MonitorSmartphone size={16} className="text-faint" aria-hidden />{device}</span> : <Skeleton className="h-5 w-32" />} />
-          <Row label="Signed in with" value={s ? METHOD[s.method] : loading ? <Skeleton className="h-5 w-32" /> : auth.mode === 'demo' ? 'Demo account' : '—'} />
+          <Row label="Signed in with" value={s ? methodLabel(s.method, profile?.providers ?? user.providers) : loading ? <Skeleton className="h-5 w-32" /> : auth.mode === 'demo' ? 'Demo account' : '—'} />
           <Row label="Signed in at" value={s?.startedAt ? <time dateTime={s.startedAt}>{dateTimeIST(s.startedAt)}</time> : loading ? <Skeleton className="h-5 w-40" /> : '—'} />
           <Row label="Access renews" value={s?.tokenExpiresAt ? <>Automatically while you use INRGIFT. The current access token is valid until <time dateTime={s.tokenExpiresAt}>{dateTimeIST(s.tokenExpiresAt)}</time>.</> : auth.mode === 'demo' ? 'Demo sessions do not expire' : 'Automatically while you use INRGIFT'} />
           <Row label="Last sign-in" value={profile?.lastSignInAt ? <time dateTime={profile.lastSignInAt}>{dateTimeIST(profile.lastSignInAt)}</time> : '—'} />
@@ -300,7 +308,7 @@ export function SessionsPage() {
       <Panel title="Other devices">
         {auth.mode === 'supabase' ? (
           <>
-            <p className="text-slate2">INRGIFT cannot list your sessions on other devices from this page. If you signed in somewhere you no longer use, or you are not sure, sign out on all devices: every session ends, including this one, and each device needs your password (or Google) again.</p>
+            <p className="text-slate2">INRGIFT cannot list your sessions on other devices from this page. If you signed in somewhere you no longer use, or you are not sure, sign out on all devices: every session ends, including this one, and each device needs your password (or Google or Apple) again.</p>
             <Button className="mt-4" variant="danger" size="sm" onClick={() => signOut('global')} disabled={busy !== null}><LogOut size={14} aria-hidden />{busy === 'global' ? 'Signing out…' : 'Sign out on all devices'}</Button>
           </>
         ) : <p className="text-slate2">Demo sessions exist only in this browser. There are no other devices to sign out.</p>}

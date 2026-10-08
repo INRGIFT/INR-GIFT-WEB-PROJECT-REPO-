@@ -11,12 +11,15 @@ import { validateSignup, type SignupErrors, type SignupInput } from './policy';
 import { emailOtpMinutes, smsSecondFactor } from '@/lib/config';
 import { useSession } from './session-context';
 import { COUNTRIES } from './countries';
+import type { OAuthAvailability, OAuthProvider } from './oauth-providers';
 
 const NOTICES: Record<string, [tone: 'warn' | 'success', text: string]> = {
   link: ['warn', 'That link could not be used. Request a new one below.'],
   expired: ['warn', 'That link has expired. Request a new one below.'],
   verified: ['success', smsSecondFactor ? 'Email verified. Sign in with your email and password to verify your mobile number.' : 'Email verified. Sign in with your email and password.'],
-  oauth: ['warn', 'Google sign-in did not complete. Try again, or sign in with your email and password.'],
+  oauth: ['warn', 'Sign-in with Google or Apple did not complete. Try again, or sign in with your email and password.'],
+  'oauth-google': ['warn', 'Google sign-in did not complete. Try again, or sign in with your email and password.'],
+  'oauth-apple': ['warn', 'Apple sign-in did not complete. Try again, or sign in with your email and password.'],
   reset: ['success', smsSecondFactor ? 'Password changed and other sessions signed out. Sign in with your new password; we will text a code to your phone.' : 'Password changed and other sessions signed out. Sign in with your new password.'],
 };
 const STEPS = 3;
@@ -30,36 +33,45 @@ const loadPending = (purpose: SmsPurpose): PhoneChallenge | null => {
   try { const c = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as (PhoneChallenge & { at: number }) | null; return c && c.purpose === purpose && Date.now() - c.at < 10 * 60_000 ? c : null; } catch { return null; }
 };
 
-/* ------------------------------------ Google ------------------------------------ */
+/* ----------------------------------- Google, Apple ----------------------------------- */
+const OAUTH_BUTTON: Record<OAuthProvider, { name: string; icon: string }> = { google: { name: 'Google', icon: '/brand/google-g.svg' }, apple: { name: 'Apple', icon: '/brand/apple-logo.svg' } };
 /**
- * "Continue with Google" through Supabase OAuth (src/features/auth/auth-service.ts). Rendered only when Google is
- * enabled in Supabase (src/features/auth/google.ts). A first Google sign-in then completes the same profile as an
- * email sign-up (mobile number, password, country, terms) before anything opens.
+ * "Continue with Google" / "Continue with Apple" through Supabase OAuth (src/features/auth/auth-service.ts), above the
+ * email form. Each button is rendered only when its provider is enabled in Supabase (src/features/auth/oauth-providers.ts).
+ * A first social sign-in then completes the same profile as an email sign-up (name if the provider withheld it, mobile
+ * number, password, country, terms) before anything opens. Nothing renders when neither provider is on.
  */
-function GoogleSignIn({ next, label = 'Continue with Google' }: { next: string; label?: string }) {
+function SocialSignIn({ next, oauth }: { next: string; oauth: OAuthAvailability }) {
   const { auth, refresh } = useSession();
   const router = useRouter();
+  const [pending, setPending] = useState<OAuthProvider | null>(null);
   const { busy, error, run } = useAuthAction();
-  const go = () => void run(async () => {
-    await auth.signInWithGoogle(next);
-    if (auth.mode === 'demo') { await refresh(); const u = await auth.getUser(); router.replace(gateHref(u?.gate ?? 'login', next)); }
-  });
+  const providers = (['google', 'apple'] as const).filter((p) => oauth[p]);
+  if (!providers.length) return null;
+  const go = (provider: OAuthProvider) => { setPending(provider); void run(async () => {
+    try {
+      await auth.signInWithOAuth(provider, next);
+      if (auth.mode === 'demo') { await refresh(); const u = await auth.getUser(); router.replace(gateHref(u?.gate ?? 'login', next)); }
+    } finally { setPending(null); }
+  }); };
   return (
-    <div className="mt-5">
-      <div className="flex items-center gap-3 text-xs font-medium text-faint" aria-hidden><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
-      <div className="mt-4 space-y-2">
+    <div className="mb-5">
+      <div className="space-y-2.5">
         <FormError error={error} />
-        <Button type="button" size="lg" className="w-full" disabled={busy} onClick={go}>
-          <img src="/brand/google-g.svg" alt="" width={18} height={18} aria-hidden />{busy ? 'Opening Google…' : label}
-        </Button>
+        {providers.map((p) => (
+          <Button key={p} type="button" size="lg" className="w-full" disabled={busy} onClick={() => go(p)}>
+            <img src={OAUTH_BUTTON[p].icon} alt="" width={18} height={18} aria-hidden />{pending === p ? `Opening ${OAUTH_BUTTON[p].name}…` : `Continue with ${OAUTH_BUTTON[p].name}`}
+          </Button>
+        ))}
       </div>
+      <div className="mt-5 flex items-center gap-3 text-xs font-medium text-faint"><span aria-hidden className="h-px flex-1 bg-line" />Or continue with email<span aria-hidden className="h-px flex-1 bg-line" /></div>
     </div>
   );
 }
 
 /* ------------------------------------ Login ------------------------------------ */
-/** Email + password, or Google. With the SMS second factor on, an SMS code follows either way. */
-export function LoginForm({ google = false }: { google?: boolean }) {
+/** Google, Apple (when enabled), or email + password. With the SMS second factor on, an SMS code follows either way. */
+export function LoginForm({ oauth = { google: false, apple: false } }: { oauth?: OAuthAvailability }) {
   const next = useNext();
   const params = useSearchParams();
   const { ready } = useRedirectIfSignedIn(next);
@@ -70,7 +82,9 @@ export function LoginForm({ google = false }: { google?: boolean }) {
   const [touched, setTouched] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
   const { busy, error, run } = useAuthAction();
-  const notice = NOTICES[params.get('error') ?? params.get('notice') ?? ''];
+  const noticeKey = params.get('error') ?? params.get('notice') ?? '';
+  const provider = params.get('provider');
+  const notice = NOTICES[noticeKey === 'oauth' && (provider === 'google' || provider === 'apple') ? `oauth-${provider}` : noticeKey];
   const emailErr = touched && !isEmail(email.trim()) ? 'Enter the email address you signed up with.' : null;
   const pwErr = touched && !password ? 'Enter your password.' : null;
   const submit = () => {
@@ -88,8 +102,9 @@ export function LoginForm({ google = false }: { google?: boolean }) {
   };
   if (!ready) return <AuthSkeleton />;
   return (
-    <AuthCard title="Sign in to INRGIFT" lead={smsSecondFactor ? 'Email and password, then a code sent to your phone.' : 'Sign in with your email and password.'} footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create your account</AltLink></>}>
+    <AuthCard title="Sign in to INRGIFT" lead={smsSecondFactor ? 'Then a code sent to your phone.' : 'Global market intelligence from India.'} footer={<>New to INRGIFT? <AltLink href={`/signup${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`}>Create account</AltLink></>}>
       {notice && <Callout tone={notice[0]} className="mb-4" title={notice[1]} />}
+      <SocialSignIn next={next} oauth={oauth} />
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         {unconfirmed && <p className="text-[13px]"><a href={`/verify${nextSuffix(next, '?')}`} className="link font-semibold" onClick={() => rememberEmail(email.trim())}>Verify your email with the 6-digit code</a></p>}
@@ -98,7 +113,6 @@ export function LoginForm({ google = false }: { google?: boolean }) {
         <div className="flex justify-end"><AltLink href="/forgot-password">Forgot password?</AltLink></div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </AuthForm>
-      {google && <GoogleSignIn next={next} />}
     </AuthCard>
   );
 }
@@ -122,7 +136,7 @@ const nextSuffix = (next: string, sep: '?' | '&') => (next !== '/app' ? `${sep}n
  * then onboarding and the workspace. A refresh during step 2 resumes it (?step=verify); step 3 then asks for the
  * password because it is no longer in memory.
  */
-export function SignupForm({ google = false }: { google?: boolean }) {
+export function SignupForm({ oauth = { google: false, apple: false } }: { oauth?: OAuthAvailability }) {
   const { auth } = useSession();
   const next = useNext();
   const params = useSearchParams();
@@ -165,6 +179,7 @@ export function SignupForm({ google = false }: { google?: boolean }) {
   if (stage === 'finish') return <FinishSignup email={email} secret={secret} next={next} />;
   return (
     <AuthCard title="Create your account" lead="Every INRGIFT account has three credentials: email, mobile number and password." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${nextSuffix(next, '?')}`}>Sign in</AltLink></>}>
+      <SocialSignIn next={next} oauth={oauth} />
       <AuthForm onSubmit={submit}>
         <FormError error={error} />
         <TextField label="Full name" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} error={show('name')} maxLength={80} autoFocus />
@@ -176,7 +191,6 @@ export function SignupForm({ google = false }: { google?: boolean }) {
         <div><Checkbox checked={f.terms} onChange={(v) => set('terms', v)} label={<>I accept the <AltLink href="/terms-and-conditions">Terms and Conditions</AltLink> and have read the <AltLink href="/privacy-policy">Privacy Policy</AltLink>, and I understand INRGIFT does not give investment advice.</>} />{show('terms') && <p role="alert" className="mt-1 text-[13px] text-down">{errs.terms}</p>}</div>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
       </AuthForm>
-      {google && <GoogleSignIn next={next} label="Sign up with Google" />}
     </AuthCard>
   );
 }
@@ -481,10 +495,12 @@ export function AuthSkeleton() { return <div className="w-full max-w-[420px] spa
 
 /* ------------------------------- Complete profile ------------------------------- */
 /**
- * After a first Google sign-in: the account model still needs a mobile number, a password (so email + password also
- * works), country and acceptance of the terms. Only the missing fields are asked for; the server checks them again
- * (/api/auth/complete-profile). Nothing opens until this is done.
+ * After a first Google or Apple sign-in: the account model still needs a name (Apple shares one only if the person
+ * chooses to), a mobile number, a password (so email + password also works), country and acceptance of the terms.
+ * Only the missing fields are asked for; the server checks them again (/api/auth/complete-profile). An Apple "Hide My
+ * Email" relay address is a real, working address and is kept as the account email. Nothing opens until this is done.
  */
+const isAppleRelay = (email: string | null) => Boolean(email && /@privaterelay\.appleid\.com$/i.test(email));
 export function CompleteProfile() {
   const { auth, account, loading, refresh } = useSession();
   const router = useRouter();
@@ -496,7 +512,8 @@ export function CompleteProfile() {
     if (loading) return;
     if (!account) { router.replace(`/login${next !== '/app' ? `?next=${encodeURIComponent(next)}` : ''}`); return; }
     if (account.gate !== 'profile') router.replace(gateHref(account.gate, next));
-    else setF((x) => (x.name ? x : { ...x, name: account.name, phone: account.phone ?? x.phone }));
+    // Prefill only a name the person or provider actually gave (not the email's local part used as a display fallback).
+    else setF((x) => (x.name ? x : { ...x, name: account.missing.includes('name') ? '' : account.name, phone: account.phone ?? x.phone }));
   }, [loading, account, next, router]);
   if (loading || !account || account.gate !== 'profile') return <AuthSkeleton />;
   const need = (k: 'phone' | 'password' | 'country' | 'terms') => account.missing.includes(k);
@@ -518,7 +535,7 @@ export function CompleteProfile() {
     });
   };
   return (
-    <AuthCard title="Finish setting up your account" lead={<>Signed in as <b className="text-navy">{account.email ? maskEmail(account.email) : 'your Google account'}</b>. Every INRGIFT account also has a mobile number and a password.</>}
+    <AuthCard title="Complete your INRGIFT profile" lead={<>Signed in as <b className="text-navy">{account.email ? maskEmail(account.email) : 'your social account'}</b>{isAppleRelay(account.email) ? ' (an Apple private relay address; emails from INRGIFT reach you through Apple)' : ''}. Every INRGIFT account also has a name, a mobile number and a password.</>}
       footer={<>Not you? <button type="button" className="link" onClick={async () => { await auth.signOut(); router.replace('/login'); }}>Sign out</button></>}>
       <AuthForm onSubmit={submit}>
         <FormError error={error} />

@@ -4,6 +4,31 @@ Keep this file current. It is the handover record. Start with `docs/CURRENT_STAT
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
 ## Done (typecheck, 218 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+- **Production repair and hardening (8 Oct 2026, owner's final production brief):** audited live first
+  (`/api/health`, Supabase auth logs, route probes, a 24-page × 11-viewport overflow scan), then fixed:
+  - **"Supabase Auth" sign-up emails, root cause:** Supabase's built-in mailer (`noreply@mail.app.supabase.io`,
+    default link template) sent them because the Send Email Hook is not enabled in Supabase and the live server lacks
+    `SEND_EMAIL_HOOK_SECRET`. Code cannot fix that (owner steps, `docs/DEPLOY.md` §6); the hook handler is now ready
+    for every auth email: sign-up code, reset, reauthentication, **email change** (both secure-change emails, Supabase's
+    reversed hash names), all seven security notifications; passwordless types still refused. One INRGIFT email frame
+    (both brand lines, support, address, Instagram/X, no third-party branding); sender always named
+    `INRGIFT Support <…>`.
+  - **Routing:** unknown paths are a real 404 for everyone (`isUnknownPage`; they used to redirect to sign-in);
+    canonical **`/news`** (`/resources/news` → 308); short names `/screeners`, `/compare`, `/watchlists`, `/alerts`,
+    `/saved-research`, `/account/preferences`, `/sign-up`, `/risk-disclosure`, `/open-source` (and a few more)
+    redirect; `/refund-policy` stays 404 (INRGIFT takes no payments; no policy is invented).
+  - **Apple sign-in** beside Google (Supabase OAuth), each shown only when Supabase has the provider on; login and
+    sign-up open with "Continue with Google / Apple" then "Or continue with email"; Apple's withheld name and relay
+    address handled on "Complete your INRGIFT profile" (`name` is now a profile field for social-only accounts);
+    cancelled sign-ins name the provider. Security and sessions pages show Apple.
+  - **Mobile overflow** (real components, no global patch): workspace "Quick research" workflow line (one
+    unbreakable run, ~700 px on every phone), the stock page dividends table at 320 px, the account rows at
+    320–360 px, the screener results toolbar at 320 px. New `e2e/responsive.spec.ts` checks 11 viewports.
+  - **News relevance:** token promotions, open press-release boards (e.g. openpr) and municipal politics are pushed
+    below the feed threshold; major wires keep real company announcements.
+  - **Social:** Instagram @inrgift and X @INRGIFT (exact owner URLs) in the footer, About, Support and every email.
+  - **Truthful copy:** the homepage no longer claims a six-digit code while live email is the default link.
+  - **Health:** `release.commit` falls back to the build-time commit (`source: build`), and reports Apple.
 - **Homepage redesign (7 Oct 2026, owner's "premium financial intelligence brand" brief):** hero "INVEST BEYOND
   BORDERS." with Explore Markets / Get Started and a KLineChart NIFTY 50 chart (1M, 1Y, 5Y prepared on the server)
   plus six facts (market status, exchange, currency, data source, session, research snapshot); global market snapshot
@@ -171,6 +196,10 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
   that match the type scale steps.
 
 ## Blockers needing the owner
+**Email (blocks every new sign-up):** Supabase → Authentication → Hooks → Send Email (HTTPS) on, URL
+`https://inrgift.com/api/hooks/send-email`, generate the secret → the same value as `SEND_EMAIL_HOOK_SECRET` on GoDaddy →
+restart. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
+provider (live reports it disabled). **GIFT ID:** migration 0008, alone. **Deploy** the packaged zip.
 GoDaddy env vars and the Supabase URL/hook settings for inrgift.com · 2Factor.in DLT approval, key and template (SMS stays off until then) · Resend key and
 verified domain · NewsData.io key · Supabase secret key and hook; migration 0007 with the SMS switch · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
 analytics and error-reporting vendors.

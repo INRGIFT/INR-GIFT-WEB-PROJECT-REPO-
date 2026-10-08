@@ -6,7 +6,7 @@ import { getLogoProvider } from '@/lib/logos';
 
 /** Footer columns. Product and Account pages are behind sign-in; Support, Legal and Company pages are public. */
 export const FOOTER_COLUMNS: [string, [string, string][]][] = [
-  ['Product', [['Markets', '/markets'], ['Discover', '/discover'], ['Screeners', '/discover/screener'], ['Compare', '/discover/compare'], ['Research', '/research'], ['News', '/resources/news']]],
+  ['Product', [['Markets', '/markets'], ['Discover', '/discover'], ['Screeners', '/discover/screener'], ['Compare', '/discover/compare'], ['Research', '/research'], ['News', '/news']]],
   ['Account', [['Profile', '/account/profile'], ['Security', '/account/security'], ['Sessions', '/account/sessions'], ['Preferences', '/account/settings']]],
   ['Support', [['Support', LEGAL_PATHS.support], ['Grievance Redressal', LEGAL_PATHS.grievance], ['Account Closure', LEGAL_PATHS.accountClosure]]],
   ['Legal', [['Terms and Conditions', LEGAL_PATHS.terms], ['Privacy Policy', LEGAL_PATHS.privacy], ['Legal', LEGAL_PATHS.legal], ['Risk Disclaimer', LEGAL_PATHS.risk], ['Cookie Policy', LEGAL_PATHS.cookies], ['Open-source notices', LEGAL_PATHS.openSource]]],
@@ -23,6 +23,7 @@ export function SiteFooter() {
           <div>
             <Link href="/" aria-label="INRGIFT home" className="inline-block"><BrandMark lockup="horizontal" height={64} decorative /></Link>
             <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.2em] text-brand-ink">{COMPANY.descriptor}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[.2em] text-faint">{COMPANY.tagline}</p>
             <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-slate2">INRGIFT is a research and information platform. It is not a broker, an exchange or an investment adviser; it does not execute transactions or hold client funds, and nothing on it is a recommendation.</p>
             <CompanyContact compact title={null} className="mt-6" />
           </div>

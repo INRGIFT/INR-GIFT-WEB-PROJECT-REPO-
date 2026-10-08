@@ -54,10 +54,12 @@ export const GATE_PATH: Record<Exclude<Gate, 'ok'>, string> = { login: '/login',
 /** Sign-in methods that open a session: the password and Google (Supabase reports OAuth as "oauth"). */
 export const isPrimarySignIn = (amr: string[]) => amr.includes('password') || amr.includes('oauth');
 
-export type ProfileField = 'phone' | 'password' | 'country' | 'terms';
+export type ProfileField = 'name' | 'phone' | 'password' | 'country' | 'terms';
 export interface ProfileFacts {
-  /** Identity providers on the account ("email" = signed up with email + password, "google"). */
+  /** Identity providers on the account ("email" = signed up with email + password, "google", "apple"). */
   providers: string[];
+  /** The name the person gave (sign-up form, Google, Apple's first sign-in, or /complete-profile); null when none. */
+  name?: string | null;
   /** Mobile number on file (verified or as given), E.164. */
   phone: string | null;
   country: string | null;
@@ -68,11 +70,13 @@ export interface ProfileFacts {
 /**
  * What an account still has to give before it can be used. Accounts created with email + password gave everything at
  * sign-up (the form requires phone, country and terms), so only an older account without a number lacks something.
- * Google-only accounts give the number, a password, country and terms on /complete-profile.
+ * Google- or Apple-only accounts give the number, a password, country and terms on /complete-profile, and their name
+ * when the provider did not share one (Apple shares it only on the first authorisation, and the person may withhold it).
  */
 export function profileMissing(p: ProfileFacts): ProfileField[] {
   const emailAccount = p.providers.includes('email');
   const missing: ProfileField[] = [];
+  if (!emailAccount && p.name !== undefined && !p.name?.trim()) missing.push('name');
   if (!p.phone || !isPhone(p.phone)) missing.push('phone');
   if (!emailAccount && !p.passwordSet) missing.push('password');
   if (!emailAccount && !p.country) missing.push('country');
@@ -82,11 +86,13 @@ export function profileMissing(p: ProfileFacts): ProfileField[] {
 /** Reads ProfileFacts from a Supabase user record (user_metadata is the person's; app_metadata only the server's). */
 export function profileFactsOf(u: { identities?: { provider: string }[] | null; app_metadata?: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null; phone?: string | null; phone_confirmed_at?: string | null }): ProfileFacts {
   const app = (u.app_metadata ?? {}) as { providers?: unknown; inrgift?: { password_set?: unknown; terms_accepted_at?: unknown } };
-  const meta = (u.user_metadata ?? {}) as { phone?: unknown; country?: unknown };
+  const meta = (u.user_metadata ?? {}) as { phone?: unknown; country?: unknown; full_name?: unknown; name?: unknown };
+  const given = [meta.full_name, meta.name].find((n): n is string => typeof n === 'string' && Boolean(n.trim()));
   const providers = new Set<string>([...(u.identities ?? []).map((i) => i.provider), ...(Array.isArray(app.providers) ? app.providers.map(String) : [])]);
   const verified = u.phone_confirmed_at && u.phone ? `+${u.phone.replace(/\D/g, '')}` : null;
   return {
     providers: [...providers],
+    name: given?.trim() ?? null,
     phone: verified ?? (typeof meta.phone === 'string' ? normalizePhone(meta.phone) : null),
     country: typeof meta.country === 'string' && meta.country ? meta.country : null,
     passwordSet: app.inrgift?.password_set === true,

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { GATE_PATH, type Gate } from '@/features/auth/policy';
 import { readServerSession } from '@/features/auth/server-facts';
 import { authMode, config as app, DEMO_SESSION_COOKIE, redirectBase, supabaseCookieOptions } from '@/lib/config';
-import { classifyPath, isNoindexPath } from '@/lib/route-registry';
+import { classifyPath, isNoindexPath, isUnknownPage } from '@/lib/route-registry';
 import { safeReturnPath } from '@/lib/return-url';
 
 /**
@@ -17,6 +17,8 @@ export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const access = classifyPath(pathname);
   if (access === 'file') return res;
+  // No page answers this path: Next.js renders the 404 page (noindex), signed in or not, instead of a sign-in redirect.
+  if (isUnknownPage(pathname)) { res.headers.set('X-Robots-Tag', 'noindex, nofollow'); return res; }
   if (pathname.startsWith('/api/') && !sameOriginWrite(req)) return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Cross-site requests are not allowed.' } }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
   let gate: Gate = 'login';
   if (authMode === 'supabase') {

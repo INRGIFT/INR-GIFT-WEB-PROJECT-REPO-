@@ -69,7 +69,7 @@ test('sessions and security pages show only verifiable facts', async ({ page }) 
 
 test('news page: GLOBAL MARKET NEWS layout, featured story, categories and market pulse', async ({ page, isMobile }) => {
   await signInDemo(page);
-  await page.goto('/resources/news');
+  await page.goto('/news');
   await expect(page.getByRole('heading', { level: 1, name: 'Global market news' })).toBeVisible();
   await expect(page.getByText('Market-moving news, macro developments, company events and financial intelligence.')).toBeVisible();
   await expect(page.getByText('Featured', { exact: true })).toBeVisible();

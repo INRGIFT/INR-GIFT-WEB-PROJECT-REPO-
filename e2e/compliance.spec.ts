@@ -63,7 +63,7 @@ test('grievance and support forms validate before sending', async ({ page }) => 
 });
 
 async function completeGoogleProfile(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Finish setting up your account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Complete your INRGIFT profile' })).toBeVisible();
   await page.getByRole('button', { name: 'Save and continue' }).click();
   await expect(page.getByText('Accept the Terms and Conditions and the Privacy Policy to continue.')).toBeVisible();
   await page.getByLabel('Mobile number').fill('+91 91234 56780');
@@ -105,10 +105,41 @@ test('Google: first sign-in completes phone, password, country and terms before 
   await expect(page).toHaveURL(/\/app$/);
 });
 
+test('Apple: a relay address and no name; the profile asks for the name before anything opens', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+  await expect(page.getByText('Or continue with email')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page).toHaveURL(/\/complete-profile/);
+  await expect(page.getByRole('heading', { name: 'Complete your INRGIFT profile' })).toBeVisible();
+  await expect(page.getByText(/Apple private relay address/)).toBeVisible();
+  await expect(page.getByLabel('Full name')).toHaveValue('');
+  await page.goto('/app');
+  await expect(page).not.toHaveURL(/\/app$/);
+  await page.goto('/complete-profile');
+  await page.getByLabel('Mobile number').fill('+91 91234 56781');
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('Confirm password').fill(PASSWORD);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Save and continue' }).click();
+  await expect(page.getByText('Enter your name.')).toBeVisible();
+  await page.getByLabel('Full name').fill('Riya Mehta');
+  await page.getByRole('button', { name: 'Save and continue' }).click();
+  if (SMS_ON) {
+    await page.getByRole('button', { name: 'Send code' }).click();
+    await page.getByLabel('SMS code').fill('123456');
+    await page.getByRole('button', { name: 'Verify number' }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'How should prices appear?' })).toBeVisible();
+});
+
 test('Google: a failed or cancelled sign-in returns to the login page with a message and a safe destination', async ({ page }) => {
   await page.goto('/auth/callback?flow=oauth&error=access_denied&next=%2Fmarkets');
   await expect(page).toHaveURL(/\/login\?error=oauth&next=%2Fmarkets$/);
-  await expect(page.getByText('Google sign-in did not complete.')).toBeVisible();
+  await expect(page.getByText('Sign-in with Google or Apple did not complete.')).toBeVisible();
+  await page.goto('/auth/callback?flow=oauth&provider=apple&error=access_denied');
+  await expect(page).toHaveURL(/\/login\?error=oauth&provider=apple$/);
+  await expect(page.getByText('Apple sign-in did not complete.')).toBeVisible();
   await page.goto('/auth/callback?flow=oauth&error=access_denied&next=https%3A%2F%2Fevil.example');
   await expect(page).toHaveURL(/\/login\?error=oauth$/);
 });

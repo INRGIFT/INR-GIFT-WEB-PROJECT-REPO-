@@ -106,17 +106,42 @@ Supabase generates every auth token; INRGIFT renders the email and Resend delive
 Supabase → `POST /api/hooks/send-email` (Standard Webhooks signature checked with `SEND_EMAIL_HOOK_SECRET`) →
 `src/services/email` → `POST https://api.resend.com/emails` (`Authorization: Bearer RESEND_API_KEY`).
 Handled types: `signup` (the six-digit code from `email_data.token`, email "Verify your INRGIFT email"; a link to
-`/auth/confirm?type=signup` only if a payload ever arrives without a code), `recovery` (`/auth/confirm?type=recovery`),
-`reauthentication` (code). `magiclink`, `invite` and `email_change` are refused (422): INRGIFT has no passwordless
-sign-in, and email changes go through support. Security notices (phone changed, password changed) are sent by the
-server through the same adapter. Sending an email never marks anything verified; Supabase does. Links in every
+`/auth/confirm?type=signup` only if a payload ever arrives without a code), `recovery` ("Reset your INRGIFT password",
+`/auth/confirm?type=recovery`), `reauthentication` (code), `email_change` (secure email change on: two emails, the
+current address with `token_hash_new` and the new address with `token_hash` — Supabase's names are reversed; off: one
+email to the new address) and every security notification (`password_changed_notification`,
+`email_changed_notification`, `phone_changed_notification`, `identity_linked_notification`,
+`identity_unlinked_notification`, `mfa_factor_enrolled_notification`, `mfa_factor_unenrolled_notification`).
+`magiclink`, `invite` and `email` (passwordless OTP sign-in) are refused (422): INRGIFT has no passwordless sign-in.
+Every email uses one INRGIFT frame (`src/services/email/templates.ts`): INRGIFT, GLOBAL MARKET INTELLIGENCE FROM INDIA,
+INVEST BEYOND BORDERS; support@inrgift.com, the company address, Instagram @inrgift and X @INRGIFT, the research-only
+line; no third-party branding. Sender: `INRGIFT Support <support@inrgift.com>` (a bare `RESEND_FROM_EMAIL` address is
+given that display name).
+
+**Why sign-up emails said "Supabase Auth" (8 Oct 2026, from the Supabase auth logs):** the hook was not enabled in
+Supabase, so GoTrue's built-in mailer sent its default "Confirm your signup" link template from
+`noreply@mail.app.supabase.io` (display name "Supabase Auth"); `/api/hooks/send-email` was never called, and the live
+server also lacked `SEND_EMAIL_HOOK_SECRET` (it would have answered 503). Fix = enable the hook and set the secret
+(owner steps in `docs/DEPLOY.md`); no code path in INRGIFT sends Supabase-branded mail. Sending an email never marks anything verified; Supabase does. Links in every
 email are built from `NEXT_PUBLIC_SITE_URL` (`https://inrgift.com`), never from the hook payload's `site_url`.
 Setup: verify the sending domain in Resend (SPF/DKIM, DMARC recommended), create a sending-only API key, set
-`RESEND_API_KEY` and `RESEND_FROM_EMAIL` (e.g. `INRGIFT <no-reply@<domain>>`) on the host, then enable the hook in
+`RESEND_API_KEY` and `RESEND_FROM_EMAIL` (`INRGIFT Support <support@inrgift.com>`) on the host, then enable the hook in
 Supabase. (Resend's Supabase SMTP integration is an alternative only for Supabase's own templates; INRGIFT uses the
 hook so all mail goes through one adapter.)
 
-## Google sign-in (Supabase OAuth)
+## Google and Apple sign-in (Supabase OAuth)
+
+Apple follows the same path as Google below (`provider: 'apple'`; Apple posts back to Supabase's callback, never to
+INRGIFT). Apple shares a name only on the first authorisation and only if the person allows it, and may give a
+"Hide My Email" relay address: the relay address is kept as the account email, and `/complete-profile` asks for the
+name when none was shared (`profileMissing` → `name`). Each button is shown only when Supabase's `/auth/v1/settings`
+reports that provider enabled (`src/features/auth/oauth-providers.ts`); `APPLE_SIGN_IN=off` / `GOOGLE_SIGN_IN=off` hide
+one without touching Supabase. A cancelled or failed provider screen returns to `/login?error=oauth&provider=…`.
+Apple setup (owner, Apple Developer account): an App ID with Sign in with Apple, a Services ID (its identifier is the
+Client ID), return URL `https://odiflbsoitgktylaksng.supabase.co/auth/v1/callback`, domain `odiflbsoitgktylaksng.supabase.co`,
+a Sign in with Apple key (.p8, Key ID) and the Team ID; then Supabase → Authentication → Providers → Apple: enable,
+Client IDs = the Services ID, Secret Key = the JWT generated from the .p8 (Supabase's tool; it expires after at most
+six months and must be renewed).
 
 Browser → `supabase.auth.signInWithOAuth({ provider: 'google' })` (PKCE, S256; the code verifier is a Supabase
 cookie) → Google → `https://odiflbsoitgktylaksng.supabase.co/auth/v1/callback` → `https://inrgift.com/auth/callback?flow=oauth&next=…`

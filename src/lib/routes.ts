@@ -21,7 +21,7 @@ export const NAV = [
   { label: 'Assets', href: '/assets', hint: 'Every asset class', items: [['Stocks', '/assets/stocks', ''], ['ETFs', '/assets/etfs', ''], ['Indices', '/assets/indices', ''], ['FX', '/assets/fx', ''], ['Commodities', '/assets/commodities', ''], ['Bonds', '/assets/bonds', ''], ['REITs', '/assets/reits', ''], ['Funds', '/assets/funds', '']] },
   { label: 'Discover', href: '/discover', hint: 'Find what to research next', items: [['Screener', '/discover/screener', 'Filter the global universe'], ['Compare', '/discover/compare', 'Up to four assets'], ['Heatmap', '/discover/heatmap', 'Signature market map'], ['Themes and collections', '/discover/collections', 'Curated groups across markets'], ['Trending', '/discover/trending', 'Movers and activity']] },
   { label: 'Research', href: '/research', hint: 'Notes, not recommendations', items: [['Stock research', '/research/stocks', ''], ['ETF research', '/research/etfs', ''], ['Market research', '/research/markets', ''], ['Theme research', '/research/themes', ''], ['Sector research', '/research/sectors', ''], ['Country research', '/research/countries', '']] },
-  { label: 'Resources', href: '/resources', hint: 'News, calendars and learning', items: [['News', '/resources/news', ''], ['Earnings', '/resources/earnings', ''], ['Dividends', '/resources/dividends', ''], ['IPOs', '/resources/ipo', ''], ['Calendar', '/resources/calendar', ''], ['Learn', '/resources/learn', ''], ['Glossary', '/resources/glossary', ''], ['Data and methodology', '/resources/data', '']] },
+  { label: 'Resources', href: '/resources', hint: 'News, calendars and learning', items: [['News', '/news', ''], ['Earnings', '/resources/earnings', ''], ['Dividends', '/resources/dividends', ''], ['IPOs', '/resources/ipo', ''], ['Calendar', '/resources/calendar', ''], ['Learn', '/resources/learn', ''], ['Glossary', '/resources/glossary', ''], ['Data and methodology', '/resources/data', '']] },
 ] as const;
 
 export const ACCOUNT_NAV = [['Workspace', '/app'], ['Notifications', '/notifications'], ['Profile', '/account/profile'], ['Settings', '/account/settings'], ['Security', '/account/security']] as const;
@@ -41,7 +41,7 @@ export const APP_NAV: { group: string; items: AppNavItem[] }[] = [
     { label: 'Screeners', href: '/discover/screener', icon: 'SlidersHorizontal', match: /^\/discover\/screener(\/|$)/ },
     { label: 'Compare', href: '/discover/compare', icon: 'Columns2', match: /^\/discover\/compare(\/|$)/ },
     { label: 'Research', href: '/research', icon: 'FileText', match: /^\/research(\/|$)/ },
-    { label: 'News', href: '/resources/news', icon: 'Newspaper', match: /^\/resources\/news(\/|$)/ },
+    { label: 'News', href: '/news', icon: 'Newspaper', match: /^\/news(\/|$)/ },
     { label: 'Watchlists', href: '/app/watchlist', icon: 'Star', match: /^\/app\/watchlist(\/|$)/, table: 'watchlist_items' },
     { label: 'Alerts', href: '/app/alerts', icon: 'Bell', match: /^\/app\/alerts(\/|$)/, table: 'alerts' },
     { label: 'Saved Research', href: '/app/research', icon: 'Bookmark', match: /^\/app\/research(\/|$)/, table: 'saved_research' },

@@ -165,7 +165,7 @@ describe('authenticated navigation', () => {
     expect(JSON.stringify(all.map((i) => [i.label, i.href]))).not.toMatch(/portfolio|holding|order|position|broker|trade now|buy|sell|deposit|withdraw|p&l/i);
     // Every product link is protected; the support links are the public compliance pages.
     for (const i of all) expect(classifyPath(i.href), i.href).toBe(['/support', '/grievance-redressal', '/account-closure'].includes(i.href) ? 'public' : 'protected');
-    expect(appTitle('/resources/news')).toBe('News');
+    expect(appTitle('/news')).toBe('News');
     expect(appTitle('/account/sessions')).toBe('Sessions');
     expect(appTitle('/stocks/AAPL')).toBe('Markets');
     expect(appTitle('/app')).toBe('Home');

@@ -171,7 +171,8 @@ function QuickResearch() {
     <section aria-labelledby="quick-research" className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="quick-research" className="text-lg font-bold">Quick research</h2>
-        <p className="text-xs font-semibold uppercase tracking-[.08em] text-faint"><span className="sr-only">Research workflow: </span>{WORKFLOW.map((w, i) => <span key={w}>{i > 0 && <span aria-hidden className="mx-1 text-line2">→</span>}{w}</span>)}</p>
+        {/* The steps wrap as a row of items: written as one run with no spaces, they formed a single unbreakable word that pushed phones to ~700px wide. */}
+        <p className="flex min-w-0 flex-wrap items-center gap-y-0.5 text-xs font-semibold uppercase tracking-[.08em] text-faint"><span className="sr-only">Research workflow: </span>{WORKFLOW.map((w, i) => <span key={w} className="whitespace-nowrap">{i > 0 && <span aria-hidden className="mx-1 text-line2">→</span>}{w}</span>)}</p>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {QUICK.map(([label, href, text, Icon]) => (
@@ -214,12 +215,12 @@ function NewsModule() {
   const stories = (news.data ?? []).slice(0, 6);
   const [label, tone] = news.meta ? NEWS_STATUS[news.meta.status] : ['', 'neutral' as const];
   return (
-    <Panel flush title="Market news" sub={news.meta?.provider === 'newsdata.io' ? 'NewsData.io' : news.meta ? 'Demo headlines' : undefined} tools={<ButtonLink size="sm" href="/resources/news">All news</ButtonLink>}
+    <Panel flush title="Market news" sub={news.meta?.provider === 'newsdata.io' ? 'NewsData.io' : news.meta ? 'Demo headlines' : undefined} tools={<ButtonLink size="sm" href="/news">All news</ButtonLink>}
       footer={news.meta ? <><Badge tone={tone}>{label}</Badge>{news.meta.retrievedAt && <span>Retrieved {dateTimeIST(news.meta.retrievedAt)}</span>}<span>Headlines link to the original publishers.</span></> : undefined}>
       {news.error ? <ErrorState title="News could not load" action={<RetryButton onRetry={news.reload} label="Try again" />}>Market data, research and your workspace are not affected.</ErrorState>
         : news.loading && !news.data ? <SkeletonRows rows={5} />
         : news.meta?.status === 'UNAVAILABLE' ? <ErrorState title="News is unavailable right now" action={<RetryButton onRetry={news.reload} label="Try again" />}>{news.meta.notice ?? 'The news provider did not answer.'} Market data, research and your workspace are not affected.</ErrorState>
-        : !stories.length ? <EmptyState icon={<Newspaper size={22} />} title="No market stories right now" action={<ButtonLink href="/resources/news">Open the news page</ButtonLink>}>Nothing market-relevant came back from the news source. Try again later.</EmptyState>
+        : !stories.length ? <EmptyState icon={<Newspaper size={22} />} title="No market stories right now" action={<ButtonLink href="/news">Open the news page</ButtonLink>}>Nothing market-relevant came back from the news source. Try again later.</EmptyState>
         : (
           <>
             {news.meta?.status === 'STALE' && <p role="status" className="border-b border-line bg-warn/5 px-4 py-2 text-xs text-slate2">{news.meta.notice ?? 'The news provider did not answer.'} Showing the last stories INRGIFT retrieved.</p>}

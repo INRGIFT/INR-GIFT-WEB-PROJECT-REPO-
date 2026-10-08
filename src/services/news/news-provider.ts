@@ -94,7 +94,7 @@ export const demoSource: RawNewsSource = {
     const now = Date.now();
     const raw: RawArticle[] = [
       ...items.map((n): RawArticle => ({ provider: 'demo', id: `demo_${n.id}`, title: n.headline, description: n.summary ?? null, url: n.url, image_url: null, source_id: 'inrgift-demo', source_name: `${n.publisher} (demo)`, source_url: null, source_priority: null, published_at: n.publishedAt, provider_fetched_at: null, language: 'english', countries: [], categories: ['business'], keywords: [n.category], provider_duplicate: null })),
-      ...OFF_TOPIC_FIXTURES.map(([title, description, cat], i): RawArticle => ({ provider: 'demo', id: `demo_off_${i}`, title, description, url: `/resources/news?demo=off-topic-${i}`, image_url: null, source_id: 'inrgift-demo', source_name: 'Demo fixture', source_url: null, source_priority: null, published_at: new Date(now - (i + 1) * 3600_000).toISOString(), provider_fetched_at: null, language: 'english', countries: [], categories: [cat], keywords: [], provider_duplicate: null })),
+      ...OFF_TOPIC_FIXTURES.map(([title, description, cat], i): RawArticle => ({ provider: 'demo', id: `demo_off_${i}`, title, description, url: `/news?demo=off-topic-${i}`, image_url: null, source_id: 'inrgift-demo', source_name: 'Demo fixture', source_url: null, source_priority: null, published_at: new Date(now - (i + 1) * 3600_000).toISOString(), provider_fetched_at: null, language: 'english', countries: [], categories: [cat], keywords: [], provider_duplicate: null })),
     ];
     const term = p.q?.replace(/"/g, '').toLowerCase();
     return { items: term ? raw.filter((r) => `${r.title} ${r.description}`.toLowerCase().includes(term)) : raw, nextPage: null };

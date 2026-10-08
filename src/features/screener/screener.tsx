@@ -107,7 +107,7 @@ export function Screener() {
         </div>
       </Panel>
       <Panel flush title="Results" sub={<span aria-live="polite"><b className="text-navy">{api.data ? results.length : '…'}</b>{api.data ? ` of ${api.data.length} match` : ''}</span>}
-        tools={<div className="relative flex items-center gap-1.5">
+        tools={<div className="relative flex flex-wrap items-center gap-1.5">
           <Button size="sm" onClick={share}><Link2 size={14} />Share</Button>
           <Button size="sm" onClick={exportCsv} disabled={!results.length}><Download size={14} />Export</Button>
           <Button size="sm" aria-expanded={colsOpen} onClick={() => setColsOpen((o) => !o)}><Columns3 size={14} />Columns</Button>

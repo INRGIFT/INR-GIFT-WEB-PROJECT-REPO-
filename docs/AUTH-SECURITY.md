@@ -3,15 +3,16 @@
 ## Providers (do not substitute)
 | Provider | Role | Where |
 | --- | --- | --- |
-| **Supabase Auth** | Identity, email + password, Google OAuth, sessions, email confirmation, password reset, the verified phone on `auth.users` | `@supabase/ssr`, `src/supabase/*` |
+| **Supabase Auth** | Identity, email + password, Google and Apple OAuth, sessions, email confirmation, password reset, the verified phone on `auth.users` | `@supabase/ssr`, `src/supabase/*` |
 | **Resend** | Every transactional email: sign-up confirmation, password reset, re-authentication code, security notices | `src/services/providers/resend.ts`, `src/services/email/*`, Supabase **Send Email Hook** → `/api/hooks/send-email` |
 | **2Factor.in** | SMS codes: phone verification and the second factor at every sign-in, password reset and number change | `src/services/providers/twofactor.ts`, `src/services/auth/*`, `/api/auth/sms/*` |
 
 Supabase MFA factors and Supabase's own SMS provider are **not** used (migration 0007 refuses any MFA factor).
 
 ## Account model
-Every account has three credentials: **email**, **mobile number** and **password**. **Google** is an additional way to
-sign in, not a replacement: a first Google sign-in must add the mobile number, a password, country and acceptance of
+Every account has three credentials: **email**, **mobile number** and **password**. **Google** and **Apple** are
+additional ways to sign in, not replacements: a first Google or Apple sign-in must add the name (when Apple withheld it),
+the mobile number, a password, country and acceptance of
 the Terms and Privacy Policy on `/complete-profile` before anything opens (gate step `profile`). The password and the
 terms acceptance are written by the server with the secret key into `app_metadata.inrgift` (the person cannot edit
 it), so the step cannot be skipped from the browser. No passwordless sign-in, no other social login, no phone-only or

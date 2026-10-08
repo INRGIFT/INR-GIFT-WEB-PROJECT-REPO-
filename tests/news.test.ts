@@ -89,6 +89,20 @@ describe('relevance engine', () => {
     expect(t.tickers).toEqual(['AAPL']);
     expect(rel('The CEO said AI will change everything').tickers).toEqual([]);
   });
+  it('token promotions, open press-release boards and local politics stay out of the feed', () => {
+    // Shapes of stories seen in the live feed (8 Oct 2026): a presale promotion posted on a release board, and a
+    // mayor's task force. Neither is market reporting.
+    const promo = rel('Dogecoin holders eye new token presale as analysts tip 100x potential before listing', { categories: ['business'], source_id: 'openpr', url: 'https://www.openpr.com/news/1/promo.html', keywords: ['crypto', 'presale'] });
+    expect(promo.market_relevance).toBe('low');
+    expect(promo.reasons.join(' ')).toContain('promotional copy');
+    expect(promo.reasons.join(' ')).toContain('press-release board');
+    const city = rel('Mayor names task force on downtown business recovery after city council vote', { categories: ['politics'] });
+    expect(city.market_relevance).toBe('low');
+    expect(city.reasons.join(' ')).toContain('local politics');
+    // A real company announcement on a major wire is kept (small penalty only), and so is a city bond story.
+    expect(rel('Infosys reports quarterly results; revenue and net profit beat estimates, shares rise', { categories: ['business'], source_id: 'globenewswire', url: 'https://www.globenewswire.com/x' }).market_relevance).not.toBe('low');
+    expect(rel('City council approves municipal bond sale as treasury yields climb; credit rating downgrade looms', { categories: ['business'] }).market_relevance).not.toBe('low');
+  });
   it('detects markets and regions from canonical names', () => {
     const r = rel('Japan stocks slip as yen strengthens');
     expect(r.markets.map((m) => m.slug)).toContain('Japan'); expect(r.regions).toContain('Asia-Pacific'); expect(r.topics).toContain('fx');

@@ -104,9 +104,10 @@ export function BuiltInIndia({ snap }: { snap: HomeSnapshot }) {
 }
 
 /** Trust: account security and data practices as implemented (Google only when Supabase has it on), and every support and legal route. */
-export function Trust({ google }: { google: boolean }) {
+export function Trust({ oauth }: { oauth: { google: boolean; apple: boolean } }) {
+  const social = [oauth.google && 'Google', oauth.apple && 'Apple'].filter(Boolean).join(' and ');
   const pillars = [
-    { icon: KeyRound, title: 'Account security', body: `Every account has an email, a mobile number and a password; the email is confirmed with a six-digit code before first sign-in${google ? ', and Google sign-in is available' : ''}. ${smsSecondFactor ? 'Each sign-in also needs a code sent by SMS.' : 'An SMS code at sign-in is being added.'} You can see and end your sessions.` },
+    { icon: KeyRound, title: 'Account security', body: `Every account has an email, a mobile number and a password, and the email address is confirmed before first sign-in${social ? `; ${social} sign-in ${social.includes(' and ') ? 'are' : 'is'} available` : ''}. ${smsSecondFactor ? 'Each sign-in also needs a code sent by SMS.' : 'An SMS code at sign-in is being added.'} You can see and end your sessions.` },
     { icon: ShieldCheck, title: 'Data you can check', body: 'Sources, statuses and exact times on every module; demo data labelled as demo; gaps shown as gaps. Methodology explains how each value is read.' },
     { icon: Lock, title: 'Privacy and control', body: 'Your workspace is readable only by your account. Analytics run only with your consent. You can ask for your account to be closed at any time.' },
   ];

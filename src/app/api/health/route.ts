@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { authMode, config, publicSetting, smsSecondFactor } from '@/lib/config';
-import { googleSignInAvailable } from '@/features/auth/google';
+import { oauthAvailability } from '@/features/auth/oauth-providers';
 import { supportPhone } from '@/lib/company-server';
 import { configured } from '@/lib/server-env';
 import { getProvider } from '@/providers';
@@ -13,13 +13,18 @@ const withTimeout = <T,>(p: Promise<T>, ms: number) => Promise.race([p, new Prom
  * Liveness and dependency health for uptime checks. Reports configuration flags and a provider probe; never returns
  * secrets, keys or user data. 200 when the provider answers, 503 when it does not.
  */
-/** The commit this deployment was packaged from (release.json, written by scripts/package-godaddy.sh), if present. */
-async function release(): Promise<{ commit: string | null; committedAt: string | null }> {
+/**
+ * The commit this deployment runs: release.json (written into the GoDaddy zip by scripts/package-godaddy.sh) first,
+ * else the commit baked in at build time (next.config.mjs, INRGIFT_BUILD_COMMIT), else null. `source` says which.
+ */
+async function release(): Promise<{ commit: string | null; committedAt: string | null; source: 'release.json' | 'build' | null }> {
   try {
     const r = JSON.parse(await readFile(`${process.cwd()}/release.json`, 'utf8')) as { commit?: unknown; committedAt?: unknown };
     const commit = typeof r.commit === 'string' && /^[0-9a-f]{7,40}$/.test(r.commit) ? r.commit : null;
-    return { commit, committedAt: typeof r.committedAt === 'string' ? r.committedAt.slice(0, 40) : null };
-  } catch { return { commit: null, committedAt: null }; }
+    if (commit) return { commit, committedAt: typeof r.committedAt === 'string' ? r.committedAt.slice(0, 40) : null, source: 'release.json' };
+  } catch { /* fall through to the build-time commit */ }
+  const built = process.env.INRGIFT_BUILD_COMMIT ?? '';
+  return /^[0-9a-f]{7,40}$/.test(built) ? { commit: built, committedAt: null, source: 'build' } : { commit: null, committedAt: null, source: null };
 }
 
 export async function GET() {
@@ -32,12 +37,14 @@ export async function GET() {
     provider = { name: config.provider, ok: false, latencyMs: Date.now() - started, error: e instanceof Error ? e.message : 'error' };
   }
   // Integrations report configuration only: this endpoint never sends an SMS or email and never spends news quota.
+  const oauth = await oauthAvailability();
   const integrations = {
     supabase: { auth: authMode, secretKey: configured.supabaseAdmin() },
     resend: { configured: configured.email(), sendEmailHook: configured.emailHook() },
     twofactor: { configured: configured.sms(), secondFactor: smsSecondFactor ? 'on' : 'off' },
     news: { provider: configured.news() ? 'newsdata.io' : 'demo', configured: configured.news() },
-    google: { signIn: (await googleSignInAvailable()) ? 'enabled' : 'disabled' },
+    google: { signIn: oauth.google ? 'enabled' : 'disabled' },
+    apple: { signIn: oauth.apple ? 'enabled' : 'disabled' },
     support: { phoneConfigured: Boolean(supportPhone()), inbox: process.env.SUPPORT_INBOX_EMAIL ? 'custom' : 'support@inrgift.com' },
   };
   // Booleans only: which settings the running server received. Values are never returned.

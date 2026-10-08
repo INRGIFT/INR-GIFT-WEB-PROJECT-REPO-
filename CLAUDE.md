@@ -53,13 +53,15 @@ Small charts (sparklines, heatmap, bars) are hand-written SVG. No other runtime 
 - **Public:** `/` and the compliance pages (`/terms-and-conditions`, `/privacy-policy`, `/about`, `/support`, `/account-closure`,
   `/grievance-redressal`, `/legal/*`; URLs fixed by the NSEIXGA document) plus auth infrastructure. Every other page and `/api`
   route requires a fully verified session; the default-deny classifier is `src/lib/route-registry.ts`, enforced in
-  `src/middleware.ts`. New routes are protected automatically. Return paths go through `safeReturnPath` only.
+  `src/middleware.ts`. New routes are protected automatically; a path no page answers is a 404 for everyone
+  (`isUnknownPage`), never a sign-in redirect. News lives at `/news`. Return paths go through `safeReturnPath` only.
   The homepage shows only a server-prepared snapshot (`src/features/home/snapshot.ts`): demo values labelled DEMO in
   `data-nosnippet` regions; licensed prices publicly only with `PUBLIC_MARKET_DATA=on`; it never calls `/api/v1`.
 - **Accounts:** email + phone + password; sign-up step 2 verifies the email with Supabase's six-digit code
   (`verifyOtp`, type `email`; never stored by INRGIFT). Every account has a permanent **GIFT ID** (migration 0008):
-  shown and copied, never used to authenticate or authorise. Sign-in = email + password or Google (Supabase OAuth; a first Google sign-in completes
-  phone, password, country, terms), then an SMS code when switched on. Never passwordless, other social login, or skip.
+  shown and copied, never used to authenticate or authorise. Sign-in = email + password, Google or Apple (Supabase OAuth; each button shows only when Supabase
+  has that provider on; a first social sign-in completes name if withheld, phone, password, country, terms), then an SMS
+  code when switched on. Never passwordless, any other social login, or skip.
   The SMS step sits behind `NEXT_PUBLIC_SMS_SECOND_FACTOR` (off until 2Factor.in DLT approval; switch on together with
   migration 0007, `docs/AUTH-SECURITY.md`).
 - **Providers:** Supabase Auth (identity/sessions/password), Resend (email, via the Send Email Hook), 2Factor.in (SMS),

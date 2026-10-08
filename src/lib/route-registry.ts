@@ -9,6 +9,8 @@
  *   file        static and metadata files (robots, sitemap, icons, share images, files in /public)
  *   protected   EVERYTHING ELSE, pages and /api alike: requires a fully verified session (src/features/auth/policy.ts)
  * A new route is protected automatically; making something public means adding it here with a reason.
+ * A page path that no registered page answers (a typo, an old link) is not a protected page: middleware lets it reach
+ * Next.js, which renders the 404 page (isUnknownPage). /api paths are never treated that way: they stay default-deny.
  */
 export type Access = 'public' | 'auth' | 'public-api' | 'file' | 'protected';
 export type Layout = 'site' | 'workspace' | 'auth' | 'api';
@@ -65,6 +67,7 @@ export const ROUTES: RouteSpec[] = [
   page('/discover', 'discover', 'workspace'), page('/discover/heatmap', 'heatmap', 'workspace'), page('/discover/screener', 'screener', 'workspace'), page('/discover/compare', 'compare', 'workspace'),
   page('/discover/collections', 'collections', 'workspace'), page('/discover/collections/[id]', 'collections', 'workspace'), page('/discover/trending', 'trending', 'workspace'),
   page('/research', 'research', 'workspace'), page('/research/[kind]', 'research', 'workspace'), page('/research/[kind]/[slug]', 'research', 'workspace'),
+  page('/news', 'news', 'workspace'),
   page('/resources', 'resources', 'workspace'), page('/resources/[kind]', 'resources', 'workspace'), page('/resources/learn/[slug]', 'learn', 'workspace'), page('/resources/glossary/[slug]', 'glossary', 'workspace'),
   page('/search', 'search', 'workspace'),
   page('/about', 'company'), page('/pricing', 'company'), page('/faq', 'company'), page('/support', 'company'),
@@ -85,4 +88,14 @@ const COMPILED = ROUTES.map((r) => ({ r, re: toRegex(r.pattern) }));
 export function matchRoute(pathname: string): RouteSpec | null {
   const hits = COMPILED.filter((c) => c.re.test(pathname)).map((c) => c.r);
   return hits.sort((a, b) => (a.pattern.match(/\[/g)?.length ?? 0) - (b.pattern.match(/\[/g)?.length ?? 0))[0] ?? null;
+}
+/**
+ * True for a page path that no page in src/app answers (tests/telemetry.test.ts keeps ROUTES equal to the page files).
+ * Such a path shows the 404 page to everyone rather than a sign-in redirect: nothing is served there, so there is
+ * nothing to protect. API paths, auth and public paths are never "unknown pages".
+ */
+export function isUnknownPage(pathname: string): boolean {
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  if (p === '/api' || p.startsWith('/api/')) return false;
+  return classifyPath(p) === 'protected' && !matchRoute(p);
 }

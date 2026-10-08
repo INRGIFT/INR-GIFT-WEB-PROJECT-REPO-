@@ -129,9 +129,54 @@ describe('Send Email Hook route', () => {
     expect(status).toBe(200);
     expect(sent[0].text).toContain(`${site}/auth/confirm?token_hash=th_1&type=signup`);
   });
+  it('every account email carries the INRGIFT frame: both brand lines, support, address, social; no third-party branding', async () => {
+    const { sent } = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'recovery', token_hash: 'th_r' } });
+    expect(sent[0].subject).toBe('Reset your INRGIFT password');
+    for (const part of [sent[0].html, sent[0].text]) {
+      expect(part).toContain('GLOBAL MARKET INTELLIGENCE FROM INDIA');
+      expect(part).toContain('INVEST BEYOND BORDERS');
+      expect(part).toContain('support@inrgift.com');
+      expect(part).toContain('Surat, Gujarat 395009');
+      expect(part).toContain('Instagram @inrgift');
+      expect(part).toContain('X @INRGIFT');
+      expect(part).toContain('https://x.com/INRGIFT');
+      expect(part).not.toMatch(/supabase/i);
+    }
+    expect(sent[0].text).toContain('/auth/confirm?token_hash=th_r&type=recovery');
+  });
+  it('email change: secure mode sends two emails with the reversed hash pairs; otherwise one to the new address', async () => {
+    const both = await call({ user: { email: 'old@example.com', new_email: 'new@example.com' }, email_data: { email_action_type: 'email_change', token: '111111', token_hash: 'hash_for_new', token_new: '222222', token_hash_new: 'hash_for_current' } });
+    expect(both.status).toBe(200);
+    expect(both.sent.map((m) => m.to)).toEqual(['old@example.com', 'new@example.com']);
+    expect(both.sent[0].text).toContain('token_hash=hash_for_current&type=email_change');
+    expect(both.sent[0].text).toContain('ne•••@example.com');
+    expect(both.sent[1].text).toContain('token_hash=hash_for_new&type=email_change');
+    expect(both.sent[1].subject).toBe('Confirm your new INRGIFT email address');
+    const one = await call({ user: { email: 'old@example.com', new_email: 'new@example.com' }, email_data: { email_action_type: 'email_change', token_hash: 'only_hash' } });
+    expect(one.sent.map((m) => m.to)).toEqual(['new@example.com']);
+    expect((await call({ user: { email: 'old@example.com' }, email_data: { email_action_type: 'email_change', token_hash: 'x' } })).status).toBe(400);
+  });
+  it('security notifications are sent as INRGIFT notices; reauthentication is a code email', async () => {
+    const n = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'password_changed_notification' } });
+    expect(n.status).toBe(200);
+    expect(n.sent[0].subject).toBe('Your INRGIFT password changed');
+    const l = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'identity_linked_notification', provider: 'apple' } });
+    expect(l.sent[0].text).toContain('Apple sign-in was connected');
+    const r = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'reauthentication', token: '654321' } });
+    expect(r.sent[0].text).toContain('654321');
+  });
+  it('the sender is always named: a bare RESEND_FROM_EMAIL becomes "INRGIFT Support <address>"', async () => {
+    vi.stubEnv('RESEND_FROM_EMAIL', 'support@inrgift.com');
+    const { serverEnv } = await import('@/lib/server-env');
+    expect(serverEnv.resendFrom()).toBe('INRGIFT Support <support@inrgift.com>');
+    vi.stubEnv('RESEND_FROM_EMAIL', 'INRGIFT Support <support@inrgift.com>');
+    expect(serverEnv.resendFrom()).toBe('INRGIFT Support <support@inrgift.com>');
+  });
   it('rejects unsigned calls and refuses passwordless email types', async () => {
     expect((await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'x' } }, false)).status).toBe(401);
-    const r = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'magiclink', token_hash: 'x' } });
-    expect(r.status).toBe(422); expect(r.sent).toHaveLength(0);
+    for (const t of ['magiclink', 'invite', 'email']) {
+      const r = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: t, token_hash: 'x' } });
+      expect(r.status, t).toBe(422); expect(r.sent).toHaveLength(0);
+    }
   });
 });

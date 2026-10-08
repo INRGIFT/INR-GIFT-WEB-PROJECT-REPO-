@@ -18,7 +18,7 @@ export interface AccountProfile {
   createdAt: string | null;
   lastSignInAt: string | null;
   /** This session, from its verified token: how it was opened and when; when the current access token expires. */
-  session: { method: 'password' | 'google' | 'other'; startedAt: string | null; tokenExpiresAt: string | null } | null;
+  session: { method: 'password' | 'oauth' | 'other'; startedAt: string | null; tokenExpiresAt: string | null } | null;
 }
 /** GIFT- followed by 8 Crockford base32 characters (no I, L, O, U). Format check only: it proves nothing about ownership. */
 export const GIFT_ID_PATTERN = /^GIFT-[0-9A-HJKMNP-TV-Z]{8}$/;

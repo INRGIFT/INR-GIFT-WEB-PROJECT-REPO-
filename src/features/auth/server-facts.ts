@@ -16,7 +16,7 @@ export interface ServerSession {
   /** Account details for the account pages: real values from Supabase only, null when absent. */
   account: { name: string | null; country: string | null; createdAt: string | null; lastSignInAt: string | null };
   /** This session from its verified token: how it was opened, when, and when the current access token expires. */
-  session: { method: 'password' | 'google' | 'other'; startedAt: string | null; tokenExpiresAt: string | null };
+  session: { method: 'password' | 'oauth' | 'other'; startedAt: string | null; tokenExpiresAt: string | null };
   facts: AuthFacts; gate: Gate;
 }
 const e164 = (p: string | null | undefined) => (p ? `+${p.replace(/\D/g, '')}` : null);
@@ -50,7 +50,7 @@ export async function readServerSession(sb: SupabaseClient): Promise<ServerSessi
       country: typeof meta.country === 'string' && meta.country ? meta.country : null,
       createdAt: user.created_at ?? null, lastSignInAt: user.last_sign_in_at ?? null,
     },
-    session: { method: amr.includes('password') ? 'password' : amr.includes('oauth') ? 'google' : 'other', startedAt: iso(opened?.timestamp), tokenExpiresAt: iso(claims.exp) },
+    session: { method: amr.includes('password') ? 'password' : amr.includes('oauth') ? 'oauth' : 'other', startedAt: iso(opened?.timestamp), tokenExpiresAt: iso(claims.exp) },
     emailConfirmed: facts.emailConfirmed, phoneConfirmed, phone: phoneConfirmed ? e164(user.phone) : null,
     signupPhone: e164(user.user_metadata?.phone as string | undefined), smsVerified: facts.smsVerified, profile, missing, facts, gate: workspaceGate(facts),
   };

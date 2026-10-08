@@ -2,6 +2,7 @@
 import { authMode, config, DEMO_SESSION_COOKIE, smsSecondFactor } from '@/lib/config';
 import type { AccountProfile } from '@/features/account/types';
 import { supabaseBrowser } from '@/supabase/client';
+import type { OAuthProvider } from './oauth-providers';
 import { amrMethods, isPrimarySignIn, isPhone, normalizePhone, passwordProblem, profileFactsOf, profileMissing, workspaceGate, type AuthFacts, type Gate, type ProfileField } from './policy';
 
 export { isEmail, isPhone, normalizePhone, passwordProblem } from './policy';
@@ -21,7 +22,7 @@ export interface AuthUser {
   phoneVerified: boolean;
   /** This session passed an SMS code. */
   smsVerified: boolean;
-  /** Sign-in methods on the account ("email", "google"). */
+  /** Sign-in methods on the account ("email", "google", "apple"). */
   providers: string[];
   /** What the profile still lacks (a first Google sign-in): completed on /complete-profile. */
   missing: ProfileField[];
@@ -47,10 +48,11 @@ export interface AuthAdapter {
   /** Email + password. Returns the next step. */
   signIn(email: string, password: string): Promise<Gate>;
   /**
-   * Google through Supabase OAuth: the browser leaves for Google and returns to /auth/callback (production). Never a
-   * substitute for the account model: a first Google sign-in completes the profile before anything opens.
+   * Google or Apple through Supabase OAuth: the browser leaves for the provider and returns to /auth/callback
+   * (production). Never a substitute for the account model: a first social sign-in completes the profile (name when
+   * the provider withheld it, mobile number, password, country, terms) before anything opens.
    */
-  signInWithGoogle(next?: string): Promise<void>;
+  signInWithOAuth(provider: OAuthProvider, next?: string): Promise<void>;
   /** Saves the missing profile fields (server-checked in production). Returns the next step. */
   completeProfile(input: ProfileInput): Promise<Gate>;
   /**
@@ -170,10 +172,11 @@ const supabaseAdapter = (): AuthAdapter => {
       if (error) throw friendly(error);
       return (await this.getUser())?.gate ?? 'login';
     },
-    async signInWithGoogle(next) {
-      // PKCE: Supabase redirects to Google, then to /auth/callback?flow=oauth, which exchanges the code on the server.
-      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin()}/auth/callback?flow=oauth${nextQ(next)}`, queryParams: { prompt: 'select_account' } } });
-      if (error) throw new AuthError('UNKNOWN', 'Google sign-in could not start. Try again, or use your email and password.');
+    async signInWithOAuth(provider, next) {
+      // PKCE: Supabase redirects to the provider, then to /auth/callback?flow=oauth, which exchanges the code on the
+      // server. Apple returns by form POST to Supabase (not to INRGIFT), so the same callback serves both.
+      const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: `${origin()}/auth/callback?flow=oauth&provider=${provider}${nextQ(next)}`, ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}) } });
+      if (error) throw new AuthError('UNKNOWN', `${provider === 'apple' ? 'Apple' : 'Google'} sign-in could not start. Try again, or use your email and password.`);
     },
     async completeProfile(input) {
       await api('/api/auth/complete-profile', { ...input, phone: normalizePhone(input.phone) });
@@ -225,10 +228,12 @@ interface DemoAccount {
   /** Demo GIFT ID, made in this browser (production: assigned by the database, migration 0008). */
   giftId?: string; createdAt?: string; codeAttempts?: number;
   /** Signed up with email + password (missing on older demo state = true). */
-  emailIdentity?: boolean; google?: boolean; country?: string; termsAt?: string;
+  emailIdentity?: boolean; google?: boolean; apple?: boolean; country?: string; termsAt?: string;
 }
-/** The account a demo "Continue with Google" signs in as (there is no Google in demo mode). */
+/** The accounts a demo "Continue with Google" / "Continue with Apple" signs in as (no real provider in demo mode). */
 export const DEMO_GOOGLE_EMAIL = 'google.user@example.com';
+/** Apple's "Hide My Email" relay address, and no name: Apple shares a name only if the person chooses to. */
+export const DEMO_APPLE_EMAIL = 'demo.relay@privaterelay.appleid.com';
 interface DemoChallenge extends PhoneChallenge { phoneE164: string; issuedAt: number; attempts: number }
 interface DemoState {
   accounts: DemoAccount[];
@@ -244,9 +249,9 @@ const current = (s: DemoState) => (s.session ? s.accounts.find((a) => a.id === s
 const toUser = (s: DemoState): AuthUser | null => {
   const a = current(s);
   if (!a || !s.session) return null;
-  const providers = [...(a.emailIdentity !== false ? ['email'] : []), ...(a.google ? ['google'] : [])];
+  const providers = [...(a.emailIdentity !== false ? ['email'] : []), ...(a.google ? ['google'] : []), ...(a.apple ? ['apple'] : [])];
   const phone = a.phone ?? (a.signupPhone || null);
-  const missing = profileMissing({ providers, phone, country: a.country ?? null, passwordSet: Boolean(a.pw), termsAcceptedAt: a.termsAt ?? null });
+  const missing = profileMissing({ providers, name: a.name || null, phone, country: a.country ?? null, passwordSet: Boolean(a.pw), termsAcceptedAt: a.termsAt ?? null });
   return build({ id: a.id, email: a.email, name: a.name, phone, emailVerified: a.emailVerified, phoneVerified: Boolean(a.phone), smsVerified: s.session.smsVerified, providers, missing }, isPrimarySignIn(s.session.amr));
 };
 const write = (s: DemoState) => {
@@ -288,16 +293,19 @@ const demoAdapter = (): AuthAdapter => ({
     log(s, 'Signed in with email and password'); write(s);
     return toUser(s)!.gate;
   },
-  async signInWithGoogle() {
-    // Stands in for Google + Supabase: Google's email arrives verified; an existing account with that verified email
-    // gains the Google identity (Supabase automatic linking); otherwise a Google-only account is created.
+  async signInWithOAuth(provider) {
+    // Stands in for Google/Apple + Supabase: the provider's email arrives verified; an existing account with that
+    // verified email gains the identity (Supabase automatic linking); otherwise a social-only account is created.
+    // Apple: a relay address and no name, so profile completion asks for the name.
     const s = read();
-    let a = s.accounts.find((x) => x.email === DEMO_GOOGLE_EMAIL);
+    const email = provider === 'apple' ? DEMO_APPLE_EMAIL : DEMO_GOOGLE_EMAIL;
+    let a = s.accounts.find((x) => x.email === email);
     if (a && !a.emailVerified) { a.emailIdentity = false; a.pw = null; } // like Supabase: unconfirmed identities are dropped
-    if (!a) { a = { id: `demo-g-${Date.now()}`, email: DEMO_GOOGLE_EMAIL, signupPhone: '', phone: null, name: 'Google User', pw: null, emailVerified: true, emailIdentity: false, giftId: demoGiftId(), createdAt: new Date().toISOString() }; s.accounts.push(a); }
-    a.google = true; a.emailVerified = true;
+    if (!a) { a = { id: `demo-${provider[0]}-${Date.now()}`, email, signupPhone: '', phone: null, name: provider === 'apple' ? '' : 'Google User', pw: null, emailVerified: true, emailIdentity: false, giftId: demoGiftId(), createdAt: new Date().toISOString() }; s.accounts.push(a); }
+    if (provider === 'apple') a.apple = true; else a.google = true;
+    a.emailVerified = true;
     s.session = { accountId: a.id, amr: ['oauth'], smsVerified: false, lastSmsAt: 0 }; s.challenge = null;
-    log(s, 'Signed in with Google'); write(s);
+    log(s, `Signed in with ${provider === 'apple' ? 'Apple' : 'Google'}`); write(s);
   },
   async completeProfile({ name, phone, country, password, terms }) {
     const s = read(); const a = current(s); const u = toUser(s);
@@ -331,7 +339,7 @@ const demoAdapter = (): AuthAdapter => ({
       giftId: a.giftId, name: a.name, email: a.email, phone: a.phone ?? (a.signupPhone || null), country: a.country ?? null,
       emailVerified: a.emailVerified, phoneVerified: Boolean(a.phone), providers: u.providers, passwordSet: Boolean(a.pw),
       createdAt: a.createdAt ?? null, lastSignInAt: null,
-      session: { method: s.session?.amr.includes('oauth') ? 'google' : s.session?.amr.includes('password') ? 'password' : 'other', startedAt: null, tokenExpiresAt: null },
+      session: { method: s.session?.amr.includes('oauth') ? 'oauth' : s.session?.amr.includes('password') ? 'password' : 'other', startedAt: null, tokenExpiresAt: null },
     };
   },
   async sendSms(purpose, phone) {
@@ -384,7 +392,7 @@ const demoAdapter = (): AuthAdapter => ({
 const offAdapter = (): AuthAdapter => {
   // Only a deployment with no Supabase settings at all reaches this (see authMode, src/lib/config.ts).
   const no = async (): Promise<never> => { throw new AuthError('NOT_CONFIGURED', 'Sign-in is not available on this site yet. Please email support@inrgift.com.'); };
-  return { mode: 'off', getUser: async () => null, onChange: () => () => {}, signUp: no, signIn: no, signInWithGoogle: no, completeProfile: no, verifyEmailOtp: no, getProfile: async () => null, resendEmail: no, sendSms: no, verifySms: no, resetPassword: no, updatePassword: no, updateName: no, activity: async () => [], signOut: async () => {} };
+  return { mode: 'off', getUser: async () => null, onChange: () => () => {}, signUp: no, signIn: no, signInWithOAuth: no, completeProfile: no, verifyEmailOtp: no, getProfile: async () => null, resendEmail: no, sendSms: no, verifySms: no, resetPassword: no, updatePassword: no, updateName: no, activity: async () => [], signOut: async () => {} };
 };
 
 let adapter: AuthAdapter | null = null;
