@@ -196,7 +196,7 @@ export async function AssetDetail({ cls, slug }: { cls: AssetClass; slug: string
           {market && ` ${market.name} trades ${hhmm(market.istOpen)} to ${hhmm(market.istClose)} IST.`}
           {a.marketId === 'in' && ' NSE IX in GIFT City lists GIFT Nifty, which trades for most of the day and is watched as an early read on the domestic open.'}
         </p>
-        {inr != null && cls !== 'fx' && cls !== 'index' && <p className="num mt-1.5 text-[13px]">Approximate INR value: <b>{money(inr, 'INR')}</b> <span className="text-faint">(display: <Price asset={a} />)</span></p>}
+        {inr != null && cls !== 'fx' && cls !== 'index' && <p className="mt-1.5 text-[13px]">Approximate INR value: <b className="num">{money(inr, 'INR')}</b> <span className="text-faint">(display: <span className="num"><Price asset={a} /></span>)</span></p>}
       </section>
 
       <AssetNotes instrumentId={a.id} symbol={a.symbol} name={a.name} />
