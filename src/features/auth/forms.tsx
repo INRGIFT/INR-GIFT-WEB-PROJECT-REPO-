@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox, CodeField, PasswordField, SelectField, TextField } from '@/components/ui/field';
 import { Callout, Skeleton } from '@/components/ui/primitives';
 import { AltLink, AuthCard, AuthForm, FormError, gateHref, maskEmail, maskPhone, PasswordRules, safeNext, useAuthAction, useCooldown, useNext, useRedirectIfSignedIn } from './auth-ui';
-import { AuthError, isEmail, passwordProblem, type PhoneChallenge, type SmsPurpose } from './auth-service';
+import { AuthError, isEmail, OTP_MESSAGES, passwordProblem, type PhoneChallenge, type SmsPurpose } from './auth-service';
 import { validateSignup, type SignupErrors, type SignupInput } from './policy';
-import { emailOtpMinutes, smsSecondFactor } from '@/lib/config';
+import { emailOtpSeconds, lifetimeText, smsSecondFactor } from '@/lib/config';
+import { isOtpStorageKey, markCodeSent, mmss, otpClock } from './otp-clock';
 import { useSession } from './session-context';
 import { COUNTRIES } from './countries';
 import type { OAuthAvailability, OAuthProvider } from './oauth-providers';
@@ -148,7 +149,6 @@ export function SignupForm({ oauth = { google: false, apple: false } }: { oauth?
   const [stage, setStage] = useState<'account' | 'email' | 'finish'>(() => (params.get('step') === 'verify' ? 'email' : 'account'));
   const [email, setEmail] = useState(() => (params.get('step') === 'verify' ? recallEmail() : ''));
   const secret = useRef<string | null>(null);
-  const sentAt = useRef<number | null>(null);
   const [f, setF] = useState<SignupInput & { country: string }>({ name: '', email: '', phone: '+91 ', country: 'India', password: '', confirm: '', terms: false });
   const [touched, setTouched] = useState(false);
   const [taken, setTaken] = useState<SignupErrors>({});
@@ -170,8 +170,8 @@ export function SignupForm({ oauth = { google: false, apple: false } }: { oauth?
       }
       track('signup_completed', {});
       secret.current = f.password;
-      sentAt.current = Date.now();
       const address = f.email.trim();
+      markCodeSent(address);
       setEmail(address); rememberEmail(address);
       setF((x) => ({ ...x, password: '', confirm: '' }));
       window.history.replaceState(null, '', `/signup?step=verify${nextSuffix(next, '&')}`);
@@ -179,7 +179,7 @@ export function SignupForm({ oauth = { google: false, apple: false } }: { oauth?
     });
   };
   if (!ready) return <AuthSkeleton />;
-  if (stage === 'email') return <EmailCodeStep email={email} sentAt={sentAt} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />;
+  if (stage === 'email') return <EmailCodeStep email={email} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />;
   if (stage === 'finish') return <FinishSignup email={email} secret={secret} next={next} />;
   return (
     <AuthCard title="Create your account" lead="Every INRGIFT account has three credentials: email, mobile number and password." step={[1, STEPS, 'Account']} footer={<>Already have an account? <AltLink href={`/login${nextSuffix(next, '?')}`}>Sign in</AltLink></>}>
@@ -201,21 +201,33 @@ export function SignupForm({ oauth = { google: false, apple: false } }: { oauth?
 
 /* --------------------------------- Verify email --------------------------------- */
 /**
- * Step 2: the six-digit code. Supabase answers a wrong and an expired code alike, so the message is chosen by time:
- * past the configured lifetime since the code was sent → expired, otherwise → incorrect. The code lives only in this
+ * Step 2: the six-digit code. Supabase Auth issues it and is the authority on its 120-second lifetime (Email OTP
+ * Expiration) and on how often a new one may be sent; this screen only shows both, from the persisted send time
+ * (src/features/auth/otp-clock.ts), so the countdowns stay right after a refresh, in another tab or in the background.
+ * Supabase answers a wrong and an expired code alike, so the message is chosen by time. The code lives only in this
  * input until it is submitted.
  */
-function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: string; sentAt: React.MutableRefObject<number | null>; next: string; onVerified: (email: string) => void }) {
+function EmailCodeStep({ email: initial, next, onVerified }: { email: string; next: string; onVerified: (email: string) => void }) {
   const { auth } = useSession();
   const [email, setEmail] = useState(initial);
   const [askEmail, setAskEmail] = useState(!initial);
   const [code, setCode] = useState('');
   const [verified, setVerified] = useState(false);
   const [resent, setResent] = useState(false);
-  const cool = useCooldown(60);
+  // The clock is read after mount only (no server/browser mismatch), every second, and whenever another tab changes it.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const t = setInterval(tick, 1000);
+    const onStorage = (e: StorageEvent) => { if (isOtpStorageKey(e.key)) tick(); };
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(t); window.removeEventListener('storage', onStorage); document.removeEventListener('visibilitychange', tick); };
+  }, []);
   const { busy, error, setError, run } = useAuthAction();
-  useEffect(() => { if (sentAt.current) cool.start(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const address = email.trim();
+  const clock = now !== null && isEmail(address) ? otpClock(address, now) : null;
   const verify = () => {
     setResent(false);
     if (!isEmail(address)) { setAskEmail(true); return setError('Enter the email address you signed up with.'); }
@@ -225,8 +237,8 @@ function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: st
       try { await auth.verifyEmailOtp(address, code); }
       catch (e) {
         setCode('');
-        const expired = e instanceof AuthError && e.code === 'INVALID' && sentAt.current !== null && Date.now() - sentAt.current > emailOtpMinutes * 60_000;
-        if (expired) throw new AuthError('EXPIRED', 'This verification code has expired. Request a new code.');
+        const c = otpClock(address);
+        if (e instanceof AuthError && e.code === 'INVALID' && c.sentAt !== null && c.expired) throw new AuthError('EXPIRED', OTP_MESSAGES.expired);
         throw e;
       }
       rememberEmail(null);
@@ -237,8 +249,9 @@ function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: st
   };
   const resend = () => {
     if (!isEmail(address)) { setAskEmail(true); return setError('Enter the email address you signed up with.'); }
-    void run(async () => { await auth.resendEmail(address, next); sentAt.current = Date.now(); rememberEmail(address); setResent(true); setCode(''); cool.start(); });
+    void run(async () => { await auth.resendEmail(address, next); markCodeSent(address); setNow(Date.now()); rememberEmail(address); setResent(true); setCode(''); });
   };
+  const resendIn = clock?.resendIn ?? 0;
   return (
     <AuthCard title="Verify your email" step={[2, STEPS, 'Verify email']}
       lead={address && !askEmail ? <>We sent a 6-digit verification code to <b className="text-navy">{maskEmail(address)}</b>.</> : 'Enter the email address you signed up with and the 6-digit code we sent to it.'}
@@ -248,13 +261,19 @@ function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: st
       ) : (
         <AuthForm onSubmit={verify}>
           <FormError error={error} />
-          {resent && <Callout tone="success" title="A new code is on its way.">It replaces the previous code. Check spam if it has not arrived in a few minutes.</Callout>}
+          {resent && <Callout tone="success" title="A new code is on its way.">It replaces the previous code and expires in {lifetimeText(emailOtpSeconds)}. Check spam if it has not arrived in a minute.</Callout>}
           {askEmail && <TextField label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
-          <CodeField label="Email verification code" value={code} onChange={setCode} autoFocus={!askEmail} hint={`The code expires ${emailOtpMinutes >= 60 && emailOtpMinutes % 60 === 0 ? `${emailOtpMinutes / 60} hour${emailOtpMinutes === 60 ? '' : 's'}` : `${emailOtpMinutes} minutes`} after it is sent and works once.`} />
+          <CodeField label="Email verification code" value={code} onChange={setCode} autoFocus={!askEmail} hint={`This code expires in ${lifetimeText(emailOtpSeconds)} and can only be used once.`} />
+          {clock && clock.secondsLeft !== null && (
+            clock.expired
+              ? <p role="status" className="text-[13px] font-medium text-down">This code has expired. Request a new code below.</p>
+              : <p className="text-[13px] text-slate2">Code expires in <span role="timer" aria-live="off" className="num font-semibold text-navy">{mmss(clock.secondsLeft)}</span></p>
+          )}
+          {clock && clock.secondsLeft === null && <p className="text-[13px] text-slate2">Codes expire {lifetimeText(emailOtpSeconds)} after they are sent. If yours is older, request a new code.</p>}
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Verifying…' : 'Verify email'}</Button>
           <p className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
-            <span className="text-slate2">Did not get it? Check spam.</span>
-            <button type="button" className="link disabled:text-faint disabled:no-underline" disabled={cool.left > 0 || busy} onClick={resend}>{cool.left > 0 ? `Resend code in ${cool.left}s` : 'Resend code'}</button>
+            <span className="text-slate2">Didn&apos;t get it? Check spam.</span>
+            <button type="button" className="link disabled:text-faint disabled:no-underline" disabled={resendIn > 0 || busy} onClick={resend}>{resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}</button>
           </p>
         </AuthForm>
       )}
@@ -320,11 +339,10 @@ export function VerifyEmail() {
   const [email, setEmail] = useState('');
   const [ready, setReady] = useState(false);
   const secret = useRef<string | null>(null);
-  const sentAt = useRef<number | null>(null);
   useEffect(() => { setEmail(recallEmail() || account?.email || ''); setReady(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!ready) return <AuthSkeleton />;
   return stage === 'email'
-    ? <EmailCodeStep email={email} sentAt={sentAt} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />
+    ? <EmailCodeStep email={email} next={next} onVerified={(address) => { setEmail(address); setStage('finish'); }} />
     : <FinishSignup email={email} secret={secret} next={next} />;
 }
 
@@ -432,7 +450,7 @@ export function ForgotPassword() {
   const { busy, error, setError, run } = useAuthAction();
   const submit = () => { if (!isEmail(email.trim())) return setError('Enter the email address on your account.'); void run(async () => { await auth.resetPassword(email.trim()); setSent(true); cool.start(); }); };
   return (
-    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in one hour.{smsSecondFactor ? ' You will also need your phone.' : ''}</> : `Enter your email and we will send a link to choose a new password.${smsSecondFactor ? ' You will also confirm a code sent to your phone.' : ''}`} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
+    <AuthCard title="Reset your password" lead={sent ? <>If an account uses <b className="text-navy">{maskEmail(email.trim())}</b>, a reset link is on its way. It expires in {lifetimeText(emailOtpSeconds)}.{smsSecondFactor ? ' You will also need your phone.' : ''}</> : `Enter your email and we will send a link to choose a new password.${smsSecondFactor ? ' You will also confirm a code sent to your phone.' : ''}`} footer={<>Remembered it? <AltLink href="/login">Sign in</AltLink></>}>
       {!sent ? (
         <AuthForm onSubmit={submit}>
           <FormError error={error} />
@@ -467,7 +485,7 @@ export function ResetPassword() {
   useEffect(() => { if (opening) void auth.openRecoveryLink?.().then(() => refresh()).finally(() => setOpening(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const problem = passwordProblem(pw), mismatch = confirm && pw !== confirm ? 'The two passwords do not match.' : null;
   if (loading || opening) return <AuthSkeleton />;
-  if (!account) return <AuthCard title="This reset link has expired" lead="Reset links work once and expire after one hour."><a href="/forgot-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Request a new link</a></AuthCard>;
+  if (!account) return <AuthCard title="This reset link has expired" lead={`Reset links work once and expire ${lifetimeText(emailOtpSeconds)} after they are sent.`}><a href="/forgot-password" className="inline-flex h-11 w-full items-center justify-center rounded-ctl bg-brand px-5 font-medium text-white hover:bg-brand-ink">Request a new link</a></AuthCard>;
   const needsSms = smsSecondFactor && account.phoneVerified && !account.smsVerified;
   if (needsSms) return (
     <AuthCard title="Confirm it is you" lead="Before choosing a new password, enter the code we send to your phone. A password reset never removes your phone verification."

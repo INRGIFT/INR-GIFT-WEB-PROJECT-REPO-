@@ -114,7 +114,8 @@ describe('Send Email Hook route', () => {
     expect(sent[0].subject).toBe('Verify your INRGIFT email');
     expect(sent[0].text).toContain('482913');
     expect(sent[0].html).toContain('482913');
-    expect(sent[0].text).toMatch(/expires 1 hour after it was sent/);
+    expect(sent[0].text).toMatch(/expires in 2 minutes and can only be used once/);
+    expect(sent[0].html).toMatch(/expires in 2 minutes and can only be used once/);
     expect(sent[0].text).toContain('support@inrgift.com');
     expect(sent[0].html).not.toContain('/auth/confirm');
     expect(sent[0].text).not.toContain('attacker.example');

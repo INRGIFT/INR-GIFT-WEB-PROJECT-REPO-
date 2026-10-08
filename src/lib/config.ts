@@ -11,7 +11,7 @@ export type ProviderKind = 'demo' | 'nse' | 'real';
  * Only names in this list ever reach the browser, and none of them is a secret.
  */
 export const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'NEXT_PUBLIC_AUTH_MODE', 'NEXT_PUBLIC_SMS_SECOND_FACTOR', 'NEXT_PUBLIC_LOGO_PROVIDER', 'NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY', 'NEXT_PUBLIC_EMAIL_OTP_MINUTES'] as const;
+  'NEXT_PUBLIC_AUTH_MODE', 'NEXT_PUBLIC_SMS_SECOND_FACTOR', 'NEXT_PUBLIC_LOGO_PROVIDER', 'NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY', 'NEXT_PUBLIC_EMAIL_OTP_SECONDS'] as const;
 export type PublicEnvKey = (typeof PUBLIC_ENV_KEYS)[number];
 declare global { interface Window { __INRGIFT_ENV__?: Partial<Record<PublicEnvKey, string>> } }
 // Literal reads, so Next can inline whatever existed at build time.
@@ -24,7 +24,7 @@ const BUILT: Record<PublicEnvKey, string | undefined> = {
   NEXT_PUBLIC_SMS_SECOND_FACTOR: process.env.NEXT_PUBLIC_SMS_SECOND_FACTOR,
   NEXT_PUBLIC_LOGO_PROVIDER: process.env.NEXT_PUBLIC_LOGO_PROVIDER,
   NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_LOGO_DEV_PUBLISHABLE_KEY,
-  NEXT_PUBLIC_EMAIL_OTP_MINUTES: process.env.NEXT_PUBLIC_EMAIL_OTP_MINUTES,
+  NEXT_PUBLIC_EMAIL_OTP_SECONDS: process.env.NEXT_PUBLIC_EMAIL_OTP_SECONDS,
 };
 const isBrowser = typeof window !== 'undefined';
 /** One browser-safe setting, as described above. Empty string when unset. */
@@ -81,17 +81,29 @@ export const redirectBase = (requestUrl: string) => (process.env.NODE_ENV === 'p
  */
 export const smsSecondFactor = publicSetting('NEXT_PUBLIC_SMS_SECOND_FACTOR') === 'on';
 /**
- * Lifetime of the sign-up email code, in minutes. Supabase sets the real lifetime (Authentication → Email → Email OTP
- * Expiration, default 3600 s); keep NEXT_PUBLIC_EMAIL_OTP_MINUTES equal to it so the email and the form say the same.
- */
-/**
  * Digits in the email code (sign-up verification). INRGIFT's code screen takes exactly six. Supabase generates the
  * code and its length is a Supabase setting (Authentication → Sign In / Providers → Email → Email OTP Length), whose
  * default on new hosted projects is 8: it must be set to 6. The Send Email Hook refuses to deliver a code of any
  * other length (src/app/api/hooks/send-email/route.ts) rather than alter Supabase's token.
  */
 export const EMAIL_OTP_LENGTH = 6;
-export const emailOtpMinutes = Math.min(1440, Math.max(1, Math.round(Number(publicSetting('NEXT_PUBLIC_EMAIL_OTP_MINUTES')) || 60)));
+/**
+ * Lifetime of the email verification code, in seconds: 120 (owner requirement, 8 Oct 2026). Supabase Auth enforces it
+ * (Authentication → Sign In / Providers → Email → Email OTP Expiration = 120) and rejects an older code; INRGIFT only
+ * shows it (the email, the countdown, the "expired" message). NEXT_PUBLIC_EMAIL_OTP_SECONDS must equal that setting.
+ */
+export const emailOtpSeconds = Math.min(86400, Math.max(60, Math.round(Number(publicSetting('NEXT_PUBLIC_EMAIL_OTP_SECONDS')) || 120)));
+/**
+ * Seconds before another verification email can be requested for the same address: Supabase Auth's per-address minimum
+ * interval between emails (60 s). The resend button waits this long after the last send; Supabase still enforces it.
+ */
+export const EMAIL_RESEND_SECONDS = 60;
+/** "2 minutes", "1 hour", "90 seconds": a code lifetime in words. */
+export function lifetimeText(seconds: number): string {
+  if (seconds % 3600 === 0) return `${seconds / 3600} hour${seconds === 3600 ? '' : 's'}`;
+  if (seconds % 60 === 0) return `${seconds / 60} minute${seconds === 60 ? '' : 's'}`;
+  return `${seconds} seconds`;
+}
 export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
   : demoRequested || (process.env.NODE_ENV !== 'production' && !LIVE_SITE) ? 'demo' : 'off';
 // A demo fallback behind a live provider can serve demo values, so the site is treated as demo (not indexable).

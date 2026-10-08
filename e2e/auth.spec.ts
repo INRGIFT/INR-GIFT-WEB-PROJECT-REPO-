@@ -90,7 +90,7 @@ test('email + phone + password signs up and activates; duplicates are rejected (
 test('email code: a wrong code stays on step 2, the correct code verifies and moves to step 3', async ({ page }) => {
   await fillSignup(page, A);
   await verifyEmailCode(page, '000000');
-  await expect(page.getByText('Incorrect verification code. Check the code in your email and try again.')).toBeVisible();
+  await expect(page.getByText('The code is incorrect. Please check the email and try again.')).toBeVisible();
   await expect(page.getByText('Step 2 of 3 · Verify email')).toBeVisible();
   await page.getByRole('button', { name: 'Verify email' }).click();
   await expect(page.getByText('Enter the 6-digit code from the email.')).toBeVisible();
@@ -112,6 +112,41 @@ test('email code: a wrong code stays on step 2, the correct code verifies and mo
   const stored = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
   expect(stored).not.toContain(PASSWORD);
   expect(stored).not.toMatch(/"(otp|code|token)"\s*:\s*"\d{6}"/);
+});
+
+test('email code: expires after 2 minutes; the countdown survives a reload; resend waits 60 s and restarts it', async ({ page }) => {
+  // A controlled clock. The demo backend enforces the same 120 s lifetime and 60 s resend interval as Supabase Auth.
+  await page.clock.install({ time: new Date('2026-10-08T10:00:00+05:30') });
+  await fillSignup(page, A);
+  await expect(page.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
+  await expect(page.getByText('We sent a 6-digit verification code to')).toBeVisible();
+  await expect(page.getByText('This code expires in 2 minutes and can only be used once.')).toBeVisible();
+  await expect(page.getByText("Didn't get it? Check spam.")).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveText(/^(02:00|01:5\d)$/);
+  await expect(page.getByRole('button', { name: /^Resend code in \d+s$/ })).toBeDisabled();
+  await page.clock.fastForward(30_000);
+  await expect(page.getByRole('timer')).toHaveText(/^01:[23]\d$/);
+  // A reload keeps the clock (persisted send time); it never restarts the countdown.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveText(/^01:[23]\d$/);
+  await page.clock.fastForward(31_000);
+  await expect(page.getByRole('button', { name: 'Resend code', exact: true })).toBeEnabled();
+  await page.clock.fastForward(60_000);
+  await expect(page.getByText('This code has expired. Request a new code below.')).toBeVisible();
+  // The right code, too late: refused by the backend and reported as expired, not as incorrect.
+  await page.getByLabel('Email verification code').fill(CODE);
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByText('This verification code has expired. Please request a new code.')).toBeVisible();
+  await expect(page.getByText('Step 2 of 3 · Verify email')).toBeVisible();
+  // A new code restarts both countdowns and is accepted.
+  await page.getByRole('button', { name: 'Resend code', exact: true }).click();
+  await expect(page.getByText('A new code is on its way.')).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveText(/^(02:00|01:5\d)$/);
+  await expect(page.getByRole('button', { name: /^Resend code in \d+s$/ })).toBeDisabled();
+  await page.getByLabel('Email verification code').fill(CODE);
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByText('Email verified ✓')).toBeVisible();
 });
 
 test('unverified email or phone keeps the workspace closed (cases 9, 10, 12)', async ({ page }) => {

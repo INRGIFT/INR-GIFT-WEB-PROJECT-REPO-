@@ -66,15 +66,30 @@ The database enforces the same rule with a restrictive RLS policy on every works
   not in the database, localStorage, sessionStorage, the URL, logs or analytics. It exists only in the input until
   submitted. The hook passes it straight to the email (`/api/hooks/send-email`, never logged).
 - Exactly six digits (numeric keyboard, paste of "123 456" accepted, `autocomplete="one-time-code"`).
-- Supabase answers wrong and expired codes with the same error; the screen says "This verification code has expired.
-  Request a new code." once the code's lifetime has passed since it was sent, otherwise "Incorrect verification code.
-  Check the code in your email and try again." Rate limits come from Supabase (429 → "Too many attempts…"); Resend
-  code has a 60-second cooldown.
-- Supabase dashboard settings this needs: Authentication → Providers → Email: **Confirm email on**, **Email OTP length
-  6**, **Email OTP expiration** = `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 seconds (default 60 minutes). The hook is what
-  sends the code, so no Supabase email template edit is needed.
+- **Lifetime: 120 seconds, enforced by Supabase Auth** (Email OTP Expiration = `120`; `NEXT_PUBLIC_EMAIL_OTP_SECONDS`
+  = `120`, the default). INRGIFT never decides whether a code is valid; it shows the lifetime: the email ("This code
+  expires in 2 minutes and can only be used once."), the same line under the input, and a countdown from 02:00.
+- The countdown is computed from the send time kept in localStorage (`src/features/auth/otp-clock.ts`: a hash of the
+  address → a timestamp; never the code or the address), recomputed every second, on tab focus and when another tab
+  changes it, so a refresh, back/forward, a second tab or a background tab shows the right time. "Resend code" is
+  disabled for 60 seconds after a send ("Resend code in 45s"), matching Supabase's per-address minimum interval; a
+  successful resend restarts both countdowns. Supabase still enforces both limits.
+- Supabase answers wrong and expired codes with the same error (`otp_expired`); the screen says "This verification code
+  has expired. Please request a new code." when the send time is known and more than 120 s ago, otherwise "The code is
+  incorrect. Please check the email and try again." Rate limits (HTTP 429, `over_email_send_rate_limit`, "For security
+  purposes…") say "Too many requests. Please wait before requesting another code." A network or Supabase failure says
+  "We couldn't verify the code right now. Please try again." Raw Supabase errors are never shown.
+- Supabase dashboard settings this needs: Authentication → Sign In / Providers → Email: **Confirm email on**, **Email
+  OTP length 6**, **Email OTP expiration 120**; Authentication → Rate Limits: **rate limit for sending emails** above
+  the hosted default of 2 per hour (project-wide). The hook is what sends the code, so no Supabase email template edit is
+  needed. The 120 s also applies to password-reset and email-change links (one project-wide setting); their emails and
+  screens state the same lifetime.
 
-## Login code lifetime (2 minutes requested, 8 Oct 2026) — owner decision pending
+## Login code lifetime (2 minutes requested, 8 Oct 2026) — decided: option 1 (global 120 s)
+
+Decision (owner, 8 Oct 2026, "Email OTP must expire after exactly 2 minutes"): option 1 below. Supabase's Email OTP
+Expiration is set to `120` and enforces it for every emailed code and link; INRGIFT shows it (see "Email verification
+code" above). Options 2–4 are kept for the record and are not implemented.
 
 Request: a 6-digit email code at **login**, valid for exactly 120 seconds, rejected by the auth server after that.
 
@@ -87,7 +102,7 @@ codes. There is no per-flow lifetime, and Supabase MFA has no email factor (only
 must not substitute for the planned 2Factor.in SMS step).
 
 Options (none implemented until the owner chooses):
-1. **Global 120 s** — set Email OTP Expiration to `120` (and `NEXT_PUBLIC_EMAIL_OTP_MINUTES=2`). Supabase enforces it
+1. **Global 120 s** (chosen) — set Email OTP Expiration to `120` (`NEXT_PUBLIC_EMAIL_OTP_SECONDS=120`). Supabase enforces it
    server-side, but sign-up codes and password-reset links also last only 2 minutes.
 2. **Supabase email code as a login step-up, global 120 s** — after the password, the server asks Supabase for an email
    code (`signInWithOtp`, `shouldCreateUser: false`), verifies it server-side with a throwaway client, records a step-up

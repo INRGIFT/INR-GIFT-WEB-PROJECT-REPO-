@@ -4,6 +4,7 @@ import { CompanyContact } from '@/components/layout/company-contact';
 import { PageContainer, PageHeader } from '@/components/ui/primitives';
 import { ComplianceForm } from '@/features/forms/compliance-form';
 import { COMPANY, LEGAL_PATHS } from '@/lib/company';
+import { emailOtpSeconds, lifetimeText } from '@/lib/config';
 import { pageMetadata } from '@/lib/seo';
 import { breadcrumbs, JsonLd } from '@/lib/structured-data';
 
@@ -11,8 +12,8 @@ export const metadata = pageMetadata({ title: 'Support', description: 'Help with
 
 const TOPICS: [string, React.ReactNode][] = [
   ['Signing in', <>Sign in with your email and password, or with Google if you used it before. If a sign-in fails, check the email address and try <Link className="link" href="/forgot-password">resetting your password</Link>.</>],
-  ['Email verification', <>Your email must be verified before you can sign in. The link expires after one hour; request a new one from the <Link className="link" href="/verify">verification page</Link>, and check your spam folder.</>],
-  ['Password reset', <>Use <Link className="link" href="/forgot-password">Forgot password</Link>. We email a link that works once and expires in one hour. Afterwards, other sessions are signed out.</>],
+  ['Email verification', <>Your email must be verified before you can sign in. The 6-digit code expires {lifetimeText(emailOtpSeconds)} after it is sent and works once; request a new one from the <Link className="link" href="/verify">verification page</Link>, and check your spam folder.</>],
+  ['Password reset', <>Use <Link className="link" href="/forgot-password">Forgot password</Link>. We email a link that works once and expires in {lifetimeText(emailOtpSeconds)}. Afterwards, other sessions are signed out.</>],
   ['Account security', <>Use a strong password you do not use elsewhere. If you think someone else used your account, reset your password at once and tell us using the form below.</>],
   ['Data and content questions', <>Every data module shows its status and a timestamp. If a figure looks wrong, tell us the asset, the figure and where you saw it.</>],
   ['Technical issues', <>Tell us your browser and device, the page address and what you expected to happen. Screenshots help; never include your password.</>],

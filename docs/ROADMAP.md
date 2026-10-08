@@ -4,6 +4,15 @@ Keep this file current. It is the handover record. Start with `docs/CURRENT_STAT
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
 ## Done (typecheck, 218 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+- **Email code expires after 2 minutes (8 Oct 2026, urgent owner fix):** the lifetime is Supabase's Email OTP
+  Expiration, set to `120` (owner step; one project-wide setting, so reset and email-change links also last 2 minutes and
+  say so). INRGIFT shows it, never decides it: the email and the screen say "This code expires in 2 minutes and can only
+  be used once."; a countdown from 02:00 kept right across refresh, back/forward, tabs and background tabs (persisted
+  send time, `otp-clock.ts`); "Resend code in 45s" for 60 s after each send (Supabase's per-address interval); four
+  distinct messages (expired, incorrect, too many requests, could not verify). `NEXT_PUBLIC_EMAIL_OTP_MINUTES` is
+  replaced by `NEXT_PUBLIC_EMAIL_OTP_SECONDS` (default 120). The demo adapter enforces the same 120 s and 60 s (unit
+  tests at 119 s / 121 s; Playwright with a controlled clock). Sign-up and "Resend code" refused by the project-wide
+  email limit (2 per hour on the hosted default) now say "Too many requests…" instead of "Too many attempts…".
 - **GIFT ID for every account (8 Oct 2026):** migration 0008 hardened before its first application: a deferred
   constraint trigger rejects any new account without a profile and GIFT ID (every sign-up method), profiles cannot be
   deleted while their account exists (owner-delete policy removed), `ensure_user_profile()` repairs idempotently.
@@ -16,8 +25,7 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
     (`otp_expired`, auth logs 06:18 UTC). Now: the hook delivers only six-digit codes (never alters one; logs the
     length only), `/api/health` → `integrations.emailOtp` shows the last length seen, the field no longer truncates, and
     sign-up says plainly when the email could not be sent. The Supabase setting itself must be changed to `6` (owner).
-  - **2-minute login code:** not built; Supabase's email code lifetime is project-wide. Options and the decision needed
-    are in `docs/AUTH-SECURITY.md` ("Login code lifetime").
+  - **2-minute login code:** decided later the same day: option 1, global 120 s (see the entry above).
   - **Google / Apple:** both buttons always shown; a provider Supabase does not report enabled is never called and its
     button says the sign-in is not available yet. Both are still disabled in production Supabase (owner steps).
   - **Homepage:** the NIFTY 50 hero chart and its facts are removed (KLineChart stays on asset pages); the hero holds a
@@ -208,7 +216,8 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 - Middleware reads the user record and the SMS step-up (when SMS is on) on every protected request (two Supabase calls); add short-lived caching if latency matters.
 - Supabase cannot list other sessions from the browser; the Sessions page says so and offers sign-out everywhere.
 - Supabase returns one error for wrong and expired email codes; the UI tells them apart by the code's lifetime
-  (`NEXT_PUBLIC_EMAIL_OTP_MINUTES`), which must match the Supabase setting.
+  (`NEXT_PUBLIC_EMAIL_OTP_SECONDS`, 120), which must match the Supabase setting (Email OTP Expiration = 120). The send
+  time is per browser: on another device the screen shows the lifetime without a countdown.
 - News cannot be saved: `saved_research` accepts documents and assets only, and no server-side news storage exists.
 - The overview tour's title is "INRGIFT in 60 seconds" but the recording runs 0:42 (the card shows the real duration).
 - WebM only: browsers without WebM playback (older iOS Safari) get the poster, a message and the transcript.
@@ -218,8 +227,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 
 ## Blockers needing the owner
 **Email (blocks every new sign-up):** hook and secret are now live (8 Oct 2026); Supabase → Authentication → Sign In /
-Providers → Email → **Email OTP Length = 6** (currently 8). **Login code lifetime:** choose an option in
-`docs/AUTH-SECURITY.md`. **Social:** `INSTAGRAM_ACCESS_TOKEN`, `X_BEARER_TOKEN` on GoDaddy. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
+Providers → Email → **Email OTP Length = 6** (currently 8) and **Email OTP Expiration = 120** (until then Supabase keeps
+accepting codes for its previous lifetime); Authentication → Rate Limits → **rate limit for sending emails** above 2 per
+hour. **Social:** `INSTAGRAM_ACCESS_TOKEN`, `X_BEARER_TOKEN` on GoDaddy. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
 provider (live reports it disabled). **GIFT ID:** migration 0008, alone (hardened 8 Oct 2026; production still has 0 of 3 accounts with a GIFT ID until it
 is applied). **Deploy** the packaged zip.
 GoDaddy env vars and the Supabase URL/hook settings for inrgift.com · 2Factor.in DLT approval, key and template (SMS stays off until then) · Resend key and

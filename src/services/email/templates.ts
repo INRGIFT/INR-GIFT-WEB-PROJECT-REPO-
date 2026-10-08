@@ -2,7 +2,7 @@
  * Transactional email content. Plain, branded HTML plus a text part. Links point only at INRGIFT's own
  * /auth/confirm route, which verifies the token with Supabase on the server.
  */
-import { smsSecondFactor } from '@/lib/config';
+import { emailOtpSeconds, lifetimeText, smsSecondFactor } from '@/lib/config';
 import { ADDRESS_ONE_LINE, COMPANY } from '@/lib/company';
 
 export interface RenderedEmail { subject: string; html: string; text: string }
@@ -66,20 +66,19 @@ function codeEmail(subject: string, intro: string, code: string, after: string[]
 ${after.map((l) => `<p style="font-size:13px;line-height:1.6;margin:0 0 10px;color:#3B4660">${esc(l)}</p>`).join('')}`;
   return frame(subject, inner, `${subject}\n\n${intro}\n\n${digits}\n\n${after.join('\n\n')}`);
 }
-const lifetime = (minutes: number) => (minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? '' : 's'}` : `${minutes} minutes`);
 export type SecurityNoticeKind = 'password_changed_notification' | 'email_changed_notification' | 'phone_changed_notification' | 'identity_linked_notification' | 'identity_unlinked_notification' | 'mfa_factor_enrolled_notification' | 'mfa_factor_unenrolled_notification';
 /** "an•••@example.com": enough for the owner to recognise, not a full address in someone else's inbox. */
 const maskAddress = (e: string) => { const [u, dom] = e.split('@'); return dom ? `${u.slice(0, 2)}•••@${dom}` : '•••'; };
 export const emailTemplates = {
   /** Sign-up step 2: the six-digit code typed on the "Verify your email" screen. */
-  verifySignupCode: (code: string, minutes: number) => codeEmail('Verify your INRGIFT email', 'Enter this 6-digit code on the INRGIFT "Verify your email" screen to confirm this address:', code,
-    [`The code expires ${lifetime(minutes)} after it was sent and works once. Requesting a new code replaces this one.`, 'Never share this code. INRGIFT will never ask you for it by phone, chat or email.', 'If you did not create an INRGIFT account, you can ignore this email.']),
-  confirmSignup: (link: string) => layout('Confirm your email for INRGIFT', [smsSecondFactor ? 'Confirm this address to continue setting up your account. After confirming, sign in with your email and password and verify your mobile number.' : 'Confirm this address to finish setting up your account. After confirming, sign in with your email and password.', 'The link expires in one hour and works once.'], { label: 'Confirm email', href: link }),
-  resetPassword: (link: string) => layout('Reset your INRGIFT password', [smsSecondFactor ? 'Use this link to choose a new password. You will also confirm a code sent to your phone; resetting your password never turns off SMS verification.' : 'Use this link to choose a new password.', 'The link expires in one hour and works once.'], { label: 'Choose a new password', href: link }),
+  verifySignupCode: (code: string, seconds: number) => codeEmail('Verify your INRGIFT email', 'Your 6-digit INRGIFT verification code is:', code,
+    [`This code expires in ${lifetimeText(seconds)} and can only be used once. Requesting a new code replaces this one.`, 'Never share this code. INRGIFT will never ask you for it by phone, chat or email.', 'If you did not create an INRGIFT account, you can ignore this email.']),
+  confirmSignup: (link: string) => layout('Confirm your email for INRGIFT', [smsSecondFactor ? 'Confirm this address to continue setting up your account. After confirming, sign in with your email and password and verify your mobile number.' : 'Confirm this address to finish setting up your account. After confirming, sign in with your email and password.', `The link expires in ${lifetimeText(emailOtpSeconds)} and works once.`], { label: 'Confirm email', href: link }),
+  resetPassword: (link: string) => layout('Reset your INRGIFT password', [smsSecondFactor ? 'Use this link to choose a new password. You will also confirm a code sent to your phone; resetting your password never turns off SMS verification.' : 'Use this link to choose a new password.', `The link expires in ${lifetimeText(emailOtpSeconds)} and works once.`], { label: 'Choose a new password', href: link }),
   /** To the NEW address: confirms it can receive email before the account switches to it. */
-  confirmEmailChange: (link: string) => layout('Confirm your new INRGIFT email address', ['Confirm this address to use it for your INRGIFT account. Until you do, the account keeps its current email address.', 'The link expires in one hour and works once.'], { label: 'Confirm new email', href: link }, 'If you did not ask to use this address for INRGIFT, ignore this email; nothing changes.'),
+  confirmEmailChange: (link: string) => layout('Confirm your new INRGIFT email address', ['Confirm this address to use it for your INRGIFT account. Until you do, the account keeps its current email address.', `The link expires in ${lifetimeText(emailOtpSeconds)} and works once.`], { label: 'Confirm new email', href: link }, 'If you did not ask to use this address for INRGIFT, ignore this email; nothing changes.'),
   /** To the CURRENT address when secure email change is on: the change happens only after both addresses confirm. */
-  confirmEmailChangeFromCurrent: (link: string, newEmail: string) => layout('Confirm the change of your INRGIFT email address', [`Someone asked to change the email address on your INRGIFT account to ${maskAddress(newEmail)}.`, 'If that was you, confirm here. The change happens only after both the current and the new address confirm.', 'The link expires in one hour and works once.'], { label: 'Confirm email change', href: link }, 'If you did not ask for this, do not click the link, reset your password and contact support@inrgift.com.'),
+  confirmEmailChangeFromCurrent: (link: string, newEmail: string) => layout('Confirm the change of your INRGIFT email address', [`Someone asked to change the email address on your INRGIFT account to ${maskAddress(newEmail)}.`, 'If that was you, confirm here. The change happens only after both the current and the new address confirm.', `The link expires in ${lifetimeText(emailOtpSeconds)} and works once.`], { label: 'Confirm email change', href: link }, 'If you did not ask for this, do not click the link, reset your password and contact support@inrgift.com.'),
   reauthenticate: (code: string) => codeEmail('Your INRGIFT confirmation code', 'Enter this code to confirm a sensitive change to your account:', code, ['It expires shortly and works once.', 'Never share this code. INRGIFT will never ask you for it by phone, chat or email.', 'If you did not ask for this, reset your password and contact support.']),
   /** Supabase security notifications (Authentication → Notifications), worded for INRGIFT. */
   securityNotice: (kind: SecurityNoticeKind, d: { oldEmail?: string; provider?: string } = {}) => {

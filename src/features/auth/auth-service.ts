@@ -1,5 +1,5 @@
 'use client';
-import { authMode, config, DEMO_SESSION_COOKIE, smsSecondFactor } from '@/lib/config';
+import { authMode, config, DEMO_SESSION_COOKIE, EMAIL_RESEND_SECONDS, emailOtpSeconds, smsSecondFactor } from '@/lib/config';
 import type { AccountProfile } from '@/features/account/types';
 import { supabaseBrowser } from '@/supabase/client';
 import type { OAuthProvider } from './oauth-providers';
@@ -99,13 +99,33 @@ function friendly(e: { message?: string; status?: number; code?: string } | null
   if (m.includes('database error')) return new AuthError('DUPLICATE_PHONE', 'That mobile number cannot be used. It may already belong to another account.');
   return new AuthError('UNKNOWN', 'That did not work. Try again in a moment.');
 }
-/** Supabase answers a wrong and an expired email code alike (otp_expired); the form tells them apart by time. */
-function otpError(e: { message?: string; status?: number; code?: string } | null): AuthError {
+/** The four outcomes of a failed email-code check, worded for people (never a raw Supabase error). */
+export const OTP_MESSAGES = {
+  expired: 'This verification code has expired. Please request a new code.',
+  invalid: 'The code is incorrect. Please check the email and try again.',
+  rateLimited: 'Too many requests. Please wait before requesting another code.',
+  unavailable: "We couldn't verify the code right now. Please try again.",
+} as const;
+/**
+ * Supabase answers a wrong and an expired email code alike (otp_expired); the form tells them apart by the time the
+ * code was sent (src/features/auth/otp-clock.ts). Rate limits and outages get their own messages.
+ */
+function otpError(e: { message?: string; status?: number; code?: string; name?: string } | null): AuthError {
   const m = (e?.message ?? '').toLowerCase();
-  if (e?.status === 429 || m.includes('rate limit') || m.includes('too many') || e?.code === 'over_request_rate_limit') return new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.');
-  if (e?.code === 'otp_expired' || m.includes('expired') || m.includes('invalid')) return new AuthError('INVALID', 'Incorrect verification code. Check the code in your email and try again.');
+  if (e?.status === 429 || m.includes('rate limit') || m.includes('too many') || e?.code === 'over_request_rate_limit' || e?.code === 'over_email_send_rate_limit') return new AuthError('RATE_LIMITED', OTP_MESSAGES.rateLimited);
+  if (transient(e)) return new AuthError('UNKNOWN', OTP_MESSAGES.unavailable);
   if (e?.code === 'validation_failed') return new AuthError('INVALID', 'Enter the 6-digit code from the email.');
-  return new AuthError('UNKNOWN', 'That did not work. Try again in a moment.');
+  if (e?.code === 'otp_expired' || m.includes('expired') || m.includes('invalid')) return new AuthError('INVALID', OTP_MESSAGES.invalid);
+  return new AuthError('UNKNOWN', OTP_MESSAGES.unavailable);
+}
+/**
+ * A refused verification email (sign-up or "Resend code"): Supabase's email limits (one per address per 60 s, and the
+ * project-wide hourly cap) say so; everything else is the friendly default.
+ */
+function emailSendError(e: { message?: string; status?: number; code?: string } | null): AuthError {
+  const m = (e?.message ?? '').toLowerCase();
+  if (e?.status === 429 || m.includes('rate limit') || m.includes('too many') || m.includes('security purposes') || e?.code === 'over_email_send_rate_limit' || e?.code === 'over_request_rate_limit') return new AuthError('RATE_LIMITED', OTP_MESSAGES.rateLimited);
+  return friendly(e);
 }
 /** Network trouble or a Supabase outage, as opposed to "no session" or "session expired/revoked". */
 const transient = (e: { name?: string; status?: number } | null | undefined) => Boolean(e && (e.name === 'AuthRetryableFetchError' || (typeof e.status === 'number' && (e.status === 0 || e.status >= 500))));
@@ -165,7 +185,7 @@ const supabaseAdapter = (): AuthAdapter => {
       if (smsSecondFactor && !(await phoneAvailable(p))) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
       // The number goes in the sign-up metadata; a database trigger reserves it (unique) when the user is created.
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name, country, phone: p }, emailRedirectTo: confirmRedirect(next) } });
-      if (error) throw friendly(error);
+      if (error) throw emailSendError(error);
       // With email confirmation on, Supabase answers an existing address with a user that has no identities.
       if (data.user && (data.user.identities?.length ?? 0) === 0) throw new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
     },
@@ -185,10 +205,15 @@ const supabaseAdapter = (): AuthAdapter => {
       await sb.auth.refreshSession();
       return (await this.getUser())?.gate ?? 'login';
     },
-    async resendEmail(email, next) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect(next) } }); if (error) throw friendly(error); },
+    async resendEmail(email, next) {
+      let error: Parameters<typeof emailSendError>[0];
+      try { ({ error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect(next) } })); } catch { throw new AuthError('UNKNOWN', 'The code could not be sent right now. Check your connection and try again.'); }
+      if (error) throw emailSendError(error);
+    },
     async verifyEmailOtp(email, token) {
       if (!/^\d{6}$/.test(token)) throw new AuthError('INVALID', 'Enter the 6-digit code from the email.');
-      const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+      let error: Parameters<typeof otpError>[0];
+      try { ({ error } = await sb.auth.verifyOtp({ email, token, type: 'email' })); } catch { throw new AuthError('UNKNOWN', OTP_MESSAGES.unavailable); }
       if (error) throw otpError(error);
       // Email confirmed. Close the code's session: the account opens with the password (step 3), never a code alone.
       clearPending();
@@ -229,6 +254,8 @@ interface DemoAccount {
   id: string; email: string; signupPhone: string; phone: string | null; name: string; pw: string | null; emailVerified: boolean;
   /** Demo GIFT ID, made in this browser (production: assigned by the database, migration 0008). */
   giftId?: string; createdAt?: string; codeAttempts?: number;
+  /** When the current demo email code was issued (ms): codes expire after emailOtpSeconds, as in Supabase. */
+  codeSentAt?: number;
   /** Signed up with email + password (missing on older demo state = true). */
   emailIdentity?: boolean; google?: boolean; apple?: boolean; country?: string; termsAt?: string;
 }
@@ -282,7 +309,7 @@ const demoAdapter = (): AuthAdapter => ({
     if (passwordProblem(password)) throw new AuthError('WEAK_PASSWORD', 'Choose a stronger password.');
     if (s.accounts.some((a) => a.email === e)) throw new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
     if (phoneTaken(s, p)) throw new AuthError('DUPLICATE_PHONE', 'An account already uses that mobile number. Sign in, or use a different number.');
-    const a: DemoAccount = { id: `demo-${s.accounts.length + 1}-${Date.now()}`, email: e, signupPhone: p, phone: null, name, pw: await hash(password), emailVerified: false, emailIdentity: true, giftId: demoGiftId(), createdAt: new Date().toISOString(), country };
+    const a: DemoAccount = { id: `demo-${s.accounts.length + 1}-${Date.now()}`, email: e, signupPhone: p, phone: null, name, pw: await hash(password), emailVerified: false, emailIdentity: true, giftId: demoGiftId(), createdAt: new Date().toISOString(), country, codeSentAt: Date.now() };
     s.accounts.push(a); s.lastSignup = a.id; s.session = null;
     log(s, 'Account created'); write(s);
   },
@@ -325,14 +352,21 @@ const demoAdapter = (): AuthAdapter => ({
     const s = read();
     const a = s.accounts.find((x) => x.email === email.trim().toLowerCase());
     if (!/^\d{6}$/.test(token)) throw new AuthError('INVALID', 'Enter the 6-digit code from the email.');
-    if (!a || a.emailVerified) throw new AuthError('INVALID', 'Incorrect verification code. Check the code in your email and try again.');
-    if ((a.codeAttempts ?? 0) >= 5) throw new AuthError('RATE_LIMITED', 'Too many attempts. Request a new code.');
-    if (token !== DEMO_CODE) { a.codeAttempts = (a.codeAttempts ?? 0) + 1; write(s); throw new AuthError('INVALID', 'Incorrect verification code. Check the code in your email and try again.'); }
+    if (!a || a.emailVerified) throw new AuthError('INVALID', OTP_MESSAGES.invalid);
+    if ((a.codeAttempts ?? 0) >= 5) throw new AuthError('RATE_LIMITED', OTP_MESSAGES.rateLimited);
+    // Like Supabase Auth: a code older than the configured lifetime is refused, with the same answer as a wrong code.
+    if (a.codeSentAt && Date.now() - a.codeSentAt > emailOtpSeconds * 1000) throw new AuthError('INVALID', OTP_MESSAGES.invalid);
+    if (token !== DEMO_CODE) { a.codeAttempts = (a.codeAttempts ?? 0) + 1; write(s); throw new AuthError('INVALID', OTP_MESSAGES.invalid); }
     a.emailVerified = true; a.codeAttempts = 0;
     s.session = null; // like production: the code confirms the email; the password opens the session
     log(s, 'Email verified'); write(s);
   },
-  async resendEmail(email) { const s = read(); const a = s.accounts.find((x) => x.email === email.trim().toLowerCase()); if (a) { a.codeAttempts = 0; write(s); } },
+  async resendEmail(email) {
+    const s = read(); const a = s.accounts.find((x) => x.email === email.trim().toLowerCase());
+    // Like Supabase Auth: one email per address per EMAIL_RESEND_SECONDS; a new code replaces the old one.
+    if (a?.codeSentAt && Date.now() - a.codeSentAt < EMAIL_RESEND_SECONDS * 1000) throw new AuthError('RATE_LIMITED', OTP_MESSAGES.rateLimited);
+    if (a) { a.codeAttempts = 0; a.codeSentAt = Date.now(); write(s); }
+  },
   async getProfile() {
     const s = read(); const a = current(s); const u = toUser(s);
     if (!a || !u) return null;

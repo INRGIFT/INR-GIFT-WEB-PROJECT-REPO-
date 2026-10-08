@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { config, EMAIL_OTP_LENGTH, emailOtpMinutes } from '@/lib/config';
+import { config, EMAIL_OTP_LENGTH, emailOtpSeconds } from '@/lib/config';
 import { safeReturnPath } from '@/lib/return-url';
 import { configured, serverEnv } from '@/lib/server-env';
 import { verifyStandardWebhook } from '@/lib/standard-webhooks';
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
   switch (type) {
     // Sign-up: the six-digit code Supabase generated for this request (verifyOtp, type 'email'). Never logged or stored.
-    case 'signup': out.push({ to, mail: d.token && /^\d+$/.test(d.token) ? emailTemplates.verifySignupCode(d.token, emailOtpMinutes) : emailTemplates.confirmSignup(link(d.token_hash, 'signup')) }); break;
+    case 'signup': out.push({ to, mail: d.token && /^\d+$/.test(d.token) ? emailTemplates.verifySignupCode(d.token, emailOtpSeconds) : emailTemplates.confirmSignup(link(d.token_hash, 'signup')) }); break;
     case 'recovery': out.push({ to, mail: emailTemplates.resetPassword(link(d.token_hash, 'recovery')) }); break;
     case 'reauthentication': if (!d.token) return fail(400, 'Malformed payload.'); out.push({ to, mail: emailTemplates.reauthenticate(d.token) }); break;
     case 'email_change': {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Sign-up step 2 (six-digit email code) and the account details in the demo adapter, which mirrors production rules:
@@ -12,6 +12,7 @@ const local = new MemoryStorage(), session = new MemoryStorage();
 vi.stubGlobal('localStorage', local); vi.stubGlobal('sessionStorage', session);
 vi.stubGlobal('document', { cookie: '' }); vi.stubGlobal('window', { addEventListener() {}, removeEventListener() {} });
 beforeEach(() => { local.clear(); session.clear(); });
+afterEach(() => { vi.useRealTimers(); });
 
 const PASSWORD = 'research-2026!';
 const signUp = async () => {
@@ -28,7 +29,7 @@ describe('email verification code (sign-up step 2)', () => {
   });
   it('a wrong code is refused with the exact message and the account stays unverified', async () => {
     const auth = await signUp();
-    await expect(auth.verifyEmailOtp('kisna@example.com', '000000')).rejects.toMatchObject({ code: 'INVALID', message: 'Incorrect verification code. Check the code in your email and try again.' });
+    await expect(auth.verifyEmailOtp('kisna@example.com', '000000')).rejects.toMatchObject({ code: 'INVALID', message: 'The code is incorrect. Please check the email and try again.' });
     await expect(auth.signIn('kisna@example.com', PASSWORD)).rejects.toMatchObject({ code: 'EMAIL_UNCONFIRMED' });
   });
   it('the correct code verifies the email but opens no session; the password then signs in', async () => {
@@ -40,11 +41,42 @@ describe('email verification code (sign-up step 2)', () => {
     expect((await auth.getUser())?.emailVerified).toBe(true);
   });
   it('five wrong codes lock the code until a new one is requested', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-08T10:00:00Z'));
     const auth = await signUp();
     for (let i = 0; i < 5; i++) await expect(auth.verifyEmailOtp('kisna@example.com', '111111')).rejects.toMatchObject({ code: 'INVALID' });
-    await expect(auth.verifyEmailOtp('kisna@example.com', '123456')).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+    await expect(auth.verifyEmailOtp('kisna@example.com', '123456')).rejects.toMatchObject({ code: 'RATE_LIMITED', message: 'Too many requests. Please wait before requesting another code.' });
+    vi.setSystemTime(new Date('2026-10-08T10:01:00Z'));
     await auth.resendEmail('kisna@example.com');
     await expect(auth.verifyEmailOtp('kisna@example.com', '123456')).resolves.toBeUndefined();
+  });
+  it('a code expires 120 seconds after it was sent: at 119 s it works, at 121 s it is refused', async () => {
+    const { DEMO_CODE } = await import('@/features/auth/auth-service');
+    const { emailOtpSeconds } = await import('@/lib/config');
+    expect(emailOtpSeconds).toBe(120);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-08T10:00:00Z'));
+    let auth = await signUp();
+    vi.setSystemTime(new Date('2026-10-08T10:02:01Z'));
+    await expect(auth.verifyEmailOtp('kisna@example.com', DEMO_CODE)).rejects.toMatchObject({ code: 'INVALID' });
+    await expect(auth.signIn('kisna@example.com', PASSWORD)).rejects.toMatchObject({ code: 'EMAIL_UNCONFIRMED' });
+    local.clear(); session.clear();
+    vi.setSystemTime(new Date('2026-10-08T11:00:00Z'));
+    auth = await signUp();
+    vi.setSystemTime(new Date('2026-10-08T11:01:59Z'));
+    await expect(auth.verifyEmailOtp('kisna@example.com', DEMO_CODE)).resolves.toBeUndefined();
+  });
+  it('a new code can be requested 60 seconds after the last one, and it restarts the 120-second lifetime', async () => {
+    const { DEMO_CODE } = await import('@/features/auth/auth-service');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-08T10:00:00Z'));
+    const auth = await signUp();
+    vi.setSystemTime(new Date('2026-10-08T10:00:45Z'));
+    await expect(auth.resendEmail('kisna@example.com')).rejects.toMatchObject({ code: 'RATE_LIMITED', message: 'Too many requests. Please wait before requesting another code.' });
+    vi.setSystemTime(new Date('2026-10-08T10:01:30Z'));
+    await expect(auth.resendEmail('kisna@example.com')).resolves.toBeUndefined();
+    // 3 minutes after sign-up but 90 s after the new code: still valid.
+    vi.setSystemTime(new Date('2026-10-08T10:03:00Z'));
+    await expect(auth.verifyEmailOtp('kisna@example.com', DEMO_CODE)).resolves.toBeUndefined();
   });
   it('the code is never stored in the browser', async () => {
     const { DEMO_CODE } = await import('@/features/auth/auth-service');

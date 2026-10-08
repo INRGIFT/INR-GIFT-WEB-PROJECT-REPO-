@@ -127,7 +127,7 @@ Set these in GoDaddy's environment variables screen, never in a file inside the 
 | `GOOGLE_SIGN_IN` | Optional. `off` hides "Continue with Google"; otherwise it follows the Google provider switch in Supabase |
 | `APPLE_SIGN_IN` | Optional. `off` hides "Continue with Apple"; otherwise it follows the Apple provider switch in Supabase |
 | `INRGIFT_RELEASE_COMMIT` | Optional. The commit id, for `/api/health` when the host builds without `release.json` or `.git` |
-| `NEXT_PUBLIC_EMAIL_OTP_MINUTES` | Optional, default `60`. Lifetime of the six-digit sign-up code, used in the email and the "expired" message; must equal Supabase's Email OTP expiration (section 6) |
+| `NEXT_PUBLIC_EMAIL_OTP_SECONDS` | Optional, default `120`. Lifetime of the six-digit email code (and of reset/email-change links), shown in the email, the countdown and the "expired" message; must equal Supabase's Email OTP Expiration (section 6), which is what enforces it |
 | `NEXT_PUBLIC_SMS_SECOND_FACTOR` | **Leave empty (off)** until DLT approval, the 2Factor key and migration 0007 are in place; then `on` and rebuild (`docs/AUTH-SECURITY.md`) |
 | `NEWSIO_API_KEY` | NewsData.io API key |
 | `NEWSIO_PAGE_SIZE` / `NEWSIO_CACHE_SECONDS` | Optional: 10 / 900 by default (free-plan safe) |
@@ -189,9 +189,16 @@ Supabase → Authentication → **Sign In / Providers → Email**:
   INRGIFT's screen takes exactly six, and the Send Email Hook refuses to send any other length (it never cuts or alters
   Supabase's code): until this is `6`, sign-up shows "We could not send your verification email" and
   `/api/health` → `integrations.emailOtp.status` reads `mismatch` with `lastSeenLength: 8`.
-- **Email OTP expiration:** `3600` seconds (60 minutes), or whatever `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 is set to.
-  This one setting covers every emailed code and link (sign-up codes, password-reset and email-change links); a shorter
-  value shortens all of them (see `docs/AUTH-SECURITY.md`, "Login code lifetime").
+- **Email OTP expiration:** **`120`** seconds (owner requirement, 8 Oct 2026; equal to `NEXT_PUBLIC_EMAIL_OTP_SECONDS`).
+  Supabase Auth is what rejects an older code; INRGIFT only displays the lifetime. This one setting covers every emailed
+  code and link, so password-reset and email-change links also expire after 2 minutes (the emails and screens say so).
+  Until it is changed, Supabase keeps accepting codes for its previous lifetime (default `3600`) even though the screen
+  counts down from 2 minutes.
+- Authentication → **Rate Limits** → **Rate limit for sending emails**: raise it from the hosted default (**2 per hour,
+  project-wide**, seen in the auth logs on 8 Oct 2026) to a value that fits real sign-up volume, e.g. `30`–`100` per
+  hour. At 2 per hour, the third sign-up or "Resend code" in an hour, by anyone, is refused with "Too many requests.
+  Please wait before requesting another code." Supabase also allows one email per address every 60 seconds; the
+  "Resend code in 45s" countdown follows that, and Supabase still enforces it.
 The Send Email hook (below) delivers the code through Resend, so no Supabase email template needs editing. Check: a new
 sign-up receives "Verify your INRGIFT email" with a six-digit code and no link.
 
@@ -232,7 +239,9 @@ Rollback: the column, triggers and functions can be dropped, but **keep `gift_id
   profile" (mobile number, password, country, terms) → onboarding → workspace; sign out; sign in with that email and
   password.
 - Sign up with email, mobile number and password; "Verify your INRGIFT email" arrives from Resend with a six-digit
-  code; a wrong code says "Incorrect verification code…"; the right one shows "Email verified ✓" and moves to step 3
+  code that "expires in 2 minutes and can only be used once"; the screen counts down from 02:00; a wrong code says "The
+  code is incorrect…"; a code entered after 2 minutes says "This verification code has expired…" (proof that Supabase
+  enforces the 120 s: the same correct code is refused); the right one shows "Email verified ✓" and moves to step 3
   (mobile number) → onboarding → "Your INRGIFT account is ready." with a GIFT ID (after migration 0008) → `/app`
   ("Hola AMIGO, <first name>"). Add a watchlist item; sign out and back in. The item should persist; that is the
   Supabase round trip. `/account/profile` shows the same GIFT ID with Copy GIFT ID.

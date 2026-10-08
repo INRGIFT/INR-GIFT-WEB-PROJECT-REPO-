@@ -166,10 +166,12 @@ describe('support, grievance and account closure carry the session\'s GIFT ID on
 describe('email templates', () => {
   it('the sign-up code email carries the code, its lifetime and the support address, and no link', async () => {
     const { emailTemplates } = await import('@/services/email/templates');
-    const m = emailTemplates.verifySignupCode('482913', 60);
+    const { lifetimeText } = await import('@/lib/config');
+    const m = emailTemplates.verifySignupCode('482913', 120);
     expect(m.subject).toBe('Verify your INRGIFT email');
     expect(m.text).toContain('482913');
-    expect(m.text).toMatch(/60 minutes|1 hour/);
+    expect(m.text).toContain('This code expires in 2 minutes and can only be used once.');
+    expect([lifetimeText(120), lifetimeText(60), lifetimeText(3600), lifetimeText(90)]).toEqual(['2 minutes', '1 minute', '1 hour', '90 seconds']);
     expect(m.text).toContain('support@inrgift.com');
     expect(m.html).not.toMatch(/href="https?:\/\/[^"]*(token|confirm)/);
   });
