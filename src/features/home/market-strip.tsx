@@ -28,7 +28,7 @@ function Row({ a, dominant }: { a: Asset; dominant: Asset['status'] | null }) {
           <span className="num shrink-0 text-[14px] font-semibold text-navy">{num(a.price, dp)}</span>
         </span>
         <span className="mt-0.5 flex items-baseline justify-between gap-3">
-          <span className="min-w-0 truncate text-[11.5px] text-faint">{unitOf(a)}</span>
+          <span className="min-w-0 truncate text-[11.5px] text-faint">{unitOf(a)}{a.exchange && !unitOf(a).includes(a.exchange) ? ` · ${a.exchange}` : ''}</span>
           <span className="num shrink-0 text-[11.5px]">
             {change != null && <span className={cn('mr-1.5', change > 0 ? 'text-up' : change < 0 ? 'text-down' : 'text-slate2')}>{change > 0 ? '+' : change < 0 ? '−' : ''}{num(Math.abs(change), dp)}</span>}
             <Change value={a.m.d1} />
@@ -59,6 +59,7 @@ export function MarketStrip({ snap }: { snap: HomeSnapshot }) {
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {meta && <DataStatus meta={meta} />}
+            {meta && <span className="text-xs text-faint">Source: {meta.source}</span>}
             <Link href="/markets" className="group inline-flex items-center gap-1 text-[13px] font-semibold text-brand-ink">All markets<ArrowRight size={14} aria-hidden className="transition-transform duration-micro group-hover:translate-x-0.5" /></Link>
           </div>
         </div>

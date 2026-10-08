@@ -84,6 +84,13 @@ export const smsSecondFactor = publicSetting('NEXT_PUBLIC_SMS_SECOND_FACTOR') ==
  * Lifetime of the sign-up email code, in minutes. Supabase sets the real lifetime (Authentication → Email → Email OTP
  * Expiration, default 3600 s); keep NEXT_PUBLIC_EMAIL_OTP_MINUTES equal to it so the email and the form say the same.
  */
+/**
+ * Digits in the email code (sign-up verification). INRGIFT's code screen takes exactly six. Supabase generates the
+ * code and its length is a Supabase setting (Authentication → Sign In / Providers → Email → Email OTP Length), whose
+ * default on new hosted projects is 8: it must be set to 6. The Send Email Hook refuses to deliver a code of any
+ * other length (src/app/api/hooks/send-email/route.ts) rather than alter Supabase's token.
+ */
+export const EMAIL_OTP_LENGTH = 6;
 export const emailOtpMinutes = Math.min(1440, Math.max(1, Math.round(Number(publicSetting('NEXT_PUBLIC_EMAIL_OTP_MINUTES')) || 60)));
 export const authMode: 'supabase' | 'demo' | 'off' = isSupabaseConfigured ? 'supabase'
   : demoRequested || (process.env.NODE_ENV !== 'production' && !LIVE_SITE) ? 'demo' : 'off';

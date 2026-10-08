@@ -89,6 +89,8 @@ const build = (base: Omit<AuthUser, 'gate'>, primarySignIn: boolean): AuthUser =
 function friendly(e: { message?: string; status?: number; code?: string } | null): AuthError {
   const m = (e?.message ?? '').toLowerCase();
   if (e?.status === 429 || m.includes('rate limit') || m.includes('too many')) return new AuthError('RATE_LIMITED', 'Too many attempts. Wait a minute, then try again.');
+  // The Send Email Hook refused or failed (e.g. a code length INRGIFT cannot accept): nothing was emailed.
+  if (m.includes('hook') || m.includes('error sending') || m.includes('sending confirmation') || m.includes('email code length')) return new AuthError('UNKNOWN', 'We could not send your verification email just now. Try again in a few minutes, or write to support@inrgift.com.');
   if (e?.code === 'email_not_confirmed' || m.includes('email not confirmed')) return new AuthError('EMAIL_UNCONFIRMED', 'Verify your email address first with the 6-digit code we sent you.');
   if (e?.code === 'user_already_exists' || m.includes('already registered')) return new AuthError('DUPLICATE_EMAIL', 'An account already uses that email address. Sign in, or reset your password.');
   if (m.includes('expired') || e?.code === 'otp_expired') return new AuthError('EXPIRED', 'That link has expired. Request a new one.');

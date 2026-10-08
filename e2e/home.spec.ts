@@ -32,28 +32,50 @@ test('brand hero, navigation and calls to action; product links lead to sign-in'
   await expect(page).toHaveURL(/\/login\?next=%2Fmarkets/);
 });
 
-test('hero chart and market strip: KLineChart draws demo data labelled DEMO, never live, and periods switch without the API', async ({ page }) => {
-  const api: string[] = [];
-  page.on('request', (r) => { if (r.url().includes('/api/v1/')) api.push(r.url()); });
+test('hero motion visual (no NIFTY chart) and market strip: an illustration with no data, then demo values labelled DEMO', async ({ page }) => {
+  const api: string[] = [], media: string[] = [];
+  page.on('request', (r) => { if (r.url().includes('/api/v1/')) api.push(r.url()); if (/\.(webm|mp4)(\?|$)/.test(r.url())) media.push(r.url()); });
   await page.goto('/');
-  const hero = page.getByRole('region', { name: 'NIFTY 50 chart' });
-  await expect(hero.locator('canvas').first()).toBeVisible();
-  await expect(hero.getByText(/^◇?Demo data$/).first()).toBeVisible();
-  await expect(hero.getByText('Source: demo-provider')).toBeVisible();
-  await expect(hero.getByText(/^Live$/)).toHaveCount(0);
-  await expect(hero.getByText(/\d+ bars · Daily/)).toBeVisible();
-  const yearBars = Number((await hero.getByText(/\d+ bars · Daily/).textContent())!.match(/(\d+) bars/)![1]);
-  await hero.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '1M', exact: true }).click();
-  await expect.poll(async () => Number(((await hero.getByText(/\d+ bars · Daily/).textContent()) ?? '').match(/(\d+) bars/)?.[1] ?? 0)).toBeLessThan(yearBars);
-  await hero.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '5Y', exact: true }).click();
-  await expect(hero.getByText(/\d+ bars · Weekly/)).toBeVisible();
-  const facts = page.getByRole('definition').filter({ hasText: 'Simulated values, labelled DEMO' });
-  await expect(facts).toBeVisible();
+  const hero = page.locator('section[aria-labelledby="hero-title"]');
+  const motion = hero.getByRole('img', { name: /Animated illustration: global markets/ });
+  await expect(motion).toBeVisible();
+  await expect(hero.getByText('Illustration · not market data')).toBeVisible();
+  // The NIFTY 50 chart is gone from the homepage: no chart canvas, no chart region, no NIFTY in the hero.
+  await expect(hero.locator('canvas')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'NIFTY 50 chart' })).toHaveCount(0);
+  await expect(hero.getByText(/NIFTY/)).toHaveCount(0);
+  // Fixed aspect ratio: the visual cannot shift the layout.
+  const box = await motion.boundingBox();
+  expect(Math.abs(box!.width / box!.height - 4 / 3)).toBeLessThan(0.02);
   const strip = page.getByRole('region', { name: 'Global market snapshot' });
   await expect(strip.getByText(/^◇?Demo data$/).first()).toBeVisible();
+  await expect(strip.getByText('Source: demo-provider')).toBeVisible();
   for (const name of ['NIFTY 50', 'Reliance Industries', 'USD / INR', 'Gold', 'US Treasury 10-Year Note', 'SPDR S&P 500 ETF Trust']) await expect(strip.getByText(name, { exact: true })).toBeAttached();
   await expect(strip.getByText(/^Live$/)).toHaveCount(0);
   expect(api).toEqual([]);
+  expect(media).toEqual([]);
+});
+
+test('hero with reduced motion: one still frame (the brand), nothing animating', async ({ browser }) => {
+  const ctx = await browser.newContext({ reducedMotion: 'reduce' });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  const motion = page.locator('.hero-motion');
+  await expect(motion.locator('[data-poster]')).toHaveCSS('opacity', '1');
+  const visible = await motion.locator('.hero-scene').evaluateAll((els) => els.filter((e) => getComputedStyle(e).opacity !== '0').length);
+  expect(visible).toBe(1);
+  expect(await motion.locator('.hero-scene').first().evaluate((e) => getComputedStyle(e).animationName)).toBe('none');
+  await ctx.close();
+});
+
+test('latest from INRGIFT: official accounts only; without API credentials, follow cards and no invented posts', async ({ page }) => {
+  await page.goto('/');
+  const social = page.locator('section#social');
+  await expect(social.getByRole('heading', { name: 'Follow INRGIFT.' })).toBeVisible();
+  await expect(social.getByRole('link', { name: /Follow Instagram @inrgift/ })).toHaveAttribute('href', 'https://www.instagram.com/inrgift?stkn=MTcxcnZ6enJuMnI1bQ==');
+  await expect(social.getByRole('link', { name: /Follow X @INRGIFT/ })).toHaveAttribute('href', 'https://x.com/INRGIFT');
+  await expect(social.getByRole('article')).toHaveCount(0);
+  for (const l of await social.getByRole('link').all()) expect(new URL((await l.getAttribute('href'))!).host).toMatch(/^(www\.)?(instagram\.com|x\.com)$/);
 });
 
 test('the three product tours: nothing downloads until play; play loads one captioned video; tours switch', async ({ page }) => {

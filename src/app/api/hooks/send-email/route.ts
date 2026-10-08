@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { config, emailOtpMinutes } from '@/lib/config';
+import { config, EMAIL_OTP_LENGTH, emailOtpMinutes } from '@/lib/config';
 import { safeReturnPath } from '@/lib/return-url';
 import { configured, serverEnv } from '@/lib/server-env';
 import { verifyStandardWebhook } from '@/lib/standard-webhooks';
 import { log } from '@/lib/telemetry/log';
 import { sendEmail } from '@/services/email/email-service';
+import { recordOtpLength } from '@/services/email/otp-length';
 import { emailTemplates, type RenderedEmail } from '@/services/email/templates';
 
 export const runtime = 'nodejs';
@@ -45,9 +46,19 @@ export async function POST(req: NextRequest) {
   try { next = safeReturnPath(new URL(d.redirect_to ?? '', 'https://x.invalid').searchParams.get('next'), ''); } catch { /* none */ }
   const link = (hash: string | undefined, kind: string) => `${site}/auth/confirm?token_hash=${encodeURIComponent(hash ?? '')}&type=${kind}${next ? `&next=${encodeURIComponent(next)}` : ''}`;
   const out: { to: string; mail: RenderedEmail }[] = [];
+  // A code the INRGIFT screen cannot take is never sent: Supabase's token is delivered exactly as generated or not at
+  // all (never cut or padded). The digit count, never the code, is logged and shown on /api/health. Fix: Supabase →
+  // Authentication → Sign In / Providers → Email → Email OTP Length = 6.
+  if ((type === 'signup' || type === 'reauthentication') && d.token && /^\d+$/.test(d.token)) {
+    recordOtpLength(d.token.length);
+    if (d.token.length !== EMAIL_OTP_LENGTH) {
+      log('error', 'email_otp_length_mismatch', { type, expected: EMAIL_OTP_LENGTH, actual: d.token.length });
+      return fail(500, `Email code length is ${d.token.length}; INRGIFT requires ${EMAIL_OTP_LENGTH}. Set Supabase Email OTP Length to ${EMAIL_OTP_LENGTH}.`);
+    }
+  }
   switch (type) {
     // Sign-up: the six-digit code Supabase generated for this request (verifyOtp, type 'email'). Never logged or stored.
-    case 'signup': out.push({ to, mail: d.token && /^\d{6,10}$/.test(d.token) ? emailTemplates.verifySignupCode(d.token, emailOtpMinutes) : emailTemplates.confirmSignup(link(d.token_hash, 'signup')) }); break;
+    case 'signup': out.push({ to, mail: d.token && /^\d+$/.test(d.token) ? emailTemplates.verifySignupCode(d.token, emailOtpMinutes) : emailTemplates.confirmSignup(link(d.token_hash, 'signup')) }); break;
     case 'recovery': out.push({ to, mail: emailTemplates.resetPassword(link(d.token_hash, 'recovery')) }); break;
     case 'reauthentication': if (!d.token) return fail(400, 'Malformed payload.'); out.push({ to, mail: emailTemplates.reauthenticate(d.token) }); break;
     case 'email_change': {

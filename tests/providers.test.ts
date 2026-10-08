@@ -172,6 +172,26 @@ describe('Send Email Hook route', () => {
     vi.stubEnv('RESEND_FROM_EMAIL', 'INRGIFT Support <support@inrgift.com>');
     expect(serverEnv.resendFrom()).toBe('INRGIFT Support <support@inrgift.com>');
   });
+  it('never sends (or alters) a code whose length is not six: the Supabase setting must be fixed instead', async () => {
+    const { resetOtpLength, otpLengthStatus } = await import('@/services/email/otp-length');
+    resetOtpLength();
+    expect(otpLengthStatus().status).toBe('unknown');
+    const log = vi.spyOn(console, 'error');
+    const eight = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_8', token: '48291357' } });
+    expect(eight.status).toBe(500);
+    expect(eight.sent).toHaveLength(0);
+    expect(otpLengthStatus()).toMatchObject({ expectedLength: 6, lastSeenLength: 8, status: 'mismatch' });
+    // the length is logged, never the code
+    const logged = log.mock.calls.flat().join(' ');
+    expect(logged).toContain('email_otp_length_mismatch');
+    expect(logged).not.toContain('48291357');
+    log.mockRestore();
+    const six = await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'th_6', token: '482913' } });
+    expect(six.status).toBe(200);
+    expect(six.sent[0].text).toContain('482913');
+    expect(otpLengthStatus()).toMatchObject({ lastSeenLength: 6, status: 'ok' });
+    expect((await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'reauthentication', token: '1234567' } })).status).toBe(500);
+  });
   it('rejects unsigned calls and refuses passwordless email types', async () => {
     expect((await call({ user: { email: 'a@example.com' }, email_data: { email_action_type: 'signup', token_hash: 'x' } }, false)).status).toBe(401);
     for (const t of ['magiclink', 'invite', 'email']) {

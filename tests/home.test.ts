@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { asOfText } from '@/features/charts/chart-status';
 import { HomeNews } from '@/features/home/home-news';
-import { heroFacts, weekdays } from '@/features/home/hero';
+import { weekdays } from '@/features/home/hero';
 import { ruleText } from '@/features/home/previews';
-import { compactBars, getHomeSnapshot, HERO_RANGES, HOME_VIDEO_IDS, publicDataMode, settle, STRIP } from '@/features/home/snapshot';
+import { getHomeSnapshot, HOME_VIDEO_IDS, publicDataMode, settle, STRIP } from '@/features/home/snapshot';
 import { istHours, spansOf, unionSpans } from '@/features/home/world-markets';
 import { DEFAULT_TREE, isGroup, type Node, type Rule } from '@/features/screener/logic';
 import { ProviderError } from '@/services/providers/http';
@@ -36,44 +36,19 @@ describe('public display policy', () => {
 });
 
 describe('homepage snapshot (demo provider)', () => {
-  it('hero: NIFTY 50 with the prepared periods, DEMO everywhere, never realtime', async () => {
+  it('the hero holds no NIFTY (or any) chart: no bars are prepared, and the hero renders no chart or market value', async () => {
     const snap = await getHomeSnapshot(new Date(), 'demo');
-    expect(snap.mode).toBe('demo');
-    expect(snap.hero.ok).toBe(true);
-    const hero = snap.hero.ok ? snap.hero.value! : null;
-    expect(hero?.asset.slug).toBe('NIFTY-50');
-    expect(hero?.series.map((s) => s.range)).toEqual(HERO_RANGES);
-    expect(hero?.defaultRange).toBe('1Y');
-    for (const s of hero!.series) {
-      expect(s.status).toBe('DEMO');
-      expect(s.realtime).toBe(false);
-      expect(s.currency).toBe('INR');
-      expect(s.timezone).toBe('Asia/Kolkata');
-      expect(s.bars.length).toBeGreaterThan(1);
+    expect('hero' in snap).toBe(false);
+    const hero = read('src/features/home/hero.tsx'), motion = read('src/features/home/hero-motion.tsx');
+    for (const src of [hero, motion]) {
+      expect(src).not.toMatch(/FinancialChart|NIFTY|getChartSeries|klinecharts/);
+      // an illustration: no prices, values or trading controls
+      expect(src).not.toMatch(/\b(Buy|Sell|Order|P&L|Portfolio)\b/);
     }
-    expect(hero!.asset.status).toBe('DEMO');
-  });
-  it('hero bars are rounded to the displayed precision only (same candles, smaller page)', async () => {
-    const snap = await getHomeSnapshot(new Date(), 'demo');
-    const year = snap.hero.ok ? snap.hero.value!.series.find((s) => s.range === '1Y')! : null;
-    expect(year!.pricePrecision).toBe(2);
-    for (const b of year!.bars) for (const v of [b.o, b.h, b.l, b.c]) expect(Math.round(v * 100) / 100).toBe(v);
-    const raw = { ...year!, bars: [{ t: 1, o: 1.23456, h: 2.34567, l: 0.98765, c: 1.5, v: 1234.6 }] };
-    expect(compactBars(raw).bars[0]).toEqual({ t: 1, o: 1.23, h: 2.35, l: 0.99, c: 1.5, v: 1235 });
-  });
-  it('hero facts come from the same snapshot: status, exchange, currency, source, session and a 52-week range', async () => {
-    const snap = await getHomeSnapshot(new Date(), 'demo');
-    const hero = snap.hero.ok ? snap.hero.value! : null;
-    const facts = Object.fromEntries(heroFacts(hero!, 'demo').map((f) => [f.label, f]));
-    expect(Object.keys(facts)).toEqual(['Market status', 'Exchange', 'Currency', 'Data source', 'Session', 'Research snapshot']);
-    expect(facts.Exchange.value).toBe('NSE');
-    expect(facts.Currency.value).toBe('INR');
-    expect(facts['Data source']).toMatchObject({ value: 'Demo provider', sub: 'Simulated values, labelled DEMO' });
-    expect(facts.Session.value).toBe('09:15–15:30 IST');
-    expect(facts.Session.sub).toContain('Mon–Fri');
-    const year = hero!.series.find((s) => s.range === '1Y')!;
-    const lo = Math.min(...year.bars.map((b) => b.l));
-    expect(facts['Research snapshot'].sub).toContain(`52-week range ${lo.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+    expect(motion).toContain('Illustration · not market data');
+    expect(motion).toContain('data-poster');
+    // the reduced-motion still frame is defined
+    expect(read('src/app/globals.css')).toMatch(/prefers-reduced-motion[\s\S]*\.hero-motion \.hero-scene\[data-poster\] \{ opacity: 1; \}/);
   });
   it('strip: three instruments per asset class, native currencies, no demo value labelled live, delayed or end of day', async () => {
     const snap = await getHomeSnapshot(new Date(), 'demo');
@@ -98,7 +73,7 @@ describe('homepage snapshot (demo provider)', () => {
   });
   it('mode off: no prices, charts or results are even loaded; sessions (calendars) still are', async () => {
     const snap = await getHomeSnapshot(new Date(), 'off');
-    expect(snap.hero.ok || snap.strip.ok || snap.equities.ok || snap.compare.ok).toBe(false);
+    expect(snap.strip.ok || snap.equities.ok || snap.compare.ok).toBe(false);
     expect(snap.markets.ok).toBe(true);
   });
 });
@@ -194,6 +169,7 @@ describe('homepage copy and boundaries', () => {
     const page = read('src/app/(site)/page.tsx');
     expect(page).toContain("title: 'INRGIFT | Global Market Intelligence From India'");
     expect(page).toContain("path: '/'");
-    for (const f of ['src/features/home/hero.tsx', 'src/features/home/market-strip.tsx', 'src/features/home/previews.tsx']) expect(read(f), f).toContain('data-nosnippet');
+    // Files that show demo values; the hero shows none (an illustration).
+    for (const f of ['src/features/home/market-strip.tsx', 'src/features/home/previews.tsx']) expect(read(f), f).toContain('data-nosnippet');
   });
 });

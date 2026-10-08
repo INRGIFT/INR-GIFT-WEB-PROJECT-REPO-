@@ -48,8 +48,10 @@ export function CodeField({ label = 'Verification code', value, onChange, error,
   const id = useId();
   return (
     <Wrap {...{ id, label, hint, error }}>
-      {/* No maxLength: a pasted "123 456" or "123-456" must reach the handler whole; it keeps the first six digits. */}
-      <input id={id} value={value} onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" autoFocus={autoFocus}
+      {/* No maxLength: a pasted "123 456" or "123-456" must reach the handler whole; spaces and dashes are dropped. Extra
+          digits are kept (up to 10) so a code of the wrong length is reported by the form, never cut down to six and
+          sent as a different, wrong code. */}
+      <input id={id} value={value} onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" autoFocus={autoFocus}
         aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined} placeholder="••••••"
         className="field num h-12 max-w-[220px] text-center font-display text-xl font-bold tracking-[.5em] placeholder:tracking-[.3em]" />
     </Wrap>

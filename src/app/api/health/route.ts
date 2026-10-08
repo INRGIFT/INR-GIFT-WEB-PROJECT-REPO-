@@ -5,6 +5,7 @@ import { oauthAvailability } from '@/features/auth/oauth-providers';
 import { supportPhone } from '@/lib/company-server';
 import { configured } from '@/lib/server-env';
 import { getProvider } from '@/providers';
+import { otpLengthStatus } from '@/services/email/otp-length';
 
 export const dynamic = 'force-dynamic';
 const withTimeout = <T,>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
@@ -41,8 +42,11 @@ export async function GET() {
   const integrations = {
     supabase: { auth: authMode, secretKey: configured.supabaseAdmin() },
     resend: { configured: configured.email(), sendEmailHook: configured.emailHook() },
+    // Digit count of the last email code Supabase sent through the hook (never the code): must be 6.
+    emailOtp: otpLengthStatus(),
     twofactor: { configured: configured.sms(), secondFactor: smsSecondFactor ? 'on' : 'off' },
     news: { provider: configured.news() ? 'newsdata.io' : 'demo', configured: configured.news() },
+    social: { instagram: configured.instagram(), x: configured.x() },
     google: { signIn: oauth.google ? 'enabled' : 'disabled' },
     apple: { signIn: oauth.apple ? 'enabled' : 'disabled' },
     support: { phoneConfigured: Boolean(supportPhone()), inbox: process.env.SUPPORT_INBOX_EMAIL ? 'custom' : 'support@inrgift.com' },

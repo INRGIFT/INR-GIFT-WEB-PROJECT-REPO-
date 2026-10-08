@@ -37,23 +37,27 @@ const loadPending = (purpose: SmsPurpose): PhoneChallenge | null => {
 const OAUTH_BUTTON: Record<OAuthProvider, { name: string; icon: string }> = { google: { name: 'Google', icon: '/brand/google-g.svg' }, apple: { name: 'Apple', icon: '/brand/apple-logo.svg' } };
 /**
  * "Continue with Google" / "Continue with Apple" through Supabase OAuth (src/features/auth/auth-service.ts), above the
- * email form. Each button is rendered only when its provider is enabled in Supabase (src/features/auth/oauth-providers.ts).
- * A first social sign-in then completes the same profile as an email sign-up (name if the provider withheld it, mobile
- * number, password, country, terms) before anything opens. Nothing renders when neither provider is on.
+ * email form. Both buttons are always shown (owner decision, 8 Oct 2026). A provider that Supabase reports switched off
+ * (src/features/auth/oauth-providers.ts) is never called: its button explains that this sign-in is not available yet,
+ * and no session, user or redirect is created. A first social sign-in completes the same profile as an email sign-up
+ * (name if the provider withheld it, mobile number, password, country, terms) before anything opens.
  */
 function SocialSignIn({ next, oauth }: { next: string; oauth: OAuthAvailability }) {
   const { auth, refresh } = useSession();
   const router = useRouter();
   const [pending, setPending] = useState<OAuthProvider | null>(null);
-  const { busy, error, run } = useAuthAction();
-  const providers = (['google', 'apple'] as const).filter((p) => oauth[p]);
-  if (!providers.length) return null;
-  const go = (provider: OAuthProvider) => { setPending(provider); void run(async () => {
-    try {
-      await auth.signInWithOAuth(provider, next);
-      if (auth.mode === 'demo') { await refresh(); const u = await auth.getUser(); router.replace(gateHref(u?.gate ?? 'login', next)); }
-    } finally { setPending(null); }
-  }); };
+  const { busy, error, setError, run } = useAuthAction();
+  const providers = ['google', 'apple'] as const;
+  const go = (provider: OAuthProvider) => {
+    if (!oauth[provider]) { setError(`${OAUTH_BUTTON[provider].name} sign-in is not available yet. Sign in or create your account with your email and password.`); return; }
+    setPending(provider);
+    void run(async () => {
+      try {
+        await auth.signInWithOAuth(provider, next);
+        if (auth.mode === 'demo') { await refresh(); const u = await auth.getUser(); router.replace(gateHref(u?.gate ?? 'login', next)); }
+      } finally { setPending(null); }
+    });
+  };
   return (
     <div className="mb-5">
       <div className="space-y-2.5">
@@ -215,6 +219,7 @@ function EmailCodeStep({ email: initial, sentAt, next, onVerified }: { email: st
   const verify = () => {
     setResent(false);
     if (!isEmail(address)) { setAskEmail(true); return setError('Enter the email address you signed up with.'); }
+    if (code.length > 6) return setError(`That code has ${code.length} digits. INRGIFT verification codes have 6 digits: request a new code below.`);
     if (!/^\d{6}$/.test(code)) return setError('Enter the 6-digit code from the email.');
     void run(async () => {
       try { await auth.verifyEmailOtp(address, code); }

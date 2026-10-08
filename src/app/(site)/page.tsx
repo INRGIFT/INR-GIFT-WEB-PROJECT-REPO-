@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { oauthAvailability } from '@/features/auth/oauth-providers';
 import { HomeHero } from '@/features/home/hero';
 import { HomeNews, HomeNewsSkeleton, NewsCategories, NewsCta } from '@/features/home/home-news';
+import { HomeSocial, HomeSocialSkeleton } from '@/features/home/home-social';
 import { HomeSection, SectionHeading } from '@/features/home/home-ui';
 import { MarketStrip } from '@/features/home/market-strip';
 import { BuiltInIndia, FinalCta, Infrastructure, Trust, WorkspacePreview } from '@/features/home/platform';
@@ -37,20 +38,10 @@ export default async function HomePage() {
     <>
       <JsonLd data={[organization()]} />
       <RevealObserver />
-      <HomeHero snap={snap} />
+      <HomeHero />
       <MarketStrip snap={snap} />
       <WorldMarkets snap={snap} />
       <Workflow />
-      {videos.length > 0 && (
-        <HomeSection id="tours" surface="navy">
-          <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
-            <SectionHeading id="tours" tone="dark" eyebrow="Product tours" title="See how INRGIFT works." lead="Explore the platform through three quick visual guides." />
-            <div data-reveal><SessionCta out={['Explore the Platform', '/signup']} inside={['Explore the Platform', '/app']} variant="inverse" arrow /></div>
-          </div>
-          <div data-reveal className="mt-12"><VideoShowcase videos={videos} /></div>
-          <p className="mt-10 text-xs text-white/55">Screen recordings of INRGIFT using clearly labelled demo data. Captions are on by default; nothing downloads until you press play.</p>
-        </HomeSection>
-      )}
       <ScreenPreview snap={snap} />
       <ComparePreview snap={snap} />
       <ResearchPreview snap={snap} />
@@ -62,6 +53,20 @@ export default async function HomePage() {
         <div data-reveal className="mt-10"><Suspense fallback={<HomeNewsSkeleton />}><HomeNews /></Suspense></div>
         <NewsCategories />
       </HomeSection>
+      <HomeSection id="social" bordered>
+        <SectionHeading id="social" eyebrow="Latest from INRGIFT" title="Follow INRGIFT." lead="The newest posts from INRGIFT's official Instagram and X accounts." />
+        <div data-reveal className="mt-10"><Suspense fallback={<HomeSocialSkeleton />}><HomeSocial /></Suspense></div>
+      </HomeSection>
+      {videos.length > 0 && (
+        <HomeSection id="tours" surface="navy">
+          <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+            <SectionHeading id="tours" tone="dark" eyebrow="Product tours" title="See how INRGIFT works." lead="Explore the platform through three quick visual guides." />
+            <div data-reveal><SessionCta out={['Explore the Platform', '/signup']} inside={['Explore the Platform', '/app']} variant="inverse" arrow /></div>
+          </div>
+          <div data-reveal className="mt-12"><VideoShowcase videos={videos} /></div>
+          <p className="mt-10 text-xs text-white/55">Screen recordings of INRGIFT using clearly labelled demo data. Captions are on by default; nothing downloads until you press play.</p>
+        </HomeSection>
+      )}
       <Infrastructure />
       <WorkspacePreview />
       <BuiltInIndia snap={snap} />

@@ -74,6 +74,31 @@ The database enforces the same rule with a restrictive RLS policy on every works
   6**, **Email OTP expiration** = `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 seconds (default 60 minutes). The hook is what
   sends the code, so no Supabase email template edit is needed.
 
+## Login code lifetime (2 minutes requested, 8 Oct 2026) — owner decision pending
+
+Request: a 6-digit email code at **login**, valid for exactly 120 seconds, rejected by the auth server after that.
+
+What exists today: login is email + password (or Google / Apple), then an SMS code when the SMS second factor is on.
+There is **no email code at login**. The only email code is **sign-up verification** (`verifyOtp`, type `email`).
+
+What Supabase supports: one project-wide **Email OTP Expiration** (Authentication → Sign In / Providers → Email). It
+applies to every emailed code and link: sign-up codes, password-reset links, email-change links and passwordless
+codes. There is no per-flow lifetime, and Supabase MFA has no email factor (only TOTP, phone and WebAuthn; phone MFA
+must not substitute for the planned 2Factor.in SMS step).
+
+Options (none implemented until the owner chooses):
+1. **Global 120 s** — set Email OTP Expiration to `120` (and `NEXT_PUBLIC_EMAIL_OTP_MINUTES=2`). Supabase enforces it
+   server-side, but sign-up codes and password-reset links also last only 2 minutes.
+2. **Supabase email code as a login step-up, global 120 s** — after the password, the server asks Supabase for an email
+   code (`signInWithOtp`, `shouldCreateUser: false`), verifies it server-side with a throwaway client, records a step-up
+   for the password session (new migration, like `sms_step_ups`) and discards the code-only session. Supabase stays the
+   only code authority (no INRGIFT OTP table); the hook would have to allow the `magiclink`/`email` type for this use;
+   the 120 s still applies to every emailed code and link (as in option 1).
+3. **INRGIFT-issued login code with its own 120 s lifetime** — exact per-flow expiry, but it is a second OTP system
+   (hashed codes, attempt limits, a new table), which the standing rules forbid without explicit approval.
+4. **The planned SMS second factor (2Factor.in)** — its login code already expires on INRGIFT's server (the `/verify-phone`
+   step); its lifetime can be set to 120 s when SMS is switched on after DLT approval.
+
 ## GIFT ID
 - Every account's permanent reference, `GIFT-` + 8 Crockford base32 characters (no I, L, O, U), from 40 random bits
   (`gen_random_uuid()`): no personal data, not sequential. Assigned by the database when the profile row is created

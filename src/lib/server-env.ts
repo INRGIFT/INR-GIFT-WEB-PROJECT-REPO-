@@ -23,6 +23,14 @@ export const serverEnv = {
   twoFactorTemplate: () => v('TWO_FACTOR_OTP_TEMPLATE'),
   /** NewsData.io API key (the "News IO" provider), sent in the X-ACCESS-KEY header. */
   newsApiKey: () => v('NEWSIO_API_KEY'),
+  /** Instagram API with Instagram Login: long-lived access token for the official @inrgift professional account. */
+  instagramAccessToken: () => v('INSTAGRAM_ACCESS_TOKEN'),
+  /** Optional Instagram user id; "me" (the token's own account) when empty. */
+  instagramUserId: () => v('INSTAGRAM_USER_ID'),
+  /** X API v2 app-only Bearer token (a plan that includes reading a user's posts). */
+  xBearerToken: () => v('X_BEARER_TOKEN'),
+  /** Optional numeric id of @INRGIFT on X; looked up by username when empty. */
+  xUserId: () => v('X_USER_ID'),
 };
 export const configured = {
   supabaseAdmin: () => Boolean(serverEnv.supabaseSecretKey()),
@@ -30,4 +38,6 @@ export const configured = {
   emailHook: () => Boolean(serverEnv.sendEmailHookSecret()),
   sms: () => Boolean(serverEnv.twoFactorApiKey()),
   news: () => Boolean(serverEnv.newsApiKey()),
+  instagram: () => Boolean(serverEnv.instagramAccessToken()),
+  x: () => Boolean(serverEnv.xBearerToken()),
 };

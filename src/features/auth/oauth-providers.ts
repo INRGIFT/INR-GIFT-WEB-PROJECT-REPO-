@@ -2,9 +2,10 @@ import { authMode, config } from '@/lib/config';
 
 /**
  * Which "Continue with …" buttons can work here (server only). Supabase publishes which providers are switched on at
- * GET <project>/auth/v1/settings (publishable key; no secrets). A button is shown only when its provider is enabled
- * there, so a visitor never reaches a Supabase "provider is not enabled" error page. Demo builds simulate both.
- * GOOGLE_SIGN_IN=off / APPLE_SIGN_IN=off hide a button without touching Supabase.
+ * GET <project>/auth/v1/settings (publishable key; no secrets). Both buttons are always shown; one whose provider is not
+ * enabled there is never sent to Supabase (a visitor never reaches a "provider is not enabled" error page) and says
+ * that sign-in is not available yet. Demo builds simulate both. GOOGLE_SIGN_IN=off / APPLE_SIGN_IN=off mark a provider
+ * unavailable without touching Supabase.
  */
 export type OAuthProvider = 'google' | 'apple';
 export const OAUTH_PROVIDERS: readonly OAuthProvider[] = ['google', 'apple'];

@@ -185,8 +185,13 @@ No Google secret is ever placed in the repository, the zip, GoDaddy or the brows
 ### Six-digit email verification code (sign-up step 2)
 Supabase → Authentication → **Sign In / Providers → Email**:
 - **Confirm email:** on.
-- **Email OTP length:** `6`.
+- **Email OTP length:** `6`. **New hosted projects default to `8`** — the cause of the 8-digit codes seen on 8 Oct 2026.
+  INRGIFT's screen takes exactly six, and the Send Email Hook refuses to send any other length (it never cuts or alters
+  Supabase's code): until this is `6`, sign-up shows "We could not send your verification email" and
+  `/api/health` → `integrations.emailOtp.status` reads `mismatch` with `lastSeenLength: 8`.
 - **Email OTP expiration:** `3600` seconds (60 minutes), or whatever `NEXT_PUBLIC_EMAIL_OTP_MINUTES` × 60 is set to.
+  This one setting covers every emailed code and link (sign-up codes, password-reset and email-change links); a shorter
+  value shortens all of them (see `docs/AUTH-SECURITY.md`, "Login code lifetime").
 The Send Email hook (below) delivers the code through Resend, so no Supabase email template needs editing. Check: a new
 sign-up receives "Verify your INRGIFT email" with a six-digit code and no link.
 

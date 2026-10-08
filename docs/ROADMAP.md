@@ -4,6 +4,21 @@ Keep this file current. It is the handover record. Start with `docs/CURRENT_STAT
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
 ## Done (typecheck, 218 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+- **Auth correction, homepage hero and social (8 Oct 2026, owner's follow-up brief):**
+  - **8-digit email codes, root cause:** the Supabase project's Email OTP Length is `8` (default for new hosted
+    projects); the hook passed it through unchanged and the code field cut a pasted code to six, so `verifyOtp` failed
+    (`otp_expired`, auth logs 06:18 UTC). Now: the hook delivers only six-digit codes (never alters one; logs the
+    length only), `/api/health` → `integrations.emailOtp` shows the last length seen, the field no longer truncates, and
+    sign-up says plainly when the email could not be sent. The Supabase setting itself must be changed to `6` (owner).
+  - **2-minute login code:** not built; Supabase's email code lifetime is project-wide. Options and the decision needed
+    are in `docs/AUTH-SECURITY.md` ("Login code lifetime").
+  - **Google / Apple:** both buttons always shown; a provider Supabase does not report enabled is never called and its
+    button says the sign-in is not available yet. Both are still disabled in production Supabase (owner steps).
+  - **Homepage:** the NIFTY 50 hero chart and its facts are removed (KLineChart stays on asset pages); the hero holds a
+    12-second CSS/SVG motion visual (globe and exchanges, discovery, research, charts, brand; no data, nothing to
+    download, fixed 4:3 box, a still brand frame with reduced motion). The market snapshot shows source and exchange.
+  - **Latest from INRGIFT:** server-side social service over the official Instagram API and X API v2 (normalised,
+    cached per platform, trusted links only, per-platform failure). No credentials yet, so it shows follow cards.
 - **Production repair and hardening (8 Oct 2026, owner's final production brief):** audited live first
   (`/api/health`, Supabase auth logs, route probes, a 24-page × 11-viewport overflow scan), then fixed:
   - **"Supabase Auth" sign-up emails, root cause:** Supabase's built-in mailer (`noreply@mail.app.supabase.io`,
@@ -196,9 +211,9 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
   that match the type scale steps.
 
 ## Blockers needing the owner
-**Email (blocks every new sign-up):** Supabase → Authentication → Hooks → Send Email (HTTPS) on, URL
-`https://inrgift.com/api/hooks/send-email`, generate the secret → the same value as `SEND_EMAIL_HOOK_SECRET` on GoDaddy →
-restart. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
+**Email (blocks every new sign-up):** hook and secret are now live (8 Oct 2026); Supabase → Authentication → Sign In /
+Providers → Email → **Email OTP Length = 6** (currently 8). **Login code lifetime:** choose an option in
+`docs/AUTH-SECURITY.md`. **Social:** `INSTAGRAM_ACCESS_TOKEN`, `X_BEARER_TOKEN` on GoDaddy. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
 provider (live reports it disabled). **GIFT ID:** migration 0008, alone. **Deploy** the packaged zip.
 GoDaddy env vars and the Supabase URL/hook settings for inrgift.com · 2Factor.in DLT approval, key and template (SMS stays off until then) · Resend key and
 verified domain · NewsData.io key · Supabase secret key and hook; migration 0007 with the SMS switch · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·

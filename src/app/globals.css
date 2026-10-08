@@ -57,6 +57,25 @@
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
 }
+/* Homepage hero motion visual (src/features/home/hero-motion.tsx): six 2-second scenes in a 12-second loop, a slowly
+   turning globe, arcs and pulses. Opacity and transforms only (compositor work, no layout). */
+@layer components {
+  .hero-scene { opacity: 0; animation: hero-scene 12s cubic-bezier(0.22, 1, 0.36, 1) infinite both; }
+  .hero-meridian { transform-box: fill-box; transform-origin: center; animation: hero-meridian 12s linear infinite; }
+  .hero-arc { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hero-arc 6s ease-out infinite; }
+  .hero-pulse { transform-box: fill-box; transform-origin: center; animation: hero-pulse 3s ease-out infinite; }
+  .hero-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hero-draw 12s ease-out 8s infinite both; }
+  @keyframes hero-scene { 0% { opacity: 0; transform: translateY(8px); } 3% { opacity: 1; transform: none; } 14% { opacity: 1; transform: none; } 17% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 0; } }
+  @keyframes hero-meridian { 0% { transform: scaleX(1); } 50% { transform: scaleX(.08); } 100% { transform: scaleX(1); } }
+  @keyframes hero-arc { 0% { stroke-dashoffset: 1; opacity: 0; } 15% { opacity: 1; } 55% { stroke-dashoffset: 0; opacity: 1; } 85% { stroke-dashoffset: 0; opacity: 0; } 100% { stroke-dashoffset: 1; opacity: 0; } }
+  @keyframes hero-pulse { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+  @keyframes hero-draw { 0% { stroke-dashoffset: 1; } 12% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  /* The hero holds one still frame: the globe with its arcs drawn, and the brand. */
+  .hero-motion .hero-scene, .hero-motion .hero-meridian, .hero-motion .hero-pulse { animation: none !important; }
+  .hero-motion .hero-scene { opacity: 0; }
+  .hero-motion .hero-scene[data-poster] { opacity: 1; }
+  .hero-motion .hero-arc { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
 }

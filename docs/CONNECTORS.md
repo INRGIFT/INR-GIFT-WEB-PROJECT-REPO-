@@ -118,6 +118,12 @@ INVEST BEYOND BORDERS; support@inrgift.com, the company address, Instagram @inrg
 line; no third-party branding. Sender: `INRGIFT Support <support@inrgift.com>` (a bare `RESEND_FROM_EMAIL` address is
 given that display name).
 
+**Code length (8 Oct 2026):** after the hook was enabled, sign-up emails carried 8 digits: the project's Email OTP Length
+is `8` (Supabase's default for new hosted projects). The hook passes Supabase's code through unchanged and now refuses
+any length other than six (`EMAIL_OTP_LENGTH`, logged as `email_otp_length_mismatch` with the length only; shown on
+`/api/health` → `integrations.emailOtp`), and the code field no longer cuts a pasted longer code to six. Fix: Supabase
+→ Authentication → Sign In / Providers → Email → Email OTP Length = `6`.
+
 **Why sign-up emails said "Supabase Auth" (8 Oct 2026, from the Supabase auth logs):** the hook was not enabled in
 Supabase, so GoTrue's built-in mailer sent its default "Confirm your signup" link template from
 `noreply@mail.app.supabase.io` (display name "Supabase Auth"); `/api/hooks/send-email` was never called, and the live
@@ -134,9 +140,10 @@ hook so all mail goes through one adapter.)
 Apple follows the same path as Google below (`provider: 'apple'`; Apple posts back to Supabase's callback, never to
 INRGIFT). Apple shares a name only on the first authorisation and only if the person allows it, and may give a
 "Hide My Email" relay address: the relay address is kept as the account email, and `/complete-profile` asks for the
-name when none was shared (`profileMissing` → `name`). Each button is shown only when Supabase's `/auth/v1/settings`
-reports that provider enabled (`src/features/auth/oauth-providers.ts`); `APPLE_SIGN_IN=off` / `GOOGLE_SIGN_IN=off` hide
-one without touching Supabase. A cancelled or failed provider screen returns to `/login?error=oauth&provider=…`.
+name when none was shared (`profileMissing` → `name`). Both buttons are always shown; a provider that Supabase's
+`/auth/v1/settings` does not report enabled (`src/features/auth/oauth-providers.ts`) is never called, and its button says
+the sign-in is not available yet (no session, user or redirect). `APPLE_SIGN_IN=off` / `GOOGLE_SIGN_IN=off` mark one
+unavailable without touching Supabase. A cancelled or failed provider screen returns to `/login?error=oauth&provider=…`.
 Apple setup (owner, Apple Developer account): an App ID with Sign in with Apple, a Services ID (its identifier is the
 Client ID), return URL `https://odiflbsoitgktylaksng.supabase.co/auth/v1/callback`, domain `odiflbsoitgktylaksng.supabase.co`,
 a Sign in with Apple key (.p8, Key ID) and the Team ID; then Supabase → Authentication → Providers → Apple: enable,
@@ -150,6 +157,19 @@ model on `/complete-profile` (mobile number, password, country, terms; written b
 secret key into `app_metadata`). Accounts with the same verified email are linked by Supabase's automatic identity
 linking, which first removes unconfirmed identities (pre-account-takeover protection). The button appears only when
 Supabase reports the Google provider enabled (`/auth/v1/settings`); setup steps are in `docs/DEPLOY.md`.
+
+## Social: Instagram and X (official APIs, "Latest from INRGIFT")
+
+Homepage → `src/services/social/social-service.ts` (server only) → official API → normalise → cache (per platform,
+`SOCIAL_CACHE_SECONDS`, default 1800 s; last good posts served as STALE for up to 24 h after a failure) → homepage.
+- **Instagram API with Instagram Login:** `GET https://graph.instagram.com/v21.0/{INSTAGRAM_USER_ID|me}/media` with
+  fields `id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,username` and `INSTAGRAM_ACCESS_TOKEN` (a
+  long-lived token of the @inrgift professional account; Meta app with the Instagram API; renew before 60 days).
+- **X API v2:** `GET /2/users/by/username/INRGIFT` (or `X_USER_ID`), then `GET /2/users/{id}/tweets` with
+  `X_BEARER_TOKEN` (app-only; the X plan must include reading a user's posts).
+Only author, time, text (shortened), one image or video thumbnail and the permalink are read; links must be
+instagram.com / x.com and images the platforms' CDNs, over https. No engagement counts, no embeds or third-party scripts,
+no scraping. Without credentials (or when a platform fails) the section shows follow cards and nothing in place of posts.
 
 ## SMS: 2Factor.in
 

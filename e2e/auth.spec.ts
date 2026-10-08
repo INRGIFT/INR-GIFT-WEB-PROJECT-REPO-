@@ -94,6 +94,12 @@ test('email code: a wrong code stays on step 2, the correct code verifies and mo
   await expect(page.getByText('Step 2 of 3 · Verify email')).toBeVisible();
   await page.getByRole('button', { name: 'Verify email' }).click();
   await expect(page.getByText('Enter the 6-digit code from the email.')).toBeVisible();
+  // A code of the wrong length (Supabase's 8-digit default) is reported, never cut to six and sent as a wrong code.
+  await page.getByLabel('Email verification code').fill('12345678');
+  await expect(page.getByLabel('Email verification code')).toHaveValue('12345678');
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByText('That code has 8 digits. INRGIFT verification codes have 6 digits: request a new code below.')).toBeVisible();
+  await expect(page.getByText('Step 2 of 3 · Verify email')).toBeVisible();
   // Paste with spaces still gives six digits.
   await page.getByLabel('Email verification code').fill('123 456');
   await expect(page.getByLabel('Email verification code')).toHaveValue('123456');
