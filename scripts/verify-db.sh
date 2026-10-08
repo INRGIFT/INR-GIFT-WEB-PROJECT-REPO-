@@ -28,4 +28,22 @@ for f in "$ROOT"/supabase/migrations/000[1-6]_*.sql; do echo "pass 2: apply $(ba
 echo "pass 2: apply 0008_gift_id.sql (without 0007)"; "${PSQL2[@]}" -f "$ROOT/supabase/migrations/0008_gift_id.sql"
 "${PSQL2[@]}" -f "$ROOT/supabase/tests/gift-id.backfill.test.sql"
 "${PSQL2[@]}" -f "$ROOT/supabase/tests/gift-id.test.sql"
+# Concurrency: 12 parallel sessions repair the same account (profile removed, as with legacy data) and 12 more create
+# brand-new accounts at once. The account must end with exactly one GIFT ID, and no two accounts may share one.
+"${PSQL2[@]}" -c "insert into auth.users (id, email, raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000d1', 'd1@example.com', '{\"full_name\":\"Race\"}')"
+"${PSQL2[@]}" -c "alter table public.profiles disable trigger keep_profile; delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000d1'; alter table public.profiles enable trigger keep_profile;"
+pids=()
+for i in $(seq 1 12); do
+  "${PSQL2[@]}" -c "select public.ensure_user_profile('00000000-0000-0000-0000-0000000000d1')" >/dev/null & pids+=($!)
+  "${PSQL2[@]}" -c "insert into auth.users (email, raw_user_meta_data) values ('race$i@example.com', '{}')" >/dev/null & pids+=($!)
+done
+for p in "${pids[@]}"; do wait "$p"; done
+"${PSQL2[@]}" -c "do \$\$ begin
+  assert (select count(*) from public.gift_id_registry where user_id = '00000000-0000-0000-0000-0000000000d1') = 1, 'concurrent repair: one GIFT ID for the account';
+  assert (select count(*) from public.profiles where user_id = '00000000-0000-0000-0000-0000000000d1') = 1, 'concurrent repair: one profile';
+  assert (select count(*) from auth.users where email like 'race%') = 12, 'concurrent sign-ups all created';
+  assert not exists (select 1 from auth.users u left join public.profiles p on p.user_id = u.id where p.gift_id is null), 'no account without a GIFT ID';
+  assert not exists (select gift_id from public.profiles group by gift_id having count(*) > 1), 'no duplicate GIFT IDs';
+end \$\$;"
+echo "GIFT ID concurrency tests passed"
 echo "database verification passed"

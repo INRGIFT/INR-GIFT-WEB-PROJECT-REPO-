@@ -4,6 +4,12 @@ Keep this file current. It is the handover record. Start with `docs/CURRENT_STAT
 see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECISIONS.md` and the runtime audit `docs/AUDIT.md`.
 
 ## Done (typecheck, 218 unit/API tests, Playwright 144 + 6 skipped with SMS off and 148 + 2 skipped with SMS on, desktop and Pixel 7, local RLS + GIFT ID checks with and without migration 0007, builds, GoDaddy source zip)
+- **GIFT ID for every account (8 Oct 2026):** migration 0008 hardened before its first application: a deferred
+  constraint trigger rejects any new account without a profile and GIFT ID (every sign-up method), profiles cannot be
+  deleted while their account exists (owner-delete policy removed), `ensure_user_profile()` repairs idempotently.
+  DB tests: social (Google/Apple) accounts, commit-time rejection, repair, identity changes, concurrency (parallel
+  sessions). Production audit: 3 accounts, 3 profiles, 0 GIFT IDs (0008 not yet applied). Found: 0007 would block
+  social sign-ups (phone required in sign-up metadata); to fix before SMS is switched on.
 - **Auth correction, homepage hero and social (8 Oct 2026, owner's follow-up brief):**
   - **8-digit email codes, root cause:** the Supabase project's Email OTP Length is `8` (default for new hosted
     projects); the hook passed it through unchanged and the code field cut a pasted code to six, so `verifyOtp` failed
@@ -214,7 +220,8 @@ see also `docs/REQUIREMENTS_MATRIX.md`, `docs/ARCHITECTURE_AUDIT.md`, `docs/DECI
 **Email (blocks every new sign-up):** hook and secret are now live (8 Oct 2026); Supabase → Authentication → Sign In /
 Providers → Email → **Email OTP Length = 6** (currently 8). **Login code lifetime:** choose an option in
 `docs/AUTH-SECURITY.md`. **Social:** `INSTAGRAM_ACCESS_TOKEN`, `X_BEARER_TOKEN` on GoDaddy. **Apple:** Apple Developer Services ID, key, Team ID → Supabase Apple provider. **Google:** Supabase Google
-provider (live reports it disabled). **GIFT ID:** migration 0008, alone. **Deploy** the packaged zip.
+provider (live reports it disabled). **GIFT ID:** migration 0008, alone (hardened 8 Oct 2026; production still has 0 of 3 accounts with a GIFT ID until it
+is applied). **Deploy** the packaged zip.
 GoDaddy env vars and the Supabase URL/hook settings for inrgift.com · 2Factor.in DLT approval, key and template (SMS stays off until then) · Resend key and
 verified domain · NewsData.io key · Supabase secret key and hook; migration 0007 with the SMS switch · NSE product, licence and credentials (later) · lawyer-reviewed legal text and grievance officer ·
 analytics and error-reporting vendors.

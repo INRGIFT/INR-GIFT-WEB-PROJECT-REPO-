@@ -6,6 +6,8 @@
 --   loud without confusion). 40 random bits from gen_random_uuid() (pg_strong_random), no personal data, not sequential.
 -- * Unique for ever: every issued ID is kept in gift_id_registry, which has no foreign key and is never deleted, so an
 --   ID is never reissued, even after its account is deleted (it is marked retired instead).
+-- * Enforced by the database: a deferred check rejects any new auth.users row without a profile and GIFT ID (every
+--   sign-up method), a profile cannot be deleted while its account exists, and ensure_user_profile() repairs idempotently.
 -- * Not a credential: nothing authenticates or authorises with it. RLS keeps authorising by auth.uid(); support uses
 --   it as a reference only.
 --
@@ -101,21 +103,64 @@ alter table public.profiles alter column gift_id set not null;
 alter table public.profiles add constraint profiles_gift_id_key unique (gift_id);
 alter table public.profiles add constraint profiles_gift_id_registered foreign key (gift_id, user_id) references public.gift_id_registry (gift_id, user_id);
 
--- 8. Support lookup by GIFT ID (service role only: support staff tools, never the browser).
+-- 8. The invariant, enforced by the database for every way an account can be created (email + password, Google,
+--    Apple, the admin API, any future provider): an auth.users row cannot be committed without a profile carrying a
+--    GIFT ID. handle_new_user creates the profile in the same transaction (and the insert trigger above assigns the ID);
+--    this deferred check runs at commit, so if that chain is ever broken, the sign-up fails instead of leaving an
+--    account without a GIFT ID.
+create or replace function public.require_gift_id() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if not exists (select 1 from auth.users u where u.id = new.id) then return null; end if; -- created and removed in one transaction
+  if not exists (select 1 from public.profiles p where p.user_id = new.id and p.gift_id is not null) then
+    raise exception 'every INRGIFT account needs a profile with a GIFT ID' using errcode = 'not_null_violation';
+  end if;
+  return null;
+end $$;
+create constraint trigger require_gift_id after insert on auth.users deferrable initially deferred for each row execute function public.require_gift_id();
+
+--    A profile goes only with its account (ON DELETE CASCADE from auth.users): it cannot be deleted while the account
+--    exists, by a signed-in user (the owner-delete policy is removed) or by server code.
+drop policy if exists "owner deletes" on public.profiles;
+create or replace function public.profiles_keep_while_account_exists() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from auth.users u where u.id = old.user_id) then
+    raise exception 'a profile (and its GIFT ID) is removed only with its account' using errcode = 'check_violation';
+  end if;
+  return old;
+end $$;
+create trigger keep_profile before delete on public.profiles for each row execute function public.profiles_keep_while_account_exists();
+
+--    Repair, idempotent and safe to run concurrently: the account's profile and GIFT ID, created if missing, else the
+--    existing ones. Service role only (server code); a second call never makes a second ID.
+create or replace function public.ensure_user_profile(p_user uuid) returns text language plpgsql volatile security definer set search_path = '' as $$
+declare g text;
+begin
+  if not exists (select 1 from auth.users u where u.id = p_user) then raise exception 'ensure_user_profile: no such account'; end if;
+  insert into public.profiles (user_id, full_name) select u.id, u.raw_user_meta_data ->> 'full_name' from auth.users u where u.id = p_user
+  on conflict (user_id) do nothing;
+  select p.gift_id into g from public.profiles p where p.user_id = p_user;
+  return g;
+end $$;
+
+-- 9. Support lookup by GIFT ID (service role only: support staff tools, never the browser).
 create or replace function public.account_by_gift_id(p_gift_id text) returns table (user_id uuid, retired boolean) language sql stable security definer set search_path = '' as $$
   select r.user_id, r.retired_at is not null from public.gift_id_registry r where r.gift_id = upper(btrim(p_gift_id));
 $$;
 
--- 9. None of these functions is callable through the API by visitors or signed-in users.
+-- 10. None of these functions is callable through the API by visitors or signed-in users.
 revoke execute on function public.generate_gift_id() from public, anon, authenticated;
 revoke execute on function public.assign_gift_id(uuid) from public, anon, authenticated;
 revoke execute on function public.profiles_assign_gift_id() from public, anon, authenticated;
 revoke execute on function public.profiles_lock_gift_id() from public, anon, authenticated;
 revoke execute on function public.retire_gift_id() from public, anon, authenticated;
 revoke execute on function public.account_by_gift_id(text) from public, anon, authenticated;
+revoke execute on function public.require_gift_id() from public, anon, authenticated;
+revoke execute on function public.profiles_keep_while_account_exists() from public, anon, authenticated;
+revoke execute on function public.ensure_user_profile(uuid) from public, anon, authenticated;
 grant execute on function public.account_by_gift_id(text) to service_role;
+grant execute on function public.ensure_user_profile(uuid) to service_role;
 
--- 10. Verification: every account has exactly one GIFT ID, and no two accounts share one.
+-- 11. Verification: every account has exactly one GIFT ID, and no two accounts share one.
 do $$
 declare
   accounts bigint; distinct_ids bigint; missing bigint; duplicates bigint; registry_mismatch bigint;

@@ -104,6 +104,15 @@ Options (none implemented until the owner chooses):
   (`gen_random_uuid()`): no personal data, not sequential. Assigned by the database when the profile row is created
   (email and Google sign-ups alike), unique (`profiles_gift_id_key`), immutable (trigger), never reissued
   (`gift_id_registry` keeps every issued ID, marked retired when an account is deleted). Migration 0008.
+- **Database-enforced for every sign-up method** (email + password, Google, Apple, admin API, any future provider): a
+  deferred constraint trigger (`require_gift_id`) rejects, at commit, any new `auth.users` row without a profile and a
+  GIFT ID, so a failed assignment fails the sign-up instead of leaving an account without one. Assignment happens when
+  the account is created, before profile completion. A profile cannot be deleted while its account exists
+  (`keep_profile` trigger; no owner-delete policy). `ensure_user_profile(user_id)` (service role) repairs idempotently
+  and is safe concurrently (tested: 12 parallel repairs + 12 parallel sign-ups → one ID each, no duplicates).
+- **Known 0007 issue (unapplied, SMS on hold):** 0007's `reserve_signup_phone` requires a phone in the sign-up metadata
+  of every new account, but Google/Apple accounts give their number later on `/complete-profile`. Fix 0007 (reserve
+  the number at profile completion for social accounts) before applying it, or social sign-ups will fail.
 - **Never a credential.** No route, API or RLS policy authenticates or authorises with it; RLS keeps authorising by
   `auth.uid()`. Clients cannot read the registry or call the GIFT ID functions. Knowing someone's GIFT ID gives no access.
 - Read only from the session: `GET /api/v1/me` looks up the profile row by the session's user id. The support,

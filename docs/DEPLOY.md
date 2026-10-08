@@ -206,8 +206,10 @@ Supabase email templates and SMTP are not used. Leave **Phone** provider and **M
 2Factor.in via INRGIFT's server, never Supabase.
 
 ### Database migration 0008 (GIFT ID)
-Apply `supabase/migrations/0008_gift_id.sql` **on its own**, after the new code is deployed (the code works before and
-after: without the column, the GIFT ID shows as "being assigned").
+Apply `supabase/migrations/0008_gift_id.sql` **on its own** (the code works before and after: without the column, the
+GIFT ID shows as "being assigned"). Until it is applied, **no account has a GIFT ID** (8 Oct 2026: 3 accounts, 0 IDs).
+It backfills every existing account, then enforces the invariant for every future sign-up method (see
+`docs/AUTH-SECURITY.md`, GIFT ID).
 1. Supabase → SQL Editor → New query → paste the **whole** file → Run. PostgreSQL runs a multi-statement batch as one
    transaction, so if the verification at the end of the file fails, nothing is kept. Or use the Supabase MCP
    `apply_migration` with the file's contents.

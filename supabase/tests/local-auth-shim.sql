@@ -13,6 +13,8 @@ create table auth.users (
   email_confirmed_at timestamptz,
   phone_confirmed_at timestamptz,
   raw_user_meta_data jsonb not null default '{}'::jsonb,
+  raw_app_meta_data jsonb not null default '{}'::jsonb,
+  encrypted_password text,
   created_at timestamptz not null default now()
 );
 -- Sessions, as in Supabase (the JWT `session_id` claim is auth.sessions.id).

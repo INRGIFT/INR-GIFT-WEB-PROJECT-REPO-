@@ -161,14 +161,78 @@ drop function public.generate_gift_id();
 alter function public.generate_gift_id_real() rename to generate_gift_id;
 drop table public.test_gift_queue;
 
--- A profile created later for an existing account (missing-profile repair) gets that account's same GIFT ID back.
+-- A profile cannot be deleted while its account exists (not by the owner, not by server code).
+select pg_temp.must_fail($q$ delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1' $q$);
+select pg_temp.login('00000000-0000-0000-0000-0000000000c1');
+set role authenticated;
+do $$ declare n int; begin
+  delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
+  get diagnostics n = row_count;
+  assert n = 0, 'a signed-in user cannot delete their profile (no delete policy)';
+end $$;
+reset role;
+
+-- A profile created later for an existing account (missing-profile repair, e.g. legacy data with the guard bypassed)
+-- gets that account's same GIFT ID back, both by a plain insert and by ensure_user_profile(), which is idempotent.
+do $$
+declare before text; again text;
+begin
+  select gift_id into before from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
+  alter table public.profiles disable trigger keep_profile;
+  delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
+  alter table public.profiles enable trigger keep_profile;
+  insert into public.profiles (user_id, full_name, gift_id) values ('00000000-0000-0000-0000-0000000000c1', 'Gift One', 'GIFT-ZZZZZZZZ');
+  assert (select gift_id from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1') = before, 'a repaired profile keeps the account''s GIFT ID; a supplied value is ignored';
+  alter table public.profiles disable trigger keep_profile;
+  delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
+  alter table public.profiles enable trigger keep_profile;
+  again := public.ensure_user_profile('00000000-0000-0000-0000-0000000000c1');
+  assert again = before, 'ensure_user_profile recreates the profile with the same GIFT ID';
+  assert public.ensure_user_profile('00000000-0000-0000-0000-0000000000c1') = before, 'ensure_user_profile again changes nothing';
+  assert (select count(*) from public.gift_id_registry where user_id = '00000000-0000-0000-0000-0000000000c1') = 1, 'still one GIFT ID for the account';
+end $$;
+
+-- The invariant at commit: an account whose sign-up chain did not create a profile is rejected, whatever the sign-up
+-- method (simulated by switching handle_new_user's trigger off for one insert).
+alter table auth.users disable trigger on_auth_user_created;
+-- (a) checked at the end of the statement when constraints are immediate
+do $$ begin
+  set constraints all immediate;
+  begin
+    insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000c6', 'c6@example.com', now(), '{"full_name":"No Profile","phone":"+919800000106"}');
+    raise exception 'expected failure: an account without a GIFT ID was accepted';
+  exception when not_null_violation then null;
+  end;
+end $$;
+-- (b) and, by default, at commit: the standalone insert's transaction is rolled back.
+\set ON_ERROR_STOP 0
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000c6', 'c6@example.com', now(), '{"full_name":"No Profile","phone":"+919800000106"}');
+\set ON_ERROR_STOP 1
+alter table auth.users enable trigger on_auth_user_created;
+do $$ begin assert not exists (select 1 from auth.users where id = '00000000-0000-0000-0000-0000000000c6'), 'no account exists without a GIFT ID'; end $$;
+-- Social sign-ups (Google, Apple) are auth.users rows with an external identity and no password: same chain, same ID.
+-- (Without 0007, as in production today, they have no phone at creation. Migration 0007 currently requires a phone in
+-- the sign-up metadata of every account, social ones included; that is a known 0007 issue to fix before SMS is on, so
+-- with 0007 present these test accounts carry one.)
+do $$
+declare phone_g text := case when to_regclass('public.account_phones') is not null then ',"phone":"+919800000107"' else '' end;
+        phone_a text := case when to_regclass('public.account_phones') is not null then '"phone":"+919800000108"' else '' end;
+begin
+  execute format($i$insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data, raw_app_meta_data) values
+    ('00000000-0000-0000-0000-0000000000c7', 'g7@example.com', now(), '{"full_name":"Google Person"%s}', '{"provider":"google","providers":["google"]}'),
+    ('00000000-0000-0000-0000-0000000000c8', 'x8@privaterelay.appleid.com', now(), '{%s}', '{"provider":"apple","providers":["apple"]}')$i$, phone_g, phone_a);
+end $$;
+do $$ begin
+  assert (select count(*) from public.profiles where user_id in ('00000000-0000-0000-0000-0000000000c7', '00000000-0000-0000-0000-0000000000c8') and gift_id ~ '^GIFT-[0-9A-HJKMNP-TV-Z]{8}$') = 2, 'Google and Apple accounts get a GIFT ID at creation, before any profile completion';
+end $$;
+-- Identity changes never touch the GIFT ID (email change, password reset, phone change, sign-in metadata).
 do $$
 declare before text;
 begin
   select gift_id into before from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
-  delete from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1';
-  insert into public.profiles (user_id, full_name, gift_id) values ('00000000-0000-0000-0000-0000000000c1', 'Gift One', 'GIFT-ZZZZZZZZ');
-  assert (select gift_id from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1') = before, 'a repaired profile keeps the account''s GIFT ID; a supplied value is ignored';
+  update auth.users set email = 'c1-new@example.com', encrypted_password = 'changed', raw_user_meta_data = raw_user_meta_data || '{"country":"India"}' where id = '00000000-0000-0000-0000-0000000000c1';
+  update public.profiles set full_name = 'Renamed', country = 'India' where user_id = '00000000-0000-0000-0000-0000000000c1';
+  assert (select gift_id from public.profiles where user_id = '00000000-0000-0000-0000-0000000000c1') = before, 'GIFT ID unchanged by email, password and profile changes';
 end $$;
 
 -- Support lookup (service role): GIFT ID → account, case-insensitive.
