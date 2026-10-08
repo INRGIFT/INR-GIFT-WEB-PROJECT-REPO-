@@ -22,7 +22,7 @@ test('compliance pages are public, carry the company details and show no phone n
   await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
   const footer = page.locator('footer');
   for (const l of ['About', 'Support', 'Terms and Conditions', 'Privacy Policy', 'Risk Disclaimer', 'Grievance Redressal', 'Account Closure']) await expect(footer.getByRole('link', { name: l, exact: true }), l).toBeVisible();
-  await expect(footer.getByText('Invest Beyond Borders')).toBeVisible();
+  await expect(footer.getByText('Invest Beyond Borders', { exact: true })).toBeVisible();
 });
 
 test('account closure: required NSEIXGA text, validation, and an honest result when email delivery is unavailable', async ({ page }) => {

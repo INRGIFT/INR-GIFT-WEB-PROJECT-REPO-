@@ -29,8 +29,11 @@ test('signed-in research flow: search, asset, chart, compare, heatmap, screener'
   await signInDemo(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/invest\s*beyond\s*borders/i);
-  await page.keyboard.press('/');
-  await page.getByRole('combobox', { name: /Search assets/ }).fill('AAPL');
+  // "/" works once the page has hydrated; a key pressed before that is lost (a busy CI machine can be slow to hydrate),
+  // so press it until the search opens rather than assuming hydration is done.
+  const search = page.getByRole('combobox', { name: /Search assets/ });
+  await expect(async () => { await page.keyboard.press('/'); await expect(search).toBeVisible({ timeout: 1500 }); }).toPass({ timeout: 20_000 });
+  await search.fill('AAPL');
   await expect(page.getByRole('listbox', { name: 'Search results' }).getByRole('option').first()).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/stocks\/AAPL/);
